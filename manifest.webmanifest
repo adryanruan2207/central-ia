@@ -1,0 +1,10 @@
+{
+  "name": "CENTRAL IA",
+  "short_name": "CENTRAL IA",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08101f",
+  "theme_color": "#08101f",
+  "description": "Painel inteligente da CENTRAL IA."
+}
