@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#08101f"><meta name="description" content="CENTRAL IA — plataforma de inteligência artificial, negócios e automação.">
+<meta name="theme-color" content="#08101f"><link rel="manifest" href="./manifest.webmanifest"><meta name="description" content="CENTRAL IA — plataforma de inteligência artificial, negócios e automação.">
 <title>CENTRAL IA | Painel inteligente</title>
 <style>
 :root{color-scheme:dark;--bg:#08101f;--panel:#111d32;--line:#263957;--muted:#a7b6cf;--text:#f3f7ff;--cyan:#72dcff;--violet:#a99aff}
@@ -47,27 +47,56 @@
   const status = document.getElementById('notify-status');
   const enable = document.getElementById('enable-notifications');
   const test = document.getElementById('test-notification');
-  if (!('Notification' in window)) {
-    status.textContent = 'Este navegador não oferece suporte a notificações web. Experimente abrir o site no Chrome.';
-    enable.disabled = true; test.disabled = true; return;
-  }
+  let registration = null;
+  const secure = window.isSecureContext;
   const refresh = () => {
-    status.textContent = 'Permissão de notificações: ' + Notification.permission + '.';
-    enable.textContent = Notification.permission === 'granted' ? 'Notificações permitidas' : 'Ativar notificações';
+    if (!('Notification' in window)) {
+      status.textContent = 'Este navegador não oferece suporte a notificações web. Use o Chrome atualizado.';
+      enable.disabled = true; test.disabled = true; return;
+    }
+    status.textContent = 'Permissão: ' + Notification.permission + (registration ? ' • serviço de notificações instalado neste aparelho.' : ' • preparando serviço de notificações…');
+    enable.textContent = Notification.permission === 'granted' ? 'Permissão concedida' : 'Ativar notificações';
   };
-  refresh();
-  enable.addEventListener('click', async () => {
-    try { await Notification.requestPermission(); refresh(); }
-    catch (e) { status.textContent = 'Não foi possível solicitar a permissão neste navegador.'; }
-  });
-  test.addEventListener('click', () => {
-    if (Notification.permission !== 'granted') {
-      status.textContent = 'Primeiro toque em “Ativar notificações” e permita os avisos.';
+  async function setup() {
+    if (!('serviceWorker' in navigator) || !secure) {
+      status.textContent = 'Este navegador não permite instalar o serviço de notificações. Abra o site HTTPS no Chrome.';
       return;
     }
-    new Notification('CENTRAL IA', { body: 'As notificações deste dispositivo estão funcionando para testes.' });
-    status.textContent = 'Aviso de teste enviado neste dispositivo.';
+    try {
+      registration = await navigator.serviceWorker.register('./sw.js');
+      await navigator.serviceWorker.ready;
+      refresh();
+    } catch (err) {
+      status.textContent = 'Não foi possível instalar o serviço de notificações: ' + err.message;
+    }
+  }
+  enable.addEventListener('click', async () => {
+    try {
+      if (!('Notification' in window)) return refresh();
+      const permission = await Notification.requestPermission();
+      await setup();
+      refresh();
+      if (permission === 'granted') status.textContent = 'Permissão concedida neste aparelho. A entrega automática fora do site ainda depende de conectar o servidor de envio.';
+    } catch (err) { status.textContent = 'Não foi possível ativar: ' + err.message; }
   });
+  test.addEventListener('click', async () => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      status.textContent = 'Toque em “Ativar notificações” e permita os avisos primeiro.'; return;
+    }
+    try {
+      if (!registration) await setup();
+      if (registration) await registration.showNotification('CENTRAL IA', {
+        body: 'Aviso de teste: as notificações deste aparelho estão configuradas.',
+        icon: './icon-192.png',
+        badge: './icon-192.png',
+        tag: 'central-ia-test',
+        data: { url: './' }
+      });
+      else new Notification('CENTRAL IA', { body: 'Aviso de teste neste aparelho.' });
+      status.textContent = 'Aviso de teste enviado.';
+    } catch (err) { status.textContent = 'Falha no teste: ' + err.message; }
+  });
+  setup().then(refresh);
 })();
 </script>
 
