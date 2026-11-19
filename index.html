@@ -4,104 +4,95 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#000000">
-<meta name="description" content="CENTRAL IA — inteligência de mercado, negócios e automação em um só painel.">
+<meta name="description" content="CENTRAL IA — painel de inteligência e mercados.">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>CENTRAL IA | Inteligência em tempo real</title>
+<title>CENTRAL IA</title>
 <style>
-:root{color-scheme:dark;--bg:#000000;--panel:#0d1a2b;--panel2:#11233a;--line:#203752;--muted:#91a7c2;--text:#f2f7ff;--cyan:#54d9ed;--blue:#648cff;--green:#42d6a0;--purple:#a78bfa}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#000000;color:var(--text);font:15px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-a{color:inherit}.wrap{width:min(1180px,92%);margin:auto}.top{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}.brand{font-weight:950;letter-spacing:.13em;font-size:1.05rem}.brand span{color:var(--cyan)}.top-right{display:flex;align-items:center;gap:12px}.live{font-size:.74rem;color:#9af0d1;border:1px solid #2d755e;background:#12362f80;padding:5px 10px;border-radius:99px}.menu{display:flex;gap:18px;color:var(--muted);font-size:.86rem}.menu a{text-decoration:none}.menu a:hover{color:var(--cyan)}
-.hero{padding:56px 0 34px;display:grid;grid-template-columns:1.2fr .8fr;gap:30px;align-items:center}.eyebrow{font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);font-weight:850}.hero h1{font-size:clamp(2.4rem,6vw,4.6rem);line-height:1.02;letter-spacing:-.045em;margin:12px 0 16px}.gradient{background:linear-gradient(100deg,#fff,#8be9f5 52%,#b9a4ff);background-clip:text;color:transparent}.lead{color:var(--muted);max-width:620px;font-size:1.02rem}.hero-actions{display:flex;gap:11px;flex-wrap:wrap;margin-top:23px}.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:0;border-radius:11px;padding:11px 16px;font-weight:800;background:linear-gradient(110deg,var(--cyan),#9c9bff);color:#061321;cursor:pointer}.btn.secondary{background:#14263d;color:var(--text);border:1px solid var(--line)}.hero-panel{border:1px solid #31506c;background:linear-gradient(145deg,#112c43dd,#121b35dd);border-radius:22px;padding:22px;box-shadow:0 18px 55px #0005}.hero-panel small{color:var(--muted)}.hero-panel strong{display:block;font-size:1.4rem;margin:6px 0}.spark{height:70px;width:100%;margin-top:12px}
-.section{margin:24px 0 38px}.section-head{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:15px}.section-head h2{font-size:1.35rem;margin:0;letter-spacing:-.02em}.section-head p{color:var(--muted);font-size:.86rem;margin:3px 0 0}.eyebrow2{color:var(--cyan);font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;font-weight:800}
-.widget-shell{background:#0b1727;border:1px solid var(--line);border-radius:17px;overflow:hidden;padding:10px}.ticker-shell{padding:8px 0;margin:8px 0 28px;border:1px solid var(--line);border-radius:14px;background:#0b1727;overflow:hidden}.chart-shell{height:560px;background:#0b1727;border:1px solid var(--line);border-radius:18px;overflow:hidden;padding:8px}.chart-shell .tradingview-widget-container{height:100%;width:100%}.chart-shell .tradingview-widget-container__widget{height:calc(100% - 28px);width:100%}
-.market-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}.market-card{background:linear-gradient(145deg,#11243a,#0d1929);border:1px solid var(--line);border-radius:15px;padding:16px}.market-card b{font-size:.95rem}.market-card p{color:var(--muted);font-size:.8rem;margin:4px 0 0}.market-card .symbol{color:var(--cyan);font-size:.72rem;letter-spacing:.08em}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:linear-gradient(145deg,#12243a,#0c1828);border:1px solid var(--line);border-radius:16px;padding:19px;min-height:160px}.ico{font-size:1.65rem}.card h3{font-size:1rem;margin:8px 0 5px}.card p{color:var(--muted);font-size:.86rem;margin:0}.tag{display:inline-block;margin-top:13px;font-size:.68rem;color:#d9d2ff;background:#29264b;padding:4px 8px;border-radius:99px}
-.notice{background:#111f32;border:1px solid #31435b;border-radius:14px;padding:15px;color:var(--muted);font-size:.83rem;margin:20px 0 36px}.notice strong{color:var(--text)}.notify-card{background:linear-gradient(145deg,#12243a,#0c1828);border:1px solid var(--line);border-radius:16px;padding:18px}.notify-card p{color:var(--muted);font-size:.85rem}#notify-status{color:#c9d8ea}button:disabled{opacity:.5;cursor:not-allowed}
-footer{border-top:1px solid #ffffff12;padding:24px 0 34px;color:#8296b0;font-size:.8rem;text-align:center}
-@media(max-width:760px){.hero{grid-template-columns:1fr;padding-top:42px}.hero-panel{display:none}.menu{display:none}.market-grid{grid-template-columns:1fr}.chart-shell{height:480px}.section-head{align-items:start;flex-direction:column}.top{height:66px}}
-
-/* Tema solicitado: todas as letras do site em vermelho. */
-body, body * { color: #ff3030 !important; }
+:root{color-scheme:dark;--red:#ff3030;--red2:#ff5555;--bg:#000;--panel:#101010;--line:#3b1717;--muted:#c47a7a}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#000;color:var(--red);font:15px/1.55 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body *{color:var(--red)!important}a{color:var(--red)!important}.wrap{width:min(1200px,94%);margin:auto}
+header{height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}
+.brand{font-size:1.1rem;font-weight:950;letter-spacing:.16em;text-decoration:none}.brand span{color:#ff7777!important}
+.status{font-size:.72rem;border:1px solid #642222;border-radius:99px;padding:5px 10px;color:#ff7777!important}
+main{padding:24px 0 40px}.intro{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:5px 0 18px}.intro h1{font-size:clamp(1.5rem,4vw,2.2rem);margin:0;letter-spacing:-.04em}.intro p{margin:4px 0 0;color:#c47a7a!important;font-size:.88rem}
+button,.button{border:1px solid #a52828;background:#d71920;color:#fff!important;border-radius:11px;padding:11px 16px;font-weight:850;font-size:.9rem;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+button.secondary,.button.secondary{background:#140707;color:var(--red)!important;border-color:#652020}
+.ticker{background:#090909;border:1px solid var(--line);border-radius:13px;overflow:hidden;padding:7px 0;margin-bottom:16px}
+.chart{height:min(68vh,690px);min-height:420px;background:#090909;border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:8px}
+.chart .tradingview-widget-container,.chart .tradingview-widget-container__widget{height:100%;width:100%}
+.disclaimer{font-size:.75rem;color:#b66b6b!important;margin:9px 3px 0}
+footer{border-top:1px solid var(--line);padding:18px 0 26px;text-align:center;font-size:.76rem;color:#a75c5c!important}
+#resource-panel{display:none;position:fixed;inset:0;background:#000e;z-index:20;padding:18px;overflow:auto}
+#resource-panel.open{display:block}.panel-inner{max-width:950px;margin:3vh auto;background:#090909;border:1px solid #702020;border-radius:18px;padding:20px;box-shadow:0 20px 90px #000}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}.panel-head h2{margin:0;font-size:1.35rem}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.card{background:#111;border:1px solid #401919;border-radius:13px;padding:16px;min-height:125px}.card h3{margin:0 0 6px;font-size:1rem}.card p{margin:0;font-size:.82rem;color:#c47a7a!important}.card small{display:inline-block;margin-top:10px;color:#ff7777!important}
+.resource-section{margin:20px 0}.resource-section h3{font-size:1rem;border-bottom:1px solid #401919;padding-bottom:8px}
+.notice{background:#110909;border:1px solid #401919;border-radius:12px;padding:13px;font-size:.8rem;color:#c47a7a!important;margin-top:16px}
+#notify-status{color:#d88!important}
+@media(max-width:600px){header{height:60px}.intro{align-items:flex-start;flex-direction:column}.chart{height:60vh;min-height:390px}button,.button{padding:10px 13px}}
 </style>
 </head>
 <body>
-<header class="wrap top">
- <a class="brand" href="./" style="text-decoration:none">CENTRAL <span>IA</span></a>
- <nav class="menu"><a href="#mercados">Mercados</a><a href="#modulos">Módulos</a><a href="#notificacoes">Notificações</a></nav>
- <div class="top-right"><span class="live">● PAINEL ONLINE</span></div>
+<header class="wrap">
+<a class="brand" href="./">CENTRAL <span>IA</span></a>
+<div class="status">● PAINEL DE MERCADOS</div>
 </header>
 <main class="wrap">
-<section class="hero">
- <div><div class="eyebrow">Inteligência • Mercado • Automação</div><h1>Decisões melhores começam com <span class="gradient">informação.</span></h1><p class="lead">Sua central para acompanhar mercados, descobrir oportunidades e coordenar negócios digitais — com tecnologia, clareza e controle.</p><div class="hero-actions"><a class="btn" href="#mercados">Explorar mercados ↗</a><a class="btn secondary" href="#modulos">Ver plataforma</a></div></div>
- <aside class="hero-panel"><span class="eyebrow2">CENTRAL IA / MARKET DESK</span><strong>Seu centro de inteligência</strong><small>Gráficos interativos, ativos globais e acompanhamento de tendências em um só lugar.</small><svg class="spark" viewBox="0 0 320 70" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#54d9ed"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs><path d="M0 55 C22 50 25 24 48 34 S78 52 98 30 S130 45 150 22 S183 39 202 16 S234 36 252 19 S285 27 320 5" fill="none" stroke="url(#g)" stroke-width="3" stroke-linecap="round"/><path d="M0 55 C22 50 25 24 48 34 S78 52 98 30 S130 45 150 22 S183 39 202 16 S234 36 252 19 S285 27 320 5 V70 H0Z" fill="url(#g)" opacity=".10"/></svg></aside>
-</section>
-
-<section class="ticker-shell" aria-label="Cotações do mercado">
- <div class="tradingview-widget-container">
-  <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
-  {"symbols":[{"proName":"BMFBOVESPA:IBOV","title":"IBOVESPA"},{"proName":"BMFBOVESPA:PETR4","title":"PETROBRAS"},{"proName":"BMFBOVESPA:VALE3","title":"VALE"},{"proName":"NASDAQ:NDX","title":"NASDAQ 100"},{"proName":"SP:SPX","title":"S&P 500"},{"proName":"BINANCE:BTCUSDT","title":"BITCOIN"}],"showSymbolLogo":true,"isTransparent":true,"displayMode":"adaptive","colorTheme":"dark","locale":"br"}
-  </script>
- </div>
-</section>
-
-<section id="mercados" class="section">
- <div class="section-head"><div><div class="eyebrow2">Market desk</div><h2>Mercados e gráficos</h2><p>Acompanhe índices e ativos com gráficos interativos.</p></div></div>
- <div class="market-grid">
-  <div class="market-card"><span class="symbol">BRASIL • B3</span><br><b>Ibovespa</b><p>Índice de referência do mercado brasileiro.</p></div>
-  <div class="market-card"><span class="symbol">BRASIL • B3</span><br><b>Petrobras — PETR4</b><p>Acompanhe preço, volume e comportamento do ativo.</p></div>
-  <div class="market-card"><span class="symbol">BRASIL • B3</span><br><b>Vale — VALE3</b><p>Acompanhe preço, volume e comportamento do ativo.</p></div>
- </div>
- <div style="margin:16px 0 9px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><b>Gráfico avançado</b><span class="eyebrow2">Powered by TradingView</span></div>
- <div class="chart-shell">
-  <div class="tradingview-widget-container">
-   <div class="tradingview-widget-container__widget"></div>
-   <div class="tradingview-widget-copyright" style="font-size:11px;text-align:center;color:#8da3bd"><a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank" style="color:#8da3bd">Gráficos fornecidos pelo TradingView</a></div>
-   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-   {"autosize":true,"symbol":"BMFBOVESPA:IBOV","interval":"D","timezone":"America/Sao_Paulo","theme":"dark","style":"1","locale":"br","allow_symbol_change":true,"calendar":false,"details":true,"hide_side_toolbar":false,"hide_top_toolbar":false,"hide_legend":false,"hide_volume":false,"support_host":"https://www.tradingview.com"}
-   </script>
-  </div>
- </div>
- <div class="notice"><strong>Sobre os dados:</strong> os widgets são fornecidos pelo TradingView. A B3 é exibida gratuitamente nos widgets com atraso de 15 minutos; outros mercados podem ter condições diferentes. Portanto, esta página não deve ser usada como fonte de execução ou confirmação de preço em tempo real. <a href="https://www.tradingview.com/widget/" target="_blank" rel="noopener">Ver informações dos widgets</a>.</div>
-</section>
-
-<section id="modulos" class="section">
- <div class="section-head"><div><div class="eyebrow2">Ecossistema</div><h2>Módulos da CENTRAL IA</h2><p>As áreas que estamos construindo para sua operação digital.</p></div></div>
- <div class="grid">
-  <article class="card"><div class="ico">🛍️</div><h3>Afiliados e e-commerce</h3><p>Pesquisa de produtos, análise de oportunidades e apoio à gestão de vendas.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">📊</div><h3>Inteligência de mercado</h3><p>Tendências, concorrentes e oportunidades com dados verificáveis.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">📣</div><h3>Marketing e marketplaces</h3><p>Integração com plataformas de divulgação e canais de venda.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">📈</div><h3>Trading e análise</h3><p>Estudos técnicos e sinais informativos. Sem executar operações financeiras automaticamente.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">🎬</div><h3>Estúdio de vídeos com IA</h3><p>Pesquisa de tendências, palavras-chave e criação de conteúdo original.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">🚀</div><h3>Publicação e campanhas</h3><p>Planejamento, aprovação e acompanhamento de campanhas.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">💰</div><h3>Gestão financeira</h3><p>Receitas, despesas, custos e resultados do negócio.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
-  <article class="card"><div class="ico">🤖</div><h3>Central de automações</h3><p>Integrações, tarefas e atividades autorizadas em um painel.</p><span class="tag">EM DESENVOLVIMENTO</span></article>
- </div>
-</section>
-
-<section id="notificacoes" class="section">
- <div class="section-head"><div><div class="eyebrow2">Alertas</div><h2>Central de notificações</h2><p>Configure os avisos neste dispositivo.</p></div></div>
- <div class="notify-card">
-  <p id="notify-status" role="status" aria-live="polite">Verificando suporte a notificações…</p>
-  <div class="hero-actions" style="margin-top:12px;justify-content:flex-start">
-   <button class="btn" id="enable-notifications" type="button">Ativar notificações</button>
-   <button class="btn secondary" id="test-notification" type="button">Enviar aviso de teste</button>
-  </div>
-  <p>A permissão deste aparelho já pode estar concedida. Os avisos automáticos quando o site estiver fechado ainda dependem da conexão com o servidor de envio e do cadastro seguro deste dispositivo.</p>
- </div>
-</section>
-<aside class="notice"><strong>Segurança:</strong> a CENTRAL IA apresenta informações para acompanhamento e estudo. Análises não são garantia de resultado nem recomendação personalizada. Nenhuma ordem de compra, venda ou movimentação financeira será executada sem autorização explícita.</aside>
+<div class="intro">
+<div><h1>Mercados em foco</h1><p>Gráficos e cotações em um painel simples.</p></div>
+<button id="open-resources" type="button">☰ Todos os recursos</button>
+</div>
+<section class="ticker" aria-label="Cotações do mercado">
+<div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
+<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+{"symbols":[{"proName":"BMFBOVESPA:IBOV","title":"IBOVESPA"},{"proName":"BMFBOVESPA:PETR4","title":"PETR4"},{"proName":"BMFBOVESPA:VALE3","title":"VALE3"},{"proName":"NASDAQ:NDX","title":"NASDAQ 100"},{"proName":"SP:SPX","title":"S&P 500"},{"proName":"BINANCE:BTCUSDT","title":"BITCOIN"}],"showSymbolLogo":true,"isTransparent":true,"displayMode":"adaptive","colorTheme":"dark","locale":"br"}
+</script></div></section>
+<section class="chart" aria-label="Gráfico de mercado">
+<div class="tradingview-widget-container">
+<div class="tradingview-widget-container__widget"></div>
+<div class="tradingview-widget-copyright" style="font-size:10px;text-align:center"><a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">Gráficos fornecidos pelo TradingView</a></div>
+<script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+{"autosize":true,"symbol":"BMFBOVESPA:IBOV","interval":"D","timezone":"America/Sao_Paulo","theme":"dark","style":"1","locale":"br","allow_symbol_change":true,"calendar":false,"details":true,"hide_side_toolbar":false,"hide_top_toolbar":false,"hide_legend":false,"hide_volume":false,"support_host":"https://www.tradingview.com"}
+</script></div></section>
+<p class="disclaimer">Cotações e gráficos incorporados do TradingView. Alguns mercados, incluindo ações da B3 nos widgets gratuitos, podem apresentar atraso. Não use este painel como cotação garantida para executar operações.</p>
 </main>
-<footer class="wrap">© 2026 CENTRAL IA • Inteligência para conectar oportunidades</footer>
+<footer class="wrap">© 2026 CENTRAL IA</footer>
+
+<div id="resource-panel" role="dialog" aria-modal="true" aria-labelledby="resources-title">
+<div class="panel-inner">
+<div class="panel-head"><h2 id="resources-title">Todos os recursos</h2><button class="secondary" id="close-resources" type="button" aria-label="Fechar menu">✕ Fechar</button></div>
+<div class="resource-section"><h3>Negócios e crescimento</h3><div class="cards">
+<article class="card"><h3>🛍️ Afiliados e e-commerce</h3><p>Pesquisa de produtos, oportunidades e gestão de vendas.</p><small>EM DESENVOLVIMENTO</small></article>
+<article class="card"><h3>📣 Marketing e marketplaces</h3><p>Planejamento de divulgação e integração com canais de venda.</p><small>EM DESENVOLVIMENTO</small></article>
+<article class="card"><h3>🎬 Estúdio de vídeos com IA</h3><p>Pesquisa de tendências, palavras-chave e criação de conteúdo original.</p><small>EM DESENVOLVIMENTO</small></article>
+<article class="card"><h3>🚀 Publicação e campanhas</h3><p>Preparação, aprovação e acompanhamento de publicações.</p><small>EM DESENVOLVIMENTO</small></article>
+</div></div>
+<div class="resource-section"><h3>Análise e administração</h3><div class="cards">
+<article class="card"><h3>📊 Inteligência de mercado</h3><p>Análise de tendências, concorrentes e oportunidades.</p><small>EM DESENVOLVIMENTO</small></article>
+<article class="card"><h3>📈 Trading e análise</h3><p>Estudos técnicos e sinais informativos, sem executar operações financeiras automaticamente.</p><small>EM DESENVOLVIMENTO</small></article>
+<article class="card"><h3>💰 Gestão financeira</h3><p>Controle de receitas, despesas, custos e resultados.</p><small>EM DESENVOLVIMENTO</small></article>
+<article class="card"><h3>🤖 Central de automações</h3><p>Integrações e tarefas automatizadas com permissões seguras.</p><small>EM DESENVOLVIMENTO</small></article>
+</div></div>
+<div class="resource-section"><h3>Notificações</h3><div class="card">
+<p id="notify-status" role="status" aria-live="polite">Verificando suporte a notificações…</p>
+<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px"><button id="enable-notifications" type="button">Ativar notificações</button><button class="secondary" id="test-notification" type="button">Enviar aviso de teste</button></div>
+<p style="font-size:.78rem;margin-top:12px">Os avisos automáticos quando o site estiver fechado ainda dependem de configurar um servidor de envio e vincular este dispositivo.</p>
+</div></div>
+<div class="notice"><b>Segurança:</b> módulos identificados como “em desenvolvimento” ainda não executam tarefas. Operações financeiras, acesso a contas e publicações externas exigirão autorização explícita. Este painel fornece informações, não garantia de resultados.</div>
+</div></div>
 <script>
 (() => {
- const status=document.getElementById('notify-status'),enable=document.getElementById('enable-notifications'),test=document.getElementById('test-notification');let registration=null;
- const refresh=()=>{if(!('Notification'in window)){status.textContent='Este navegador não oferece suporte a notificações. Use o Chrome atualizado.';enable.disabled=true;test.disabled=true;return;}status.textContent='Permissão: '+Notification.permission+(registration?' • serviço instalado neste aparelho.':' • verificando serviço…');enable.textContent=Notification.permission==='granted'?'Permissão concedida':'Ativar notificações';};
- async function setup(){if(!('serviceWorker'in navigator)||!window.isSecureContext){status.textContent='Abra a CENTRAL IA pelo endereço HTTPS para ativar notificações.';return;}try{registration=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;refresh();}catch(err){status.textContent='Não foi possível instalar o serviço: '+err.message;}}
- enable.addEventListener('click',async()=>{try{if(!('Notification'in window))return refresh();const permission=await Notification.requestPermission();await setup();refresh();if(permission==='granted')status.textContent='Permissão concedida. O envio automático ainda exige conectar o servidor de notificações.';}catch(err){status.textContent='Não foi possível ativar: '+err.message;}});
- test.addEventListener('click',async()=>{if(!('Notification'in window)||Notification.permission!=='granted'){status.textContent='Ative as notificações e permita os avisos primeiro.';return;}try{if(!registration)await setup();if(registration)await registration.showNotification('CENTRAL IA',{body:'Aviso de teste: as notificações deste aparelho estão configuradas.',icon:'./icon.svg',badge:'./icon.svg',tag:'central-ia-test',data:{url:'./'}});else new Notification('CENTRAL IA',{body:'Aviso de teste neste aparelho.'});status.textContent='Aviso de teste enviado.';}catch(err){status.textContent='Falha no teste: '+err.message;}});
- setup().then(refresh);
+const panel=document.getElementById('resource-panel');
+document.getElementById('open-resources').addEventListener('click',()=>{panel.classList.add('open');document.getElementById('close-resources').focus();});
+document.getElementById('close-resources').addEventListener('click',()=>panel.classList.remove('open'));
+panel.addEventListener('click',e=>{if(e.target===panel)panel.classList.remove('open');});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')panel.classList.remove('open');});
+const status=document.getElementById('notify-status'),enable=document.getElementById('enable-notifications'),test=document.getElementById('test-notification');let registration=null;
+async function setup(){if(!('Notification'in window)){status.textContent='Este navegador não oferece suporte a notificações.';enable.disabled=true;test.disabled=true;return;}if(!('serviceWorker'in navigator)||!window.isSecureContext){status.textContent='Abra o site por HTTPS para ativar notificações.';return;}try{registration=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;status.textContent='Permissão atual: '+Notification.permission+'. Serviço instalado neste aparelho.';enable.textContent=Notification.permission==='granted'?'Permissão concedida':'Ativar notificações';}catch(err){status.textContent='Não foi possível instalar o serviço: '+err.message;}}
+enable.addEventListener('click',async()=>{try{const p=await Notification.requestPermission();await setup();if(p==='granted')status.textContent='Permissão concedida. Envio automático ainda requer servidor de notificações.';}catch(e){status.textContent='Falha ao ativar: '+e.message;}});
+test.addEventListener('click',async()=>{if(!('Notification'in window)||Notification.permission!=='granted'){status.textContent='Ative e permita as notificações primeiro.';return;}try{if(!registration)await setup();if(registration)await registration.showNotification('CENTRAL IA',{body:'Aviso de teste: notificações deste aparelho estão configuradas.',icon:'./icon.svg',tag:'central-ia-test'});else new Notification('CENTRAL IA',{body:'Aviso de teste.'});status.textContent='Aviso de teste enviado.';}catch(e){status.textContent='Falha no teste: '+e.message;}});
+setup();
 })();
 </script>
-</body>
-</html>
+</body></html>
