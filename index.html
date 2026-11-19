@@ -17,6 +17,9 @@ header{height:68px;display:flex;align-items:center;justify-content:space-between
 main{padding:24px 0 40px}.intro{display:flex;justify-content:space-between;align-items:center;gap:14px;margin:5px 0 18px}.intro h1{font-size:clamp(1.5rem,4vw,2.2rem);margin:0;letter-spacing:-.04em}.intro p{margin:4px 0 0;color:#c47a7a!important;font-size:.88rem}
 button,.button{border:1px solid #a52828;background:#d71920;color:#fff!important;border-radius:11px;padding:11px 16px;font-weight:850;font-size:.9rem;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
 button.secondary,.button.secondary{background:#140707;color:var(--red)!important;border-color:#652020}
+/* Botao principal sempre visivel, inclusive em telas pequenas. */
+#open-resources{position:fixed;right:18px;bottom:22px;z-index:18;min-height:54px;padding:14px 20px;border:2px solid #ff7777;background:#e00000;color:#fff!important;box-shadow:0 6px 28px #ff000066;font-size:1rem;border-radius:15px}
+#open-resources:focus-visible{outline:3px solid #fff;outline-offset:4px}
 .ticker{background:#090909;border:1px solid var(--line);border-radius:13px;overflow:hidden;padding:7px 0;margin-bottom:16px}
 .chart{height:min(68vh,690px);min-height:420px;background:#090909;border:1px solid var(--line);border-radius:16px;overflow:hidden;padding:8px}
 .chart .tradingview-widget-container,.chart .tradingview-widget-container__widget{height:100%;width:100%}
