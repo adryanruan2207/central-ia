@@ -1,43 +1,29 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#101827">
-<title>CENTRAL IA</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08101f"><meta name="description" content="CENTRAL IA — plataforma de inteligência artificial, negócios e automação.">
+<title>CENTRAL IA | Painel inteligente</title>
 <style>
-:root{color-scheme:dark;--bg:#0b1220;--panel:#131e30;--line:#26364e;--muted:#9aabc2;--text:#f3f6fb;--accent:#61d6b3}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#19314a 0,transparent 34%),var(--bg);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif}
-header{padding:26px max(20px,calc((100% - 1100px)/2));border-bottom:1px solid var(--line);background:#0b1220cc}
-.brand{font-size:12px;letter-spacing:.2em;color:var(--accent);font-weight:800}.hero{max-width:1100px;margin:38px auto 24px;padding:0 20px}.hero h1{font-size:clamp(30px,6vw,48px);margin:8px 0}.hero p,.muted{color:var(--muted);line-height:1.6}
-.wrap{max-width:1100px;margin:auto;padding:0 20px 50px}.status{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:30px;padding:8px 12px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#e6b85c}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:20px}.card{background:linear-gradient(145deg,#17253a,#111b2b);border:1px solid var(--line);border-radius:16px;padding:20px;min-height:175px}.icon{font-size:25px}.card h2{font-size:18px;margin:12px 0 6px}.card p{font-size:14px;color:var(--muted);line-height:1.5;margin:0}.tag{display:inline-block;margin-top:15px;color:#e6b85c;font-size:12px;font-weight:700}
-.section{margin-top:30px}.section h2{font-size:20px}.notice{border:1px solid #6c5730;background:#30281766;padding:16px;border-radius:12px;color:#ead9b4;line-height:1.55;font-size:14px}
-footer{border-top:1px solid var(--line);padding:22px;text-align:center;color:var(--muted);font-size:12px}
-</style>
-</head>
+:root{color-scheme:dark;--bg:#08101f;--panel:#111d32;--line:#263957;--muted:#a7b6cf;--text:#f3f7ff;--cyan:#72dcff;--violet:#a99aff}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 15% -5%,#1b3760 0,transparent 38%),var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{width:min(1080px,92%);margin:auto}.top{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18}.brand{font-weight:900;letter-spacing:.14em}.brand span{color:var(--cyan)}.status{font-size:.78rem;color:#b9f5d0;border:1px solid #367d62;padding:5px 10px;border-radius:99px}
+.hero{text-align:center;padding:76px 0 62px}.eyebrow{color:var(--cyan);font-weight:750;letter-spacing:.16em;text-transform:uppercase;font-size:.76rem}h1{font-size:clamp(2.7rem,8vw,5.2rem);line-height:1.04;margin:16px 0;background:linear-gradient(100deg,#fff,#8edfff 55%,#b3a5ff);background-clip:text;color:transparent}.lead{max-width:690px;margin:auto;color:var(--muted);font-size:1.08rem}.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:27px}.btn{display:inline-block;text-decoration:none;padding:11px 18px;border-radius:12px;font-weight:750;background:linear-gradient(100deg,var(--cyan),var(--violet));color:#07101e}.btn.alt{background:#17243b;color:var(--text);border:1px solid var(--line)}
+.section-head{margin:12px 0 20px}.section-head h2{font-size:1.65rem;margin:0}.section-head p{color:var(--muted);margin:4px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:15px;padding-bottom:40px}.card{background:linear-gradient(145deg,#15233c,#0e192b);border:1px solid var(--line);border-radius:17px;padding:20px;min-height:190px}.ico{font-size:1.8rem}.card h3{margin:10px 0 5px;font-size:1.08rem}.card p{color:var(--muted);font-size:.92rem;margin:0}.tag{display:inline-block;margin-top:15px;font-size:.72rem;color:#d8d0ff;background:#29264b;padding:4px 9px;border-radius:99px}
+.note{border:1px solid #35415c;background:#111a2e;border-radius:14px;padding:17px;color:var(--muted);margin:4px 0 45px;font-size:.9rem}footer{border-top:1px solid #ffffff18;padding:23px 0 32px;color:#8493ad;font-size:.83rem;text-align:center}
+@media(max-width:560px){.hero{padding:58px 0 44px}.top{height:66px}}
+</style></head>
 <body>
-<header><div class="brand">CENTRAL IA</div></header>
-<main>
-<section class="hero">
-<div class="status"><span class="dot"></span> Protótipo inicial • módulos em preparação</div>
-<h1>Sua central de inteligência.</h1>
-<p>Um espaço para acompanhar e organizar os projetos de inteligência artificial em um só lugar.</p>
-</section>
-<div class="wrap">
-<section class="grid" aria-label="Módulos da plataforma">
-<article class="card"><div class="icon">🛍️</div><h2>Afiliados e e-commerce</h2><p>Pesquisa de produtos, análise de oportunidades e organização de anúncios.</p><span class="tag">EM PLANEJAMENTO</span></article>
-<article class="card"><div class="icon">📈</div><h2>Inteligência de trading</h2><p>Estudos de mercado, indicadores e sinais informativos. Sem executar operações financeiras.</p><span class="tag">EM PLANEJAMENTO</span></article>
-<article class="card"><div class="icon">🎬</div><h2>Estúdio de conteúdo</h2><p>Ideias, roteiros e planejamento de vídeos originais para canais digitais.</p><span class="tag">EM PLANEJAMENTO</span></article>
-<article class="card"><div class="icon">🔎</div><h2>Inteligência de mercado</h2><p>Acompanhamento de tendências, concorrência e oportunidades.</p><span class="tag">EM PLANEJAMENTO</span></article>
-<article class="card"><div class="icon">💰</div><h2>Financeiro</h2><p>Organização de receitas, despesas, custos e resultados.</p><span class="tag">EM PLANEJAMENTO</span></article>
-<article class="card"><div class="icon">🤖</div><h2>Central de automações</h2><p>Futuras integrações para executar tarefas autorizadas com supervisão.</p><span class="tag">EM PLANEJAMENTO</span></article>
-</section>
-<section class="section"><h2>Próximos passos</h2><p class="muted">Esta é a primeira versão visual. As integrações, banco de dados, autenticação e automações ainda precisam ser configurados.</p>
-<div class="notice"><strong>Segurança:</strong> a plataforma não deve guardar senhas ou chaves secretas no código. Ações que envolvam dinheiro, publicação ou acesso a contas precisarão de autorização explícita.</div>
-</section>
-</div>
-</main>
-<footer>CENTRAL IA • Projeto em desenvolvimento</footer>
-</body>
-</html>
+<header class="wrap top"><div class="brand">CENTRAL <span>IA</span></div><div class="status">● Projeto iniciado</div></header>
+<main class="wrap">
+<section class="hero"><div class="eyebrow">Tecnologia • Inteligência • Automação</div><h1>Sua central inteligente.</h1><p class="lead">Um só lugar para organizar projetos de inteligência artificial, oportunidades digitais e automações. Estamos construindo a CENTRAL IA por etapas.</p><div class="actions"><a class="btn" href="#modulos">Explorar módulos</a><a class="btn alt" href="https://github.com/adryanruan2207/central-ia" target="_blank" rel="noopener">Repositório do projeto</a></div></section>
+<section id="modulos"><div class="section-head"><h2>Módulos da CENTRAL IA</h2><p>Visão inicial das áreas que farão parte da plataforma.</p></div><div class="grid">
+<article class="card"><div class="ico">🛍️</div><h3>Afiliados e e-commerce</h3><p>Pesquisa de produtos, análise de oportunidades e apoio à gestão de anúncios e vendas digitais.</p><span class="tag">EM PLANEJAMENTO</span></article>
+<article class="card"><div class="ico">📊</div><h3>Inteligência de mercado</h3><p>Acompanhamento de tendências, concorrência e oportunidades com dados verificáveis.</p><span class="tag">EM PLANEJAMENTO</span></article>
+<article class="card"><div class="ico">📈</div><h3>Análise de trading</h3><p>Estudos de mercado e sinais informativos. Nenhuma operação financeira será executada automaticamente.</p><span class="tag">EM PLANEJAMENTO</span></article>
+<article class="card"><div class="ico">🎬</div><h3>Estúdio de conteúdo</h3><p>Planejamento, roteiros e criação de conteúdo original para canais digitais, respeitando direitos autorais.</p><span class="tag">EM PLANEJAMENTO</span></article>
+<article class="card"><div class="ico">💰</div><h3>Gestão financeira</h3><p>Organização de receitas, despesas, custos e resultados do projeto.</p><span class="tag">EM PLANEJAMENTO</span></article>
+<article class="card"><div class="ico">🤖</div><h3>Central de automações</h3><p>Painel para acompanhar tarefas, integrações e atividades autorizadas.</p><span class="tag">EM PLANEJAMENTO</span></article>
+</div></section>
+<aside class="note"><strong>Importante:</strong> esta é a primeira versão visual do site. Integrações, banco de dados, autenticação e automações ainda precisam ser configurados. Senhas e chaves secretas não devem ser inseridas no código. Publicações e ações financeiras exigirão autorização explícita.</aside>
+</main><footer class="wrap">© 2026 CENTRAL IA • Projeto em desenvolvimento</footer></body></html>
