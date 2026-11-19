@@ -1,0 +1,7 @@
+name = "central-ia-api"
+main = "worker.js"
+compatibility_date = "2026-11-19"
+workers_dev = true
+
+[triggers]
+crons = ["0 */6 * * *"]
