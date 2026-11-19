@@ -24,8 +24,8 @@ self.addEventListener('push', event => {
   catch (_) { if (event.data) data.body = event.data.text(); }
   event.waitUntil(self.registration.showNotification(data.title, {
     body: data.body,
-    icon: './icon-192.png',
-    badge: './icon-192.png',
+    icon: './icon.svg',
+    badge: './icon.svg',
     tag: data.tag || 'central-ia-alert',
     renotify: true,
     data: { url: data.url || './' }
