@@ -82,6 +82,11 @@ footer{border-top:1px solid var(--line);padding:18px 0 26px;text-align:center;fo
 <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px"><button id="enable-notifications" type="button">Ativar notificações</button><button class="secondary" id="test-notification" type="button">Enviar aviso de teste</button></div>
 <p style="font-size:.78rem;margin-top:12px">Os avisos automáticos quando o site estiver fechado ainda dependem de configurar um servidor de envio e vincular este dispositivo.</p>
 </div></div>
+<div class="resource-section"><h3>Administração e manutenção</h3><div class="cards">
+<article class="card"><h3>🛠️ Diagnóstico da plataforma</h3><p>Verifique conexão, navegador, notificações e instalação do aplicativo neste aparelho.</p><button type="button" id="run-diagnostics" style="margin-top:12px">Executar diagnóstico</button><p id="diagnostic-result" role="status" aria-live="polite" style="margin-top:10px"></p></article>
+<article class="card"><h3>🧰 Relatar erro ou pedir melhoria</h3><p>Gere um relatório técnico para facilitar a correção e o desenvolvimento.</p><button type="button" id="copy-diagnostic" class="secondary" style="margin-top:12px">Copiar relatório</button><a class="button secondary" style="margin-top:9px" href="https://github.com/adryanruan2207/central-ia/issues/new" target="_blank" rel="noopener">Abrir suporte técnico</a></article>
+<article class="card"><h3>📋 Próximas etapas</h3><p>Integração de notificações push no servidor, módulos inteligentes, conexões seguras e painel de tarefas.</p><small>AGUARDANDO CONFIGURAÇÃO</small></article>
+</div></div>
 <div class="notice"><b>Segurança:</b> módulos identificados como “em desenvolvimento” ainda não executam tarefas. Operações financeiras, acesso a contas e publicações externas exigirão autorização explícita. Este painel fornece informações, não garantia de resultados.</div>
 </div></div>
 <script>
@@ -96,6 +101,26 @@ async function setup(){if(!('Notification'in window)){status.textContent='Este n
 enable.addEventListener('click',async()=>{try{const p=await Notification.requestPermission();await setup();if(p==='granted')status.textContent='Permissão concedida. Envio automático ainda requer servidor de notificações.';}catch(e){status.textContent='Falha ao ativar: '+e.message;}});
 test.addEventListener('click',async()=>{if(!('Notification'in window)||Notification.permission!=='granted'){status.textContent='Ative e permita as notificações primeiro.';return;}try{if(!registration)await setup();if(registration)await registration.showNotification('CENTRAL IA',{body:'Aviso de teste: notificações deste aparelho estão configuradas.',icon:'./icon.svg',tag:'central-ia-test'});else new Notification('CENTRAL IA',{body:'Aviso de teste.'});status.textContent='Aviso de teste enviado.';}catch(e){status.textContent='Falha no teste: '+e.message;}});
 setup();
+let diagnosticText='';
+function runDiagnostics(){
+ const checks=[
+ ['Site seguro (HTTPS)',window.isSecureContext],
+ ['Service Worker',('serviceWorker'in navigator)],
+ ['Notificações no navegador',('Notification'in window)],
+ ['Permissão de notificação',('Notification'in window)&&Notification.permission==='granted'],
+ ['Service Worker registrado',!!registration],
+ ['Conexão com a internet',navigator.onLine]
+ ];
+ diagnosticText='CENTRAL IA — RELATÓRIO DE DIAGNÓSTICO\\nData: '+new Date().toLocaleString('pt-BR')+'\\nNavegador: '+navigator.userAgent+'\\n\\n'+checks.map(([name,ok])=>(ok?'OK':'PENDENTE')+' — '+name).join('\\n')+'\\n\\nObservação: notificações push automáticas exigem servidor de envio e chaves VAPID; a permissão do navegador sozinha não envia alertas.';
+ document.getElementById('diagnostic-result').textContent=checks.filter(x=>!x[1]).length+' item(ns) pendente(s). Relatório pronto para copiar.';
+}
+document.getElementById('run-diagnostics')?.addEventListener('click',runDiagnostics);
+document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
+ if(!diagnosticText)runDiagnostics();
+ try{await navigator.clipboard.writeText(diagnosticText);document.getElementById('diagnostic-result').textContent='Relatório copiado. Cole-o na solicitação de suporte.';}
+ catch(e){document.getElementById('diagnostic-result').textContent='Não foi possível copiar automaticamente neste navegador.';}
+});
 })();
+
 </script>
 </body></html>
