@@ -1,0 +1,14 @@
+name = "central-ia-worker"
+main = "src/index.js"
+compatibility_date = "2026-11-19"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "central-ia-db"
+database_id = "SUBSTITUA_PELO_ID_DO_D1"
+
+[triggers]
+crons = ["*/15 * * * *"]
