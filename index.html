@@ -278,8 +278,12 @@ footer{font-size:.9rem;color:#999!important}
 <div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
 <div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
 </div>
-<label for="chat-message" style="display:block;margin-top:12px;font-size:.82rem">Sua mensagem</label>
-<textarea id="chat-message" rows="3" maxlength="4000" placeholder="Digite sua mensagem..." style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important;resize:vertical"></textarea>
+<label for="chat-image" style="display:block;margin-top:14px;font-size:.98rem">Anexar print ou imagem</label>
+<input id="chat-image" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:8px;padding:12px;background:#212121;border:1px solid #555;border-radius:12px;color:#fff!important">
+<p id="image-preview-status" role="status" aria-live="polite" style="font-size:.88rem;color:#bdbdbd!important;margin:7px 0">Você pode enviar uma captura de tela para a IA analisar. Máximo 3 MB.</p>
+<div id="image-preview" hidden style="margin:8px 0"><img id="chat-image-preview" alt="Prévia da imagem anexada" style="display:block;max-width:100%;max-height:240px;border-radius:12px;border:1px solid #555"><button id="remove-chat-image" type="button" class="secondary" style="margin-top:8px">Remover imagem</button></div>
+<label for="chat-message" style="display:block;margin-top:12px;font-size:.98rem">Sua mensagem</label>
+<textarea id="chat-message" rows="3" maxlength="4000" placeholder="Digite sua mensagem ou explique o que deseja saber sobre o print..." style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important;resize:vertical"></textarea>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
 <button id="send-chat" type="button">Enviar mensagem</button>
 <button id="clear-chat" type="button" class="secondary">Limpar conversa</button>
@@ -342,6 +346,32 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')panel.classList.remo
 
 const chatToken=document.getElementById('chat-token');
 const chatMessage=document.getElementById('chat-message');
+const chatImage=document.getElementById('chat-image');
+const imagePreview=document.getElementById('image-preview');
+const chatImagePreview=document.getElementById('chat-image-preview');
+const imagePreviewStatus=document.getElementById('image-preview-status');
+let selectedImageData='';
+chatImage.addEventListener('change',()=>{
+ const file=chatImage.files&&chatImage.files[0];
+ selectedImageData='';
+ imagePreview.hidden=true;
+ if(!file){imagePreviewStatus.textContent='Você pode enviar uma captura de tela para a IA analisar. Máximo 3 MB.';return;}
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)){chatImage.value='';imagePreviewStatus.textContent='Formato não suportado. Use JPEG, PNG ou WEBP.';return;}
+ if(file.size>3*1024*1024){chatImage.value='';imagePreviewStatus.textContent='A imagem ultrapassa 3 MB. Envie uma captura menor.';return;}
+ const reader=new FileReader();
+ reader.onload=()=>{
+  selectedImageData=String(reader.result||'');
+  chatImagePreview.src=selectedImageData;
+  imagePreview.hidden=false;
+  imagePreviewStatus.textContent='Imagem pronta para enviar: '+file.name;
+ };
+ reader.onerror=()=>{chatImage.value='';imagePreviewStatus.textContent='Não foi possível ler a imagem. Tente novamente.';};
+ reader.readAsDataURL(file);
+});
+document.getElementById('remove-chat-image').addEventListener('click',()=>{
+ selectedImageData='';chatImage.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;
+ imagePreviewStatus.textContent='Imagem removida. Você pode anexar outra.';
+});
 const chatLog=document.getElementById('chat-log');
 const chatStatus=document.getElementById('chat-status');
 const sendChat=document.getElementById('send-chat');
@@ -381,17 +411,19 @@ function addChatLine(who,text){
 }
 async function sendChatMessage(){
  const message=chatMessage.value.trim();
+ const image=selectedImageData;
  if(!sessionToken){chatStatus.textContent='Entre com sua senha para conversar.';chatToken.focus();return;}
- if(!message){chatStatus.textContent='Digite uma mensagem antes de enviar.';chatMessage.focus();return;}
- sendChat.disabled=true;chatStatus.textContent='A CENTRAL IA está pensando…';
- addChatLine('Você',message);chatMessage.value='';
+ if(!message&&!image){chatStatus.textContent='Digite uma mensagem ou anexe uma imagem.';chatMessage.focus();return;}
+ sendChat.disabled=true;chatStatus.textContent=image?'A CENTRAL IA está analisando a imagem…':'A CENTRAL IA está pensando…';
+ addChatLine('Você',message||(image?'[Imagem enviada para análise]':''));
+ chatMessage.value='';
  try{
-  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message})});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message,image:image||undefined})});
   const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
   if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);updateSessionUI();throw new Error('Sua sessão expirou. Entre novamente.');}
   if(!response.ok)throw new Error(data.error||('Erro HTTP '+response.status));
   if(typeof data.answer!=='string')throw new Error('O servidor não retornou uma resposta de texto.');
-  addChatLine('CENTRAL IA',data.answer);chatStatus.textContent='Resposta recebida com sucesso.';
+  addChatLine('CENTRAL IA',data.answer);if(image){selectedImageData='';chatImage.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem analisada. Você pode anexar outro print.';}chatStatus.textContent='Resposta recebida com sucesso.';
  }catch(error){addChatLine('Aviso',error.message);chatStatus.textContent='Não foi possível concluir a mensagem.';}
  finally{sendChat.disabled=false;}
 }
