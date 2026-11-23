@@ -122,7 +122,7 @@ async function handle(request, env) {
     return json({
       service: "CENTRAL IA",
       automation: "cloud-cron",
-      schedule: "A cada 15 minutos",
+      schedule: "A cada 5 minutos",
       last_check: heartbeat?.created_at || null,
       tasks: {
         queued: tasks.queued || 0,
