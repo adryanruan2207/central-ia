@@ -72,23 +72,42 @@ async function handle(request, env) {
     let body;
     try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
     const message = typeof body.message === "string" ? body.message.trim() : "";
-    if (!message) return json({ error: "Informe uma mensagem" }, 400);
+    const image = typeof body.image === "string" ? body.image : "";
+    if (!message && !image) return json({ error: "Escreva uma mensagem ou anexe uma imagem." }, 400);
     if (message.length > 4000) return json({ error: "Mensagem muito longa (máximo 4000 caracteres)" }, 413);
+    if (image && (image.length > 5_500_000 || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image))) {
+      return json({ error: "Imagem inválida ou muito grande. Envie JPEG, PNG ou WEBP de até 3 MB." }, 413);
+    }
     const currentDateTime = new Intl.DateTimeFormat("pt-BR", {
       dateStyle: "full", timeStyle: "short", timeZone: "America/Sao_Paulo"
     }).format(new Date());
-    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
-      messages: [
-        { role: "system", content: `Você é a CENTRAL IA, assistente em português do Brasil. Data e hora atuais: ${currentDateTime} (fuso horário de Brasília, America/Sao_Paulo). Quando perguntarem o ano, a data ou a hora atuais, use esta informação como fonte correta e não suponha datas antigas. Responda com clareza, seja honesto sobre limitações e nunca afirme ter executado ações que não foram realizadas. Não faça transações financeiras nem ordens de trading.` },
-        { role: "user", content: message }
-      ],
-      max_tokens: 512,
-      temperature: 0.3
-    });
+    const systemPrompt = `Você é a CENTRAL IA, assistente em português do Brasil. Data e hora atuais: ${currentDateTime} (fuso horário de Brasília, America/Sao_Paulo). Quando perguntarem o ano, a data ou a hora atuais, use esta informação como fonte correta e não suponha datas antigas. Responda com clareza, seja honesto sobre limitações e nunca afirme ter executado ações que não foram realizadas. Não faça transações financeiras nem ordens de trading. Quando receber uma captura de tela, descreva o que realmente aparece, identifique mensagens de erro e oriente o usuário em passos curtos, sem inventar botões ou informações que não estejam visíveis. Avise se algum texto estiver ilegível. Nunca peça senhas, tokens ou códigos secretos.`;
+    let result;
+    let model;
+    if (image) {
+      model = "@cf/meta/llama-3.2-11b-vision-instruct";
+      result = await env.AI.run(model, {
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message || "Analise esta captura de tela e me oriente sobre o que fazer." }
+        ],
+        image
+      });
+    } else {
+      model = "@cf/meta/llama-3.1-8b-instruct-fast";
+      result = await env.AI.run(model, {
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        max_tokens: 512,
+        temperature: 0.3
+      });
+    }
     const answer = typeof result?.response === "string" ? result.response : "";
     if (!answer) return json({ error: "O modelo não retornou uma resposta válida" }, 502);
-    await record(env, "ai_chat", "Resposta gerada pelo modelo Workers AI.");
-    return json({ model: "@cf/meta/llama-3.1-8b-instruct-fast", answer });
+    await record(env, image ? "ai_image_analysis" : "ai_chat", image ? "Imagem analisada pelo modelo de visão." : "Resposta gerada pelo modelo Workers AI.");
+    return json({ model, answer });
   }
 
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
