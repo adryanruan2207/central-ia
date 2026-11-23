@@ -31,6 +31,28 @@ async function handle(request, env) {
   }
   if (!env.DB) return json({ error: "Banco D1 ainda não configurado" }, 503);
 
+
+  if (url.pathname === "/ai/chat" && request.method === "POST") {
+    if (!env.AI) return json({ error: "Workers AI ainda não está vinculado" }, 503);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const message = typeof body.message === "string" ? body.message.trim() : "";
+    if (!message) return json({ error: "Informe uma mensagem" }, 400);
+    if (message.length > 4000) return json({ error: "Mensagem muito longa (máximo 4000 caracteres)" }, 413);
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+      messages: [
+        { role: "system", content: "Você é a CENTRAL IA, assistente em português do Brasil. Responda com clareza, seja honesto sobre limitações e nunca afirme ter executado ações que não foram realizadas. Não faça transações financeiras nem ordens de trading." },
+        { role: "user", content: message }
+      ],
+      max_tokens: 512,
+      temperature: 0.3
+    });
+    const answer = typeof result?.response === "string" ? result.response : "";
+    if (!answer) return json({ error: "O modelo não retornou uma resposta válida" }, 502);
+    await record(env, "ai_chat", "Resposta gerada pelo modelo Workers AI.");
+    return json({ model: "@cf/meta/llama-3.1-8b-instruct", answer });
+  }
+
   if (url.pathname === "/tasks" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, title, task_type, status, requires_approval, result, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT 100"
