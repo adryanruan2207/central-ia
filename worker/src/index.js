@@ -16,7 +16,7 @@ function cors(request, response) {
 
 
 const enc = new TextEncoder();
-const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/=/g,"").replace(/\\+/g,"-").replace(/\\//g,"_");
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/=/g,"").replaceAll("+","-").replaceAll("/","_");
 async function signSession(payload, secret) {
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), {name:"HMAC",hash:"SHA-256"}, false, ["sign"]);
   const data = b64url(enc.encode(JSON.stringify(payload)));
