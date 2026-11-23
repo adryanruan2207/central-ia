@@ -407,7 +407,7 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <section class="chat-workspace" aria-label="Conversa com CENTRAL IA"><div class="chat-heading"><div class="chat-avatar">✦</div><div><h2>Converse com a CENTRAL IA</h2><p>Sua central inteligente para ideias, negócios e automações.</p></div></div><div class="card" style="min-height:0">
 <p>Conectado à sua conta CENTRAL IA.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="logout-chat" type="button" class="secondary" hidden>Sair da conta</button></div>
 <div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
-<div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
+<div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Estou conectada e pronta para conversar. Pode me perguntar sobre seus projetos, negócios ou enviar uma imagem para análise.</div>
 </div>
 <div id="image-preview-status" role="status" aria-live="polite" style="font-size:.88rem;color:#bdbdbd!important;margin:7px 0">Anexe uma foto, imagem ou captura de tela pelo botão +.</div>
 <div id="image-preview" hidden style="margin:8px 0"><img id="chat-image-preview" alt="Prévia da imagem anexada" style="display:block;max-width:100%;max-height:240px;border-radius:12px;border:1px solid #555"><button id="remove-chat-image" type="button" class="secondary" style="margin-top:8px">Remover imagem</button></div>
@@ -428,7 +428,7 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <input id="general-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.txt,.doc,.docx,.xls,.xlsx" hidden>
 <p id="attachment-note" role="status" aria-live="polite" style="font-size:.82rem;color:#bdbdbd!important;margin:7px 0">Imagens até 3 MB. Leitura de documentos e plugins será ativada em etapas futuras.</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="clear-chat" type="button" class="secondary">Limpar conversa</button></div>
-<p id="chat-status" role="status" aria-live="polite" style="margin-top:10px;font-size:.8rem">Aguardando a chave de acesso.</p>
+<p id="chat-status" role="status" aria-live="polite" style="margin-top:10px;font-size:.8rem">Aguardando sua mensagem.</p>
 </div></section>
 
 <details class="market-details"><summary>📊 Ver mercados e gráficos</summary>
@@ -619,6 +619,7 @@ async function login(event){
 }
 loginForm.addEventListener('submit',login);
 logoutChat.addEventListener('click',()=>{sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Você saiu da conta. Entre novamente.');});
+let chatHistory=[];
 function addChatLine(who,text){
  const line=document.createElement('div');
  line.className='chat-message '+(who==='Você'?'user-message':'assistant-message');
@@ -636,18 +637,20 @@ async function sendChatMessage(){
  addChatLine('Você',message||(image?'[Imagem enviada para análise]':''));
  chatMessage.value='';
  try{
-  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message:(thinkingMore?'Responda no modo de reflexão aprofundada: analise cuidadosamente, confira os passos e explique as incertezas. ':'')+message,image:image||undefined})});
+  const outgoingMessage=(thinkingMore?'Responda no modo de reflexão aprofundada: analise cuidadosamente, confira os passos e explique as incertezas. ':'')+message;
+  const context=[...chatHistory,{role:'user',content:outgoingMessage}].slice(-12);
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message:outgoingMessage,messages:context.slice(0,-1),image:image||undefined})});
   const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
   if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sua sessão expirou. Entre novamente.');}
   if(!response.ok)throw new Error(data.error||('Erro HTTP '+response.status));
   if(typeof data.answer!=='string')throw new Error('O servidor não retornou uma resposta de texto.');
-  addChatLine('CENTRAL IA',data.answer);if(image){selectedImageData='';chatImage.value='';cameraImage.value='';generalFile.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem analisada. Você pode anexar outro print.';}chatStatus.textContent='Resposta recebida com sucesso.';
+  chatHistory=[...context,{role:'assistant',content:data.answer}].slice(-12);addChatLine('CENTRAL IA',data.answer);if(image){selectedImageData='';chatImage.value='';cameraImage.value='';generalFile.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem analisada. Você pode anexar outro print.';}chatStatus.textContent='Resposta recebida com sucesso.';
  }catch(error){addChatLine('Aviso',error.message);chatStatus.textContent='Não foi possível concluir a mensagem.';}
  finally{sendChat.disabled=false;}
 }
 sendChat.addEventListener('click',sendChatMessage);
 chatMessage.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
-document.getElementById('clear-chat').addEventListener('click',()=>{chatLog.replaceChildren();chatStatus.textContent='Conversa limpa.';});
+document.getElementById('clear-chat').addEventListener('click',()=>{chatHistory=[];chatLog.replaceChildren();chatStatus.textContent='Conversa limpa.';});
 verifySavedSession();
 const taskForm=document.getElementById('task-form');
 const taskTitle=document.getElementById('task-title');
