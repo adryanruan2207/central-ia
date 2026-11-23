@@ -34,18 +34,75 @@ footer{border-top:1px solid var(--line);padding:18px 0 26px;text-align:center;fo
 .notice{background:#110909;border:1px solid #401919;border-radius:12px;padding:13px;font-size:.8rem;color:#c47a7a!important;margin-top:16px}
 #notify-status{color:#d88!important}
 @media(max-width:600px){header{height:60px}.intro{align-items:flex-start;flex-direction:column}.chart{height:60vh;min-height:390px}button,.button{padding:10px 13px}}
+
+/* CENTRAL IA — interface conversacional inspirada em apps modernos de IA */
+:root{color-scheme:dark;--red:#e7e9ed;--red2:#fff;--bg:#212121;--panel:#2f2f2f;--line:#424242;--muted:#a1a1aa}
+body{background:#212121!important;color:#ececec!important;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body *{color:inherit!important}
+a{color:#d1d5db!important}
+header.wrap{width:100%;max-width:none;height:64px;padding:0 22px;border-bottom:1px solid #343434;background:#212121;position:sticky;top:0;z-index:10}
+.brand{letter-spacing:-.04em;font-size:1.15rem;color:#f5f5f5!important}.brand span{color:#a3a3a3!important}
+.status{border:1px solid #444;background:#2b2b2b;color:#bdbdbd!important}
+main.wrap{width:min(900px,94%);padding:28px 0 50px}
+.intro{margin:0 0 18px}.intro h1{font-size:1.05rem;font-weight:600;letter-spacing:0;color:#ddd!important}.intro p{color:#999!important}
+#open-resources{position:static;min-height:40px;padding:9px 13px;border:1px solid #484848;background:#2f2f2f;color:#eee!important;box-shadow:none;border-radius:10px;font-size:.86rem}
+button,.button{border:1px solid #555;background:#f2f2f2;color:#171717!important;border-radius:22px;padding:10px 16px;font-weight:650}
+button.secondary,.button.secondary{background:#333;color:#eee!important;border-color:#555}
+.chat-workspace{min-height:clamp(430px,65vh,700px);display:flex;flex-direction:column;justify-content:space-between;background:#212121;border:0;border-radius:0;padding:12px 0 22px;margin:0 auto 25px;max-width:790px}
+.chat-heading{display:flex;align-items:center;gap:13px;margin:10px auto 28px;text-align:left}
+.chat-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#343434;color:#fff!important;font-size:23px}
+.chat-heading h2{font-size:1.15rem;margin:0;color:#eee!important;font-weight:650}
+.chat-heading p{font-size:.82rem;margin:3px 0 0;color:#999!important}
+.chat-workspace .card{background:transparent;border:0;padding:0;min-height:0}
+.chat-workspace label{color:#aaa!important}
+#chat-token,#chat-message{background:#2f2f2f!important;border:1px solid #505050!important;color:#f5f5f5!important;border-radius:12px!important}
+#chat-log{max-height: min(45vh,440px)!important;overflow-y:auto!important;padding:4px 2px}
+#chat-log>div{background:transparent!important;border:0!important;padding:13px 10px!important;border-radius:12px!important;color:#eee!important}
+#chat-log>div b{color:#fff!important}
+#chat-message{min-height:58px;padding:16px!important}
+#send-chat{background:#f1f1f1!important;color:#171717!important;border:0!important;border-radius:20px!important}
+#clear-chat{background:#333!important;color:#ddd!important;border:1px solid #555!important}
+#chat-status{color:#aaa!important}
+.ticker,.chart{background:#252525;border:1px solid #3c3c3c;border-radius:14px}
+.disclaimer,footer{color:#929292!important}
+#resource-panel{background:#000b;backdrop-filter:blur(5px);padding:12px}
+.panel-inner{background:#212121;border:1px solid #444;border-radius:18px}
+.panel-head h2{color:#eee!important}
+.card{background:#2b2b2b;border:1px solid #444}
+.card p,.notice{color:#b8b8b8!important}
+.resource-section h3{color:#eee!important;border-color:#444}
+.notice{background:#292929;border-color:#444}
+#notify-status{color:#ccc!important}
+@media(min-width:900px){main.wrap{padding-top:35px}.chat-workspace{min-height:68vh}.intro{align-items:center}}
+@media(max-width:600px){header.wrap{padding:0 15px}.intro{flex-direction:row;align-items:center}.intro p{max-width:190px}.chat-workspace{min-height:66vh;padding-top:12px}.chat-heading{margin:18px auto 25px}.chart{height:52vh}}
 </style>
 </head>
 <body>
 <header class="wrap">
 <a class="brand" href="./">CENTRAL <span>IA</span></a>
-<div class="status">● PAINEL DE MERCADOS</div>
+<div class="status">● IA ONLINE</div>
 </header>
 <main class="wrap">
 <div class="intro">
-<div><h1>Mercados em foco</h1><p>Gráficos e cotações em um painel simples.</p></div>
+<div><h1>Início</h1><p>Seu espaço de inteligência e negócios.</p></div>
 <button id="open-resources" type="button">☰ Todos os recursos</button>
 </div>
+<section class="chat-workspace" aria-label="Conversa com CENTRAL IA"><div class="chat-heading"><div class="chat-avatar">✦</div><div><h2>Converse com a CENTRAL IA</h2><p>Sua central inteligente para ideias, negócios e automações.</p></div></div><div class="card" style="min-height:0">
+<p>Converse com o modelo conectado ao CENTRAL IA. A chave é usada somente nesta sessão e não é salva no navegador.</p>
+<label for="chat-token" style="display:block;margin-top:12px;font-size:.82rem">Chave de acesso da CENTRAL IA</label>
+<input id="chat-token" type="password" autocomplete="off" placeholder="Cole aqui sua chave API_TOKEN" style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important">
+<div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
+<div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
+</div>
+<label for="chat-message" style="display:block;margin-top:12px;font-size:.82rem">Sua mensagem</label>
+<textarea id="chat-message" rows="3" maxlength="4000" placeholder="Digite sua mensagem..." style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important;resize:vertical"></textarea>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+<button id="send-chat" type="button">Enviar mensagem</button>
+<button id="clear-chat" type="button" class="secondary">Limpar conversa</button>
+</div>
+<p id="chat-status" role="status" aria-live="polite" style="margin-top:10px;font-size:.8rem">Aguardando a chave de acesso.</p>
+</div></section>
+
 <section class="ticker" aria-label="Cotações do mercado">
 <div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div>
 <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
@@ -65,21 +122,6 @@ footer{border-top:1px solid var(--line);padding:18px 0 26px;text-align:center;fo
 <div id="resource-panel" role="dialog" aria-modal="true" aria-labelledby="resources-title">
 <div class="panel-inner">
 <div class="panel-head"><h2 id="resources-title">Todos os recursos</h2><button class="secondary" id="close-resources" type="button" aria-label="Fechar menu">✕ Fechar</button></div>
-<div class="resource-section"><h3>🤖 Minha IA — conversa</h3><div class="card" style="min-height:0">
-<p>Converse com o modelo conectado ao CENTRAL IA. A chave é usada somente nesta sessão e não é salva no navegador.</p>
-<label for="chat-token" style="display:block;margin-top:12px;font-size:.82rem">Chave de acesso da CENTRAL IA</label>
-<input id="chat-token" type="password" autocomplete="off" placeholder="Cole aqui sua chave API_TOKEN" style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important">
-<div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
-<div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
-</div>
-<label for="chat-message" style="display:block;margin-top:12px;font-size:.82rem">Sua mensagem</label>
-<textarea id="chat-message" rows="3" maxlength="4000" placeholder="Digite sua mensagem..." style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important;resize:vertical"></textarea>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-<button id="send-chat" type="button">Enviar mensagem</button>
-<button id="clear-chat" type="button" class="secondary">Limpar conversa</button>
-</div>
-<p id="chat-status" role="status" aria-live="polite" style="margin-top:10px;font-size:.8rem">Aguardando a chave de acesso.</p>
-</div></div>
 <div class="resource-section"><h3>Negócios e crescimento</h3><div class="cards">
 <article class="card"><h3>🛍️ Afiliados e e-commerce</h3><p>Pesquisa de produtos, oportunidades e gestão de vendas.</p><small>EM DESENVOLVIMENTO</small></article>
 <article class="card"><h3>📣 Marketing e marketplaces</h3><p>Planejamento de divulgação e integração com canais de venda.</p><small>EM DESENVOLVIMENTO</small></article>
