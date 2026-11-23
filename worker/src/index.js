@@ -14,6 +14,29 @@ function cors(request, response) {
   return new Response(response.body, { status: response.status, headers });
 }
 
+
+const enc = new TextEncoder();
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/=/g,"").replace(/\\+/g,"-").replace(/\\//g,"_");
+async function signSession(payload, secret) {
+  const key = await crypto.subtle.importKey("raw", enc.encode(secret), {name:"HMAC",hash:"SHA-256"}, false, ["sign"]);
+  const data = b64url(enc.encode(JSON.stringify(payload)));
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
+  return data + "." + b64url(sig);
+}
+async function validSession(token, secret) {
+  try {
+    if (!secret || !token || token.length > 2000) return false;
+    const [data, signature, extra] = token.split(".");
+    if (!data || !signature || extra) return false;
+    const key = await crypto.subtle.importKey("raw", enc.encode(secret), {name:"HMAC",hash:"SHA-256"}, false, ["verify"]);
+    const bytes = Uint8Array.from(atob(signature.replace(/-/g,"+").replace(/_/g,"/") + "=".repeat((4-signature.length%4)%4)), c=>c.charCodeAt(0));
+    const ok = await crypto.subtle.verify("HMAC", key, bytes, enc.encode(data));
+    if (!ok) return false;
+    const payload = JSON.parse(atob(data.replace(/-/g,"+").replace(/_/g,"/") + "=".repeat((4-data.length%4)%4)));
+    return payload.sub === "owner" && Number(payload.exp) > Math.floor(Date.now()/1000);
+  } catch { return false; }
+}
+
 async function record(env, event, details = "") {
   if (!env.DB) return;
   await env.DB.prepare("INSERT INTO activity_log(event, details, created_at) VALUES (?, ?, ?)")
@@ -26,9 +49,21 @@ async function handle(request, env) {
   if (url.pathname === "/health" && request.method === "GET") {
     return json({ service: "CENTRAL IA", status: "online", database: Boolean(env.DB), time: new Date().toISOString() });
   }
-  if (!env.API_TOKEN || request.headers.get("Authorization") !== `Bearer ${env.API_TOKEN}`) {
-    return json({ error: "Não autorizado" }, 401);
+  if (url.pathname === "/auth/login" && request.method === "POST") {
+    if (!env.APP_PASSWORD || !env.SESSION_SECRET) return json({ error: "Login ainda não configurado no servidor" }, 503);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const password = typeof body.password === "string" ? body.password : "";
+    if (!password || password.length > 200 || password !== env.APP_PASSWORD) return json({ error: "Senha incorreta" }, 401);
+    const expiresAt = Math.floor(Date.now()/1000) + 60*60*24*30;
+    const token = await signSession({sub:"owner",exp:expiresAt}, env.SESSION_SECRET);
+    return json({ token, expires_at: expiresAt });
   }
+  const auth = request.headers.get("Authorization") || "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const isApiToken = Boolean(env.API_TOKEN && bearer === env.API_TOKEN);
+  const isSession = await validSession(bearer, env.SESSION_SECRET);
+  if (!isApiToken && !isSession) return json({ error: "Sessão expirada ou não autorizada" }, 401);
   if (!env.DB) return json({ error: "Banco D1 ainda não configurado" }, 503);
 
 
