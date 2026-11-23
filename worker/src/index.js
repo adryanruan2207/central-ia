@@ -39,7 +39,7 @@ async function handle(request, env) {
     const message = typeof body.message === "string" ? body.message.trim() : "";
     if (!message) return json({ error: "Informe uma mensagem" }, 400);
     if (message.length > 4000) return json({ error: "Mensagem muito longa (máximo 4000 caracteres)" }, 413);
-    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+    const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [
         { role: "system", content: "Você é a CENTRAL IA, assistente em português do Brasil. Responda com clareza, seja honesto sobre limitações e nunca afirme ter executado ações que não foram realizadas. Não faça transações financeiras nem ordens de trading." },
         { role: "user", content: message }
@@ -50,7 +50,7 @@ async function handle(request, env) {
     const answer = typeof result?.response === "string" ? result.response : "";
     if (!answer) return json({ error: "O modelo não retornou uma resposta válida" }, 502);
     await record(env, "ai_chat", "Resposta gerada pelo modelo Workers AI.");
-    return json({ model: "@cf/meta/llama-3.1-8b-instruct", answer });
+    return json({ model: "@cf/meta/llama-3.1-8b-instruct-fast", answer });
   }
 
   if (url.pathname === "/tasks" && request.method === "GET") {
