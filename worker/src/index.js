@@ -49,6 +49,12 @@ async function handle(request, env) {
   if (url.pathname === "/health" && request.method === "GET") {
     return json({ service: "CENTRAL IA", status: "online", database: Boolean(env.DB), time: new Date().toISOString() });
   }
+  if (url.pathname === "/auth/session" && request.method === "GET") {
+    const authHeader = request.headers.get("Authorization") || "";
+    const sessionToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const authenticated = await validSession(sessionToken, env.SESSION_SECRET);
+    return json({ authenticated }, authenticated ? 200 : 401);
+  }
   if (url.pathname === "/auth/login" && request.method === "POST") {
     if (!env.APP_PASSWORD || !env.SESSION_SECRET) return json({ error: "Login ainda não configurado no servidor" }, 503);
     let body;
