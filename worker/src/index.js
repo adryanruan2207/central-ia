@@ -5,7 +5,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 function cors(request, response) {
   const origin = request.headers.get("Origin") || "";
   const headers = new Headers(response.headers);
-  if (origin.endsWith(".github.io") || origin === "https://adryanruan2207.github.io") {
+  if (origin === "https://adryanruan2207.github.io") {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Vary", "Origin");
   }
@@ -95,11 +95,12 @@ async function handle(request, env) {
     return json({ authenticated }, authenticated ? 200 : 401);
   }
   if (url.pathname === "/auth/login" && request.method === "POST") {
-    if (!env.APP_PASSWORD || !env.SESSION_SECRET) return json({ error: "Login ainda não configurado no servidor" }, 503);
+    const appPassword = env.APP_PASSWORD || env.SENHA_DO_APLICATIVO;
+    if (!appPassword || !env.SESSION_SECRET) return json({ error: "Login ainda não configurado no servidor" }, 503);
     let body;
     try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
     const password = typeof body.password === "string" ? body.password : "";
-    if (!password || password.length > 200 || password !== env.APP_PASSWORD) return json({ error: "Senha incorreta" }, 401);
+    if (!password || password.length > 200 || password !== appPassword) return json({ error: "Senha incorreta" }, 401);
     const expiresAt = Math.floor(Date.now()/1000) + 60*60*24*30;
     const token = await signSession({sub:"owner",exp:expiresAt}, env.SESSION_SECRET);
     return json({ token, expires_at: expiresAt });
@@ -384,15 +385,25 @@ export default {
         "UPDATE tasks SET status = 'needs_review', updated_at = ? WHERE status = 'queued' AND requires_approval = 1"
       ).bind(now).run();
 
-      // Planejador autônomo: quando a fila estiver vazia, cria no máximo uma pesquisa por período de 24h.
+      // Recupera tarefas interrompidas por queda/timeout. Pesquisas são somente leitura e podem ser repetidas com segurança.
+      const staleBefore = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+      const recovered = await env.DB.prepare(
+        "UPDATE tasks SET status = 'queued', updated_at = ? WHERE status = 'processing' AND updated_at < ? AND requires_approval = 0"
+      ).bind(now, staleBefore).run();
+      if (Number(recovered.meta?.changes || 0) > 0) {
+        await record(env, "stale_tasks_requeued", String(recovered.meta.changes) + " tarefa(s) recuperada(s) após interrupção.");
+      }
+
+      // O planejador não fica bloqueado por itens que aguardam revisão humana.
+      // Cria uma nova pesquisa no máximo a cada 6 horas, respeitando a fila e o limite de uma execução por ciclo.
       // O planejador só pode propor pesquisa; não publica, compra, vende nem executa operações financeiras.
       const active = await env.DB.prepare(
-        "SELECT COUNT(*) AS total FROM tasks WHERE status IN ('queued', 'processing', 'needs_review')"
+        "SELECT COUNT(*) AS total FROM tasks WHERE status IN ('queued', 'processing')"
       ).first();
       const lastPlan = await env.DB.prepare(
         "SELECT created_at FROM activity_log WHERE event = 'autonomous_plan_created' ORDER BY created_at DESC LIMIT 1"
       ).first();
-      const planIsDue = !lastPlan?.created_at || (Date.now() - new Date(lastPlan.created_at).getTime()) >= 24 * 60 * 60 * 1000;
+      const planIsDue = !lastPlan?.created_at || (Date.now() - new Date(lastPlan.created_at).getTime()) >= 6 * 60 * 60 * 1000;
       if (Number(active?.total || 0) === 0 && planIsDue) {
         let autonomousTitle = "Pesquise oportunidades atuais para afiliados no Brasil, identificando produtos específicos, procura, concorrência, preços, programas e comissões oficiais. Informe fontes e links verificáveis.";
         try {
