@@ -65,6 +65,21 @@ footer{border-top:1px solid var(--line);padding:18px 0 26px;text-align:center;fo
 <div id="resource-panel" role="dialog" aria-modal="true" aria-labelledby="resources-title">
 <div class="panel-inner">
 <div class="panel-head"><h2 id="resources-title">Todos os recursos</h2><button class="secondary" id="close-resources" type="button" aria-label="Fechar menu">✕ Fechar</button></div>
+<div class="resource-section"><h3>🤖 Minha IA — conversa</h3><div class="card" style="min-height:0">
+<p>Converse com o modelo conectado ao CENTRAL IA. A chave é usada somente nesta sessão e não é salva no navegador.</p>
+<label for="chat-token" style="display:block;margin-top:12px;font-size:.82rem">Chave de acesso da CENTRAL IA</label>
+<input id="chat-token" type="password" autocomplete="off" placeholder="Cole aqui sua chave API_TOKEN" style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important">
+<div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
+<div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
+</div>
+<label for="chat-message" style="display:block;margin-top:12px;font-size:.82rem">Sua mensagem</label>
+<textarea id="chat-message" rows="3" maxlength="4000" placeholder="Digite sua mensagem..." style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important;resize:vertical"></textarea>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+<button id="send-chat" type="button">Enviar mensagem</button>
+<button id="clear-chat" type="button" class="secondary">Limpar conversa</button>
+</div>
+<p id="chat-status" role="status" aria-live="polite" style="margin-top:10px;font-size:.8rem">Aguardando a chave de acesso.</p>
+</div></div>
 <div class="resource-section"><h3>Negócios e crescimento</h3><div class="cards">
 <article class="card"><h3>🛍️ Afiliados e e-commerce</h3><p>Pesquisa de produtos, oportunidades e gestão de vendas.</p><small>EM DESENVOLVIMENTO</small></article>
 <article class="card"><h3>📣 Marketing e marketplaces</h3><p>Planejamento de divulgação e integração com canais de venda.</p><small>EM DESENVOLVIMENTO</small></article>
@@ -96,6 +111,41 @@ document.getElementById('open-resources').addEventListener('click',()=>{panel.cl
 document.getElementById('close-resources').addEventListener('click',()=>panel.classList.remove('open'));
 panel.addEventListener('click',e=>{if(e.target===panel)panel.classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')panel.classList.remove('open');});
+
+const chatToken=document.getElementById('chat-token');
+const chatMessage=document.getElementById('chat-message');
+const chatLog=document.getElementById('chat-log');
+const chatStatus=document.getElementById('chat-status');
+const sendChat=document.getElementById('send-chat');
+function addChatLine(who,text){
+ const line=document.createElement('div');
+ line.style.cssText='padding:10px;border:1px solid #401919;border-radius:10px;background:#090909;white-space:pre-wrap;overflow-wrap:anywhere';
+ const label=document.createElement('b');label.textContent=who+': ';
+ const body=document.createElement('span');body.textContent=text;
+ line.append(label,body);chatLog.appendChild(line);chatLog.scrollTop=chatLog.scrollHeight;
+}
+async function sendChatMessage(){
+ const token=chatToken.value.trim(),message=chatMessage.value.trim();
+ if(!token){chatStatus.textContent='Informe a chave de acesso API_TOKEN no campo acima.';chatToken.focus();return;}
+ if(!message){chatStatus.textContent='Digite uma mensagem antes de enviar.';chatMessage.focus();return;}
+ sendChat.disabled=true;chatStatus.textContent='A CENTRAL IA está pensando…';
+ addChatLine('Você',message);chatMessage.value='';
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{
+   method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+   body:JSON.stringify({message})
+  });
+  const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
+  if(!response.ok)throw new Error(data.error||('Erro HTTP '+response.status));
+  if(typeof data.answer!=='string')throw new Error('O servidor não retornou uma resposta de texto.');
+  addChatLine('CENTRAL IA',data.answer);chatStatus.textContent='Resposta recebida com sucesso.';
+ }catch(error){addChatLine('Aviso',error.message);chatStatus.textContent='Não foi possível concluir a mensagem.';}
+ finally{sendChat.disabled=false;}
+}
+sendChat.addEventListener('click',sendChatMessage);
+chatMessage.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
+document.getElementById('clear-chat').addEventListener('click',()=>{chatLog.replaceChildren();chatStatus.textContent='Conversa limpa. A chave continua apenas nesta sessão.';});
+
 const status=document.getElementById('notify-status'),enable=document.getElementById('enable-notifications'),test=document.getElementById('test-notification');let registration=null;
 async function setup(){if(!('Notification'in window)){status.textContent='Este navegador não oferece suporte a notificações.';enable.disabled=true;test.disabled=true;return;}if(!('serviceWorker'in navigator)||!window.isSecureContext){status.textContent='Abra o site por HTTPS para ativar notificações.';return;}try{registration=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;status.textContent='Permissão atual: '+Notification.permission+'. Serviço instalado neste aparelho.';enable.textContent=Notification.permission==='granted'?'Permissão concedida':'Ativar notificações';}catch(err){status.textContent='Não foi possível instalar o serviço: '+err.message;}}
 enable.addEventListener('click',async()=>{try{const p=await Notification.requestPermission();await setup();if(p==='granted')status.textContent='Permissão concedida. Envio automático ainda requer servidor de notificações.';}catch(e){status.textContent='Falha ao ativar: '+e.message;}});
