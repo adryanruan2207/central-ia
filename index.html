@@ -272,6 +272,24 @@ footer{font-size:.9rem;color:#999!important}
 #login-submit:disabled{opacity:.6}
 #login-status{min-height:24px;margin:14px 0 0!important;font-size:.9rem}
 body.auth-locked{overflow:hidden}
+
+/* Compositor de conversa com menu + */
+.composer{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;background:#212121;border:1px solid #555;border-radius:22px}
+.composer-tools{display:flex;align-items:center;gap:8px}
+#attach-menu-button{width:42px;height:42px;padding:0;border-radius:50%;font-size:1.65rem;line-height:1}
+#thinking-label{margin-left:auto;font-size:.84rem;color:#c7c7c7!important}
+#thinking-toggle{padding:7px 11px;font-size:.82rem;border-radius:20px}
+#thinking-toggle[aria-pressed="true"]{background:#51458d!important;border-color:#9585ff!important;color:#fff!important}
+.composer #chat-message{width:100%;min-height:58px!important;max-height:180px;resize:vertical;border:0!important;background:transparent!important;padding:7px 5px!important;box-shadow:none!important}
+.composer-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.composer-bottom span{font-size:.76rem;color:#aaa!important}
+#send-chat{width:42px;height:42px;min-height:42px;padding:0;border-radius:50%!important;font-size:1.4rem!important}
+#attach-menu{position:absolute;z-index:30;left:8px;bottom:calc(100% + 9px);width:min(240px,85vw);padding:8px;background:#303030;border:1px solid #555;border-radius:16px;box-shadow:0 12px 35px #0009}
+#attach-menu[hidden]{display:none}
+#attach-menu button{display:flex;width:100%;justify-content:flex-start;background:transparent!important;color:#f4f4f4!important;border:0!important;border-radius:10px;padding:12px;font-size:.95rem}
+#attach-menu button:active,#attach-menu button:focus-visible{background:#454545!important}
+@media(max-width:600px){.composer{padding:10px;border-radius:20px}#thinking-label{font-size:.78rem}.composer-bottom span{font-size:.7rem}}
+
 </style>
 </head>
 <body>
@@ -295,16 +313,24 @@ body.auth-locked{overflow:hidden}
 <div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
 <div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
 </div>
-<label for="chat-image" style="display:block;margin-top:14px;font-size:.98rem">Anexar print ou imagem</label>
-<input id="chat-image" type="file" accept="image/jpeg,image/png,image/webp" style="display:block;width:100%;margin-top:8px;padding:12px;background:#212121;border:1px solid #555;border-radius:12px;color:#fff!important">
-<p id="image-preview-status" role="status" aria-live="polite" style="font-size:.88rem;color:#bdbdbd!important;margin:7px 0">Você pode enviar uma captura de tela para a IA analisar. Máximo 3 MB.</p>
+<div id="image-preview-status" role="status" aria-live="polite" style="font-size:.88rem;color:#bdbdbd!important;margin:7px 0">Anexe uma foto, imagem ou captura de tela pelo botão +.</div>
 <div id="image-preview" hidden style="margin:8px 0"><img id="chat-image-preview" alt="Prévia da imagem anexada" style="display:block;max-width:100%;max-height:240px;border-radius:12px;border:1px solid #555"><button id="remove-chat-image" type="button" class="secondary" style="margin-top:8px">Remover imagem</button></div>
-<label for="chat-message" style="display:block;margin-top:12px;font-size:.98rem">Sua mensagem</label>
-<textarea id="chat-message" rows="3" maxlength="4000" placeholder="Digite sua mensagem ou explique o que deseja saber sobre o print..." style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important;resize:vertical"></textarea>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-<button id="send-chat" type="button">Enviar mensagem</button>
-<button id="clear-chat" type="button" class="secondary">Limpar conversa</button>
+<div class="composer" id="composer">
+ <div class="composer-tools"><button id="attach-menu-button" type="button" class="secondary" aria-label="Adicionar anexo" aria-expanded="false">＋</button><span id="thinking-label">Pensar mais</span><button id="thinking-toggle" type="button" class="secondary" aria-pressed="false">Desativado</button></div>
+ <textarea id="chat-message" rows="2" maxlength="4000" placeholder="Pergunte alguma coisa" aria-label="Sua mensagem"></textarea>
+ <div class="composer-bottom"><span>Enter para enviar · Shift + Enter para nova linha</span><button id="send-chat" type="button" aria-label="Enviar mensagem">↑</button></div>
+ <div id="attach-menu" hidden role="menu" aria-label="Opções de anexo">
+  <button type="button" data-attach="camera">📷 Câmera</button>
+  <button type="button" data-attach="photos">🖼️ Fotos</button>
+  <button type="button" data-attach="files">📁 Arquivos</button>
+  <button type="button" data-attach="plugins">🧩 Plugins</button>
+ </div>
 </div>
+<input id="chat-image" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+<input id="camera-image" type="file" accept="image/*" capture="environment" hidden>
+<input id="general-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf,.txt,.doc,.docx,.xls,.xlsx" hidden>
+<p id="attachment-note" role="status" aria-live="polite" style="font-size:.82rem;color:#bdbdbd!important;margin:7px 0">Imagens até 3 MB. Leitura de documentos e plugins será ativada em etapas futuras.</p>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="clear-chat" type="button" class="secondary">Limpar conversa</button></div>
 <p id="chat-status" role="status" aria-live="polite" style="margin-top:10px;font-size:.8rem">Aguardando a chave de acesso.</p>
 </div></section>
 
@@ -363,21 +389,50 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')panel.classList.remo
 
 const chatMessage=document.getElementById('chat-message');
 const chatImage=document.getElementById('chat-image');
+const cameraImage=document.getElementById('camera-image');
+const generalFile=document.getElementById('general-file');
+const attachMenu=document.getElementById('attach-menu');
+const attachMenuButton=document.getElementById('attach-menu-button');
+const thinkingToggle=document.getElementById('thinking-toggle');
+const attachmentNote=document.getElementById('attachment-note');
+let thinkingMore=false;
+attachMenuButton.addEventListener('click',()=>{attachMenu.hidden=!attachMenu.hidden;attachMenuButton.setAttribute('aria-expanded',String(!attachMenu.hidden));});
+document.addEventListener('click',e=>{if(!attachMenu.contains(e.target)&&e.target!==attachMenuButton){attachMenu.hidden=true;attachMenuButton.setAttribute('aria-expanded','false');}});
+thinkingToggle.addEventListener('click',()=>{thinkingMore=!thinkingMore;thinkingToggle.setAttribute('aria-pressed',String(thinkingMore));thinkingToggle.textContent=thinkingMore?'Ativado':'Desativado';attachmentNote.textContent=thinkingMore?'Modo Pensar mais: a CENTRAL IA receberá uma orientação para elaborar a resposta com mais cuidado. Isso não ativa um modelo de raciocínio separado.':'Imagens até 3 MB. Leitura de documentos e plugins será ativada em etapas futuras.';});
+attachMenu.addEventListener('click',e=>{const action=e.target.closest('button[data-attach]')?.dataset.attach;if(!action)return;attachMenu.hidden=true;attachMenuButton.setAttribute('aria-expanded','false');if(action==='camera')cameraImage.click();if(action==='photos')chatImage.click();if(action==='files')generalFile.click();if(action==='plugins'){attachmentNote.textContent='Plugins e integrações ainda não estão conectados à CENTRAL IA. Esta opção ficará disponível quando os conectores forem configurados.';}});
+
 const imagePreview=document.getElementById('image-preview');
 const chatImagePreview=document.getElementById('chat-image-preview');
 const imagePreviewStatus=document.getElementById('image-preview-status');
 const loginScreen=document.getElementById('login-screen'),loginForm=document.getElementById('login-form');
 const loginPassword=document.getElementById('login-password'),loginSubmit=document.getElementById('login-submit'),loginStatus=document.getElementById('login-status');
 let selectedImageData='';
-chatImage.addEventListener('change',()=>{
+function handleImageSelection(fileInput){
+ const file=fileInput.files&&fileInput.files[0];selectedImageData='';imagePreview.hidden=true;
+ if(!file){return;}
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)){fileInput.value='';imagePreviewStatus.textContent='Formato não suportado. Use JPEG, PNG ou WEBP.';return;}
+ if(file.size>3*1024*1024){fileInput.value='';imagePreviewStatus.textContent='A imagem ultrapassa 3 MB. Envie uma captura menor.';return;}
+ const reader=new FileReader();reader.onload=()=>{selectedImageData=String(reader.result||'');chatImagePreview.src=selectedImageData;imagePreview.hidden=false;imagePreviewStatus.textContent='Imagem pronta para enviar: '+file.name;};reader.onerror=()=>{fileInput.value='';imagePreviewStatus.textContent='Não foi possível ler a imagem. Tente novamente.';};reader.readAsDataURL(file);
+}
+chatImage.addEventListener('change',()=>handleImageSelection(chatImage));
+cameraImage.addEventListener('change',()=>handleImageSelection(cameraImage));
+generalFile.addEventListener('change',()=>{
+ const file=generalFile.files&&generalFile.files[0];if(!file)return;
+ if(file.type.startsWith('image/')){handleImageSelection(generalFile);return;}
+ attachmentNote.textContent='Arquivo selecionado: '+file.name+'. O envio e a leitura de documentos ainda não estão implementados; por enquanto, a CENTRAL IA recebe imagens.';
+ generalFile.value='';
+});
+/* legacy handler replaced */
+const legacyImageHandler = false;
+if(legacyImageHandler){
  const file=chatImage.files&&chatImage.files[0];selectedImageData='';imagePreview.hidden=true;
  if(!file){imagePreviewStatus.textContent='Você pode enviar uma captura de tela para a IA analisar. Máximo 3 MB.';return;}
  if(!['image/jpeg','image/png','image/webp'].includes(file.type)){chatImage.value='';imagePreviewStatus.textContent='Formato não suportado. Use JPEG, PNG ou WEBP.';return;}
  if(file.size>3*1024*1024){chatImage.value='';imagePreviewStatus.textContent='A imagem ultrapassa 3 MB. Envie uma captura menor.';return;}
  const reader=new FileReader();reader.onload=()=>{selectedImageData=String(reader.result||'');chatImagePreview.src=selectedImageData;imagePreview.hidden=false;imagePreviewStatus.textContent='Imagem pronta para enviar: '+file.name;};
  reader.onerror=()=>{chatImage.value='';imagePreviewStatus.textContent='Não foi possível ler a imagem. Tente novamente.';};reader.readAsDataURL(file);
-});
-document.getElementById('remove-chat-image').addEventListener('click',()=>{selectedImageData='';chatImage.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem removida. Você pode anexar outra.';});
+}
+document.getElementById('remove-chat-image').addEventListener('click',()=>{selectedImageData='';chatImage.value='';cameraImage.value='';generalFile.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem removida. Você pode anexar outra.';});
 const chatLog=document.getElementById('chat-log'),chatStatus=document.getElementById('chat-status'),sendChat=document.getElementById('send-chat'),logoutChat=document.getElementById('logout-chat');
 const SESSION_KEY='central_ia_session_v1';let sessionToken=localStorage.getItem(SESSION_KEY)||'';
 function showLogin(message='Acesso protegido.'){document.body.classList.add('auth-locked');loginScreen.hidden=false;loginStatus.textContent=message;}
@@ -416,12 +471,12 @@ async function sendChatMessage(){
  addChatLine('Você',message||(image?'[Imagem enviada para análise]':''));
  chatMessage.value='';
  try{
-  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message,image:image||undefined})});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message:(thinkingMore?'Responda no modo de reflexão aprofundada: analise cuidadosamente, confira os passos e explique as incertezas. ':'')+message,image:image||undefined})});
   const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
   if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sua sessão expirou. Entre novamente.');}
   if(!response.ok)throw new Error(data.error||('Erro HTTP '+response.status));
   if(typeof data.answer!=='string')throw new Error('O servidor não retornou uma resposta de texto.');
-  addChatLine('CENTRAL IA',data.answer);if(image){selectedImageData='';chatImage.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem analisada. Você pode anexar outro print.';}chatStatus.textContent='Resposta recebida com sucesso.';
+  addChatLine('CENTRAL IA',data.answer);if(image){selectedImageData='';chatImage.value='';cameraImage.value='';generalFile.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem analisada. Você pode anexar outro print.';}chatStatus.textContent='Resposta recebida com sucesso.';
  }catch(error){addChatLine('Aviso',error.message);chatStatus.textContent='Não foi possível concluir a mensagem.';}
  finally{sendChat.disabled=false;}
 }
