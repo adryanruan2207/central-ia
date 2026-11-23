@@ -72,6 +72,29 @@ async function handle(request, env) {
   if (!isApiToken && !isSession) return json({ error: "Sessão expirada ou não autorizada" }, 401);
   if (!env.DB) return json({ error: "Banco D1 ainda não configurado" }, 503);
 
+  if (url.pathname === "/automation/status" && request.method === "GET") {
+    const [heartbeat, counts] = await Promise.all([
+      env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
+      env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all()
+    ]);
+    const tasks = {};
+    for (const item of (counts.results || [])) tasks[item.status] = Number(item.total || 0);
+    return json({
+      service: "CENTRAL IA",
+      automation: "cloud-cron",
+      schedule: "A cada 15 minutos",
+      last_check: heartbeat?.created_at || null,
+      tasks: {
+        queued: tasks.queued || 0,
+        processing: tasks.processing || 0,
+        completed: tasks.completed || 0,
+        failed: tasks.failed || 0,
+        needs_review: tasks.needs_review || 0
+      },
+      checked_at: new Date().toISOString()
+    });
+  }
+
 
   if (url.pathname === "/ai/chat" && request.method === "POST") {
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado" }, 503);
