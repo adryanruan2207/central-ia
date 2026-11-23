@@ -464,6 +464,23 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <article class="card"><h3>💰 Gestão financeira</h3><p>Controle de receitas, despesas, custos e resultados.</p><small>EM DESENVOLVIMENTO</small></article>
 <article class="card"><h3>🤖 Central de automações</h3><p>Integrações e tarefas automatizadas com permissões seguras.</p><small>EM DESENVOLVIMENTO</small></article>
 </div></div>
+<div class="resource-section" id="task-center"><h3>🤖 Central de tarefas automáticas</h3><div class="card">
+<p>Crie pesquisas, análises, rascunhos e tarefas de manutenção. A CENTRAL IA processa tarefas seguras na nuvem e mostra os resultados aqui.</p>
+<form id="task-form" style="display:grid;gap:10px;margin-top:14px">
+<label for="task-title">O que a CENTRAL IA deve fazer?</label>
+<textarea id="task-title" maxlength="160" required rows="3" placeholder="Ex.: Analise oportunidades de produtos para afiliados no Brasil"></textarea>
+<label for="task-type">Tipo de tarefa</label>
+<select id="task-type" style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff">
+<option value="research">Pesquisa conceitual</option><option value="analysis">Análise</option><option value="draft">Criar rascunho</option><option value="maintenance">Manutenção</option>
+</select>
+<label style="display:flex;align-items:center;gap:8px"><input id="task-approval" type="checkbox"> Exigir minha revisão antes do processamento</label>
+<button id="task-submit" type="submit">Adicionar tarefa</button>
+</form>
+<p id="task-status" role="status" aria-live="polite" style="margin-top:10px"></p>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px"><b>Fila e resultados</b><button type="button" class="secondary" id="task-refresh">Atualizar</button></div>
+<div id="task-list" style="display:grid;gap:10px;margin-top:12px"><p>Entre na CENTRAL IA para carregar as tarefas.</p></div>
+<p style="font-size:.78rem;margin-top:12px">O processamento automático ocorre em ciclos de até 15 minutos, uma tarefa segura por ciclo. Tarefas marcadas para revisão ficam aguardando sua autorização. A pesquisa automática ainda não consulta a internet.</p>
+</div></div>
 <div class="resource-section"><h3>Notificações</h3><div class="card">
 <p id="notify-status" role="status" aria-live="polite">Verificando suporte a notificações…</p>
 <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px"><button id="enable-notifications" type="button">Ativar notificações</button><button class="secondary" id="test-notification" type="button">Enviar aviso de teste</button></div>
@@ -589,6 +606,44 @@ sendChat.addEventListener('click',sendChatMessage);
 chatMessage.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
 document.getElementById('clear-chat').addEventListener('click',()=>{chatLog.replaceChildren();chatStatus.textContent='Conversa limpa.';});
 verifySavedSession();
+const taskForm=document.getElementById('task-form');
+const taskTitle=document.getElementById('task-title');
+const taskType=document.getElementById('task-type');
+const taskApproval=document.getElementById('task-approval');
+const taskSubmit=document.getElementById('task-submit');
+const taskStatus=document.getElementById('task-status');
+const taskList=document.getElementById('task-list');
+function taskStatusLabel(value){return ({queued:'Na fila',processing:'Processando',completed:'Concluída',failed:'Falhou',needs_review:'Aguardando revisão'})[value]||value;}
+function renderTasks(tasks){
+ taskList.replaceChildren();
+ if(!tasks.length){const empty=document.createElement('p');empty.textContent='Nenhuma tarefa cadastrada ainda.';taskList.append(empty);return;}
+ for(const task of tasks){
+  const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
+  const title=document.createElement('b');title.textContent=task.title;card.append(title);
+  const meta=document.createElement('p');meta.style.cssText='font-size:.8rem;color:#bbb!important;margin:5px 0';meta.textContent=taskStatusLabel(task.status)+' • '+task.task_type+(task.requires_approval?' • revisão exigida':'');card.append(meta);
+  if(task.result){const details=document.createElement('details');details.style.marginTop='8px';const summary=document.createElement('summary');summary.textContent=task.status==='completed'?'Ver resultado':'Ver detalhes';summary.style.cursor='pointer';const result=document.createElement('p');result.style.cssText='white-space:pre-wrap;font-size:.9rem;line-height:1.5;color:#eee!important';result.textContent=task.result;details.append(summary,result);card.append(details);}
+  taskList.append(card);
+ }
+}
+async function loadTasks(){
+ if(!sessionToken){taskStatus.textContent='Entre para consultar a fila.';return;}
+ taskStatus.textContent='Carregando tarefas…';
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/tasks',{headers:{'Authorization':'Bearer '+sessionToken}});
+ const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar as tarefas.');
+ renderTasks(Array.isArray(data.tasks)?data.tasks:[]);taskStatus.textContent='Fila atualizada.';
+ }catch(error){taskStatus.textContent=error.message;}
+}
+taskForm?.addEventListener('submit',async event=>{
+ event.preventDefault();const title=taskTitle.value.trim();if(!title)return;
+ taskSubmit.disabled=true;taskStatus.textContent='Registrando tarefa na nuvem…';
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/tasks',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({title,task_type:taskType.value,requires_approval:taskApproval.checked})});
+ const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível registrar a tarefa.');
+ taskTitle.value='';taskStatus.textContent=data.message||'Tarefa registrada.';await loadTasks();
+ }catch(error){taskStatus.textContent=error.message;}finally{taskSubmit.disabled=false;}
+});
+document.getElementById('task-refresh')?.addEventListener('click',loadTasks);
+document.getElementById('sidebar-resources')?.addEventListener('click',loadTasks);
+document.getElementById('open-resources')?.addEventListener('click',loadTasks);
 const status=document.getElementById('notify-status'),enable=document.getElementById('enable-notifications'),test=document.getElementById('test-notification');let registration=null;
 async function setup(){if(!('Notification'in window)){status.textContent='Este navegador não oferece suporte a notificações.';enable.disabled=true;test.disabled=true;return;}if(!('serviceWorker'in navigator)||!window.isSecureContext){status.textContent='Abra o site por HTTPS para ativar notificações.';return;}try{registration=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;status.textContent='Permissão atual: '+Notification.permission+'. Serviço instalado neste aparelho.';enable.textContent=Notification.permission==='granted'?'Permissão concedida':'Ativar notificações';}catch(err){status.textContent='Não foi possível instalar o serviço: '+err.message;}}
 enable.addEventListener('click',async()=>{try{const p=await Notification.requestPermission();await setup();if(p==='granted')status.textContent='Permissão concedida. Envio automático ainda requer servidor de notificações.';}catch(e){status.textContent='Falha ao ativar: '+e.message;}});
