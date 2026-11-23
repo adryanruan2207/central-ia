@@ -374,6 +374,16 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 .composer #chat-message{font-size:18px!important;line-height:1.6!important;color:#fff!important}
 .composer #chat-message::placeholder{color:#c4c4c7!important;opacity:1!important}
 #chat-status{font-size:13px!important;color:#c4c4c7!important}
+
+/* Conversa refinada: mensagens no estilo limpo do ChatGPT */
+#chat-log{gap:24px!important;padding:24px 4px 30px!important;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important}
+#chat-log>div{font-family:inherit!important;font-size:17px!important;line-height:1.75!important;letter-spacing:0!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+#chat-log>div b{display:none!important}
+#chat-log>div span{display:block!important;font:inherit!important;color:#ececec!important}
+#chat-log>div.user-message{align-self:flex-end!important;width:fit-content!important;max-width:min(82%,680px)!important;padding:12px 17px!important;border:0!important;border-radius:22px!important;background:#303030!important;color:#f7f7f8!important}
+#chat-log>div.assistant-message,#chat-log>div:not(.user-message){align-self:stretch!important;width:100%!important;max-width:100%!important;padding:2px 0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#ececec!important}
+#chat-log>div.assistant-message span,#chat-log>div:not(.user-message) span{color:#ececec!important}
+@media(max-width:760px){#chat-log{gap:22px!important;padding:20px 2px 26px!important}#chat-log>div{font-size:17px!important}#chat-log>div.user-message{max-width:90%!important}}
 </style>
 </head>
 <body>
@@ -551,7 +561,8 @@ loginForm.addEventListener('submit',login);
 logoutChat.addEventListener('click',()=>{sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Você saiu da conta. Entre novamente.');});
 function addChatLine(who,text){
  const line=document.createElement('div');
- line.style.cssText='padding:10px;border:1px solid #401919;border-radius:10px;background:#090909;white-space:pre-wrap;overflow-wrap:anywhere';
+ line.className='chat-message '+(who==='Você'?'user-message':'assistant-message');
+ line.setAttribute('data-speaker',who);
  const label=document.createElement('b');label.textContent=who+': ';
  const body=document.createElement('span');body.textContent=text;
  line.append(label,body);chatLog.appendChild(line);chatLog.scrollTop=chatLog.scrollHeight;
