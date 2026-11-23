@@ -39,9 +39,12 @@ async function handle(request, env) {
     const message = typeof body.message === "string" ? body.message.trim() : "";
     if (!message) return json({ error: "Informe uma mensagem" }, 400);
     if (message.length > 4000) return json({ error: "Mensagem muito longa (máximo 4000 caracteres)" }, 413);
+    const currentDateTime = new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "full", timeStyle: "short", timeZone: "America/Sao_Paulo"
+    }).format(new Date());
     const result = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
       messages: [
-        { role: "system", content: "Você é a CENTRAL IA, assistente em português do Brasil. Responda com clareza, seja honesto sobre limitações e nunca afirme ter executado ações que não foram realizadas. Não faça transações financeiras nem ordens de trading." },
+        { role: "system", content: `Você é a CENTRAL IA, assistente em português do Brasil. Data e hora atuais: ${currentDateTime} (fuso horário de Brasília, America/Sao_Paulo). Quando perguntarem o ano, a data ou a hora atuais, use esta informação como fonte correta e não suponha datas antigas. Responda com clareza, seja honesto sobre limitações e nunca afirme ter executado ações que não foram realizadas. Não faça transações financeiras nem ordens de trading.` },
         { role: "user", content: message }
       ],
       max_tokens: 512,
