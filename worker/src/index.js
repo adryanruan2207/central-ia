@@ -79,8 +79,13 @@ async function handle(request, env) {
     try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
     const message = typeof body.message === "string" ? body.message.trim() : "";
     const image = typeof body.image === "string" ? body.image : "";
-    if (!message && !image) return json({ error: "Escreva uma mensagem ou anexe uma imagem." }, 400);
-    if (message.length > 4000) return json({ error: "Mensagem muito longa (máximo 4000 caracteres)" }, 413);
+    const incoming = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
+    const history = incoming.map(item => ({
+      role: item && item.role === "assistant" ? "assistant" : "user",
+      content: typeof item?.content === "string" ? item.content.slice(0, 4000) : ""
+    })).filter(item => item.content);
+    if (!message && !image && !history.length) return json({ error: "Escreva uma mensagem ou anexe uma imagem." }, 400);
+    if (message.length > 4000 || history.some(item => item.content.length > 4000)) return json({ error: "Mensagem muito longa (máximo 4000 caracteres)" }, 413);
     if (image && (image.length > 5_500_000 || !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(image))) {
       return json({ error: "Imagem inválida ou muito grande. Envie JPEG, PNG ou WEBP de até 3 MB." }, 413);
     }
@@ -95,6 +100,7 @@ async function handle(request, env) {
       result = await env.AI.run(model, {
         messages: [
           { role: "system", content: systemPrompt },
+          ...history,
           { role: "user", content: message || "Analise esta captura de tela e me oriente sobre o que fazer." }
         ],
         image
@@ -104,10 +110,11 @@ async function handle(request, env) {
       result = await env.AI.run(model, {
         messages: [
           { role: "system", content: systemPrompt },
+          ...history,
           { role: "user", content: message }
         ],
-        max_tokens: 512,
-        temperature: 0.3
+        max_tokens: 700,
+        temperature: 0.35
       });
     }
     const answer = typeof result?.response === "string" ? result.response : "";
