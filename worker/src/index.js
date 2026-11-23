@@ -216,6 +216,63 @@ async function handle(request, env) {
     return json({ id, status: "research", message: "Oportunidade de produto cadastrada." }, 201);
   }
 
+  if (url.pathname === "/publications" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, channel, title, content, affiliate_url, scheduled_at, status, external_post_id, published_at, last_error, created_at, updated_at FROM publication_queue ORDER BY COALESCE(scheduled_at, created_at) DESC LIMIT 100"
+    ).all();
+    return json({ publications: result.results || [] });
+  }
+
+  if (url.pathname === "/publications" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const channel = typeof body.channel === "string" ? body.channel.trim().toLowerCase() : "";
+    const title = typeof body.title === "string" ? body.title.trim().slice(0, 180) : "";
+    const content = typeof body.content === "string" ? body.content.trim() : "";
+    const affiliateUrl = typeof body.affiliate_url === "string" ? body.affiliate_url.trim().slice(0, 1000) : "";
+    const scheduledAt = typeof body.scheduled_at === "string" ? body.scheduled_at.trim() : "";
+    const allowedChannels = ["instagram", "facebook", "youtube", "tiktok", "x", "pinterest", "linkedin", "blog", "other"];
+    if (!allowedChannels.includes(channel)) return json({ error: "Canal inválido." }, 400);
+    if (!title || !content) return json({ error: "Informe o título e o conteúdo da publicação." }, 400);
+    if (content.length > 10000) return json({ error: "O conteúdo ultrapassa 10.000 caracteres." }, 413);
+    if (affiliateUrl) {
+      try {
+        const parsed = new URL(affiliateUrl);
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("protocolo inválido");
+      } catch { return json({ error: "Link de afiliado inválido. Use http ou https." }, 400); }
+    }
+    let normalizedSchedule = null;
+    if (scheduledAt) {
+      const date = new Date(scheduledAt);
+      if (!Number.isFinite(date.getTime())) return json({ error: "Data e horário inválidos." }, 400);
+      normalizedSchedule = date.toISOString();
+    }
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const status = normalizedSchedule ? "queued" : "draft";
+    await env.DB.prepare(
+      "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(id, channel, title, content, affiliateUrl || null, normalizedSchedule, status, now, now).run();
+    await record(env, "publication_draft_created", JSON.stringify({ id, channel, status }));
+    return json({ id, status, message: status === "queued" ? "Conteúdo agendado na fila interna. A publicação externa depende da conexão oficial do canal." : "Rascunho salvo na CENTRAL IA." }, 201);
+  }
+
+  if (url.pathname.startsWith("/publications/") && url.pathname.endsWith("/status") && request.method === "POST") {
+    const parts = url.pathname.split("/");
+    const id = (parts[2] || "").slice(0, 100);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const status = typeof body.status === "string" ? body.status : "";
+    if (!id || !["draft", "queued", "paused"].includes(status)) return json({ error: "Status inválido." }, 400);
+    const existing = await env.DB.prepare("SELECT id, scheduled_at FROM publication_queue WHERE id = ?").bind(id).first();
+    if (!existing) return json({ error: "Publicação não encontrada." }, 404);
+    if (status === "queued" && !existing.scheduled_at) return json({ error: "Defina uma data e horário antes de colocar na fila." }, 400);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE publication_queue SET status = ?, updated_at = ? WHERE id = ?").bind(status, now, id).run();
+    await record(env, "publication_status_changed", JSON.stringify({ id, status }));
+    return json({ id, status, message: "Status da publicação atualizado." });
+  }
+
   if (url.pathname === "/tasks" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, title, task_type, status, requires_approval, result, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT 100"
