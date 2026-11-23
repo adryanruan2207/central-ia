@@ -156,6 +156,29 @@ async function handle(request, env) {
     }
   }
 
+  if (url.pathname === "/affiliates/programs" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, name, region, category, signup_url, notes, status, created_at, updated_at FROM affiliate_programs ORDER BY name ASC"
+    ).all();
+    return json({ programs: result.results || [] });
+  }
+
+  if (url.pathname.startsWith("/affiliates/programs/") && url.pathname.endsWith("/status") && request.method === "POST") {
+    const parts = url.pathname.split("/");
+    const id = (parts[3] || "").slice(0, 100);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const status = typeof body.status === "string" ? body.status : "";
+    const allowed = ["research", "ready", "needs_action", "submitted", "approved", "rejected", "paused"];
+    if (!id || !allowed.includes(status)) return json({ error: "Programa ou status inválido." }, 400);
+    const existing = await env.DB.prepare("SELECT id FROM affiliate_programs WHERE id = ?").bind(id).first();
+    if (!existing) return json({ error: "Programa não encontrado." }, 404);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE affiliate_programs SET status = ?, updated_at = ? WHERE id = ?").bind(status, now, id).run();
+    await record(env, "affiliate_program_status", JSON.stringify({ id, status }));
+    return json({ id, status, message: "Etapa do programa atualizada." });
+  }
+
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
