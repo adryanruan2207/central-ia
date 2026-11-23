@@ -277,9 +277,6 @@ body.auth-locked{overflow:hidden}
 .composer{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:12px;background:#212121;border:1px solid #555;border-radius:22px}
 .composer-tools{display:flex;align-items:center;gap:8px}
 #attach-menu-button{width:42px;height:42px;padding:0;border-radius:50%;font-size:1.65rem;line-height:1}
-#thinking-label{margin-left:auto;font-size:.84rem;color:#c7c7c7!important}
-#thinking-toggle{padding:7px 11px;font-size:.82rem;border-radius:20px}
-#thinking-toggle[aria-pressed="true"]{background:#51458d!important;border-color:#9585ff!important;color:#fff!important}
 .composer #chat-message{width:100%;min-height:58px!important;max-height:180px;resize:vertical;border:0!important;background:transparent!important;padding:7px 5px!important;box-shadow:none!important}
 .composer-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .composer-bottom span{font-size:.76rem;color:#aaa!important}
@@ -288,7 +285,7 @@ body.auth-locked{overflow:hidden}
 #attach-menu[hidden]{display:none}
 #attach-menu button{display:flex;width:100%;justify-content:flex-start;background:transparent!important;color:#f4f4f4!important;border:0!important;border-radius:10px;padding:12px;font-size:.95rem}
 #attach-menu button:active,#attach-menu button:focus-visible{background:#454545!important}
-@media(max-width:600px){.composer{padding:10px;border-radius:20px}#thinking-label{font-size:.78rem}.composer-bottom span{font-size:.7rem}}
+@media(max-width:600px){.composer{padding:10px;border-radius:20px}.composer-bottom span{font-size:.7rem}}
 
 </style>
 </head>
@@ -316,7 +313,7 @@ body.auth-locked{overflow:hidden}
 <div id="image-preview-status" role="status" aria-live="polite" style="font-size:.88rem;color:#bdbdbd!important;margin:7px 0">Anexe uma foto, imagem ou captura de tela pelo botão +.</div>
 <div id="image-preview" hidden style="margin:8px 0"><img id="chat-image-preview" alt="Prévia da imagem anexada" style="display:block;max-width:100%;max-height:240px;border-radius:12px;border:1px solid #555"><button id="remove-chat-image" type="button" class="secondary" style="margin-top:8px">Remover imagem</button></div>
 <div class="composer" id="composer">
- <div class="composer-tools"><button id="attach-menu-button" type="button" class="secondary" aria-label="Adicionar anexo" aria-expanded="false">＋</button><span id="thinking-label">Pensar mais</span><button id="thinking-toggle" type="button" class="secondary" aria-pressed="false">Desativado</button></div>
+ <div class="composer-tools"><button id="attach-menu-button" type="button" class="secondary" aria-label="Adicionar anexo" aria-expanded="false">＋</button></div>
  <textarea id="chat-message" rows="2" maxlength="4000" placeholder="Pergunte alguma coisa" aria-label="Sua mensagem"></textarea>
  <div class="composer-bottom"><span>Enter para enviar · Shift + Enter para nova linha</span><button id="send-chat" type="button" aria-label="Enviar mensagem">↑</button></div>
  <div id="attach-menu" hidden role="menu" aria-label="Opções de anexo">
@@ -324,6 +321,7 @@ body.auth-locked{overflow:hidden}
   <button type="button" data-attach="photos">🖼️ Fotos</button>
   <button type="button" data-attach="files">📁 Arquivos</button>
   <button type="button" data-attach="plugins">🧩 Plugins</button>
+  <button type="button" data-attach="thinking" id="thinking-menu-option">🧠 Pensar mais: desativado</button>
  </div>
 </div>
 <input id="chat-image" type="file" accept="image/jpeg,image/png,image/webp" hidden>
@@ -393,13 +391,13 @@ const cameraImage=document.getElementById('camera-image');
 const generalFile=document.getElementById('general-file');
 const attachMenu=document.getElementById('attach-menu');
 const attachMenuButton=document.getElementById('attach-menu-button');
-const thinkingToggle=document.getElementById('thinking-toggle');
+const thinkingOption=document.getElementById('thinking-menu-option');
 const attachmentNote=document.getElementById('attachment-note');
 let thinkingMore=false;
 attachMenuButton.addEventListener('click',()=>{attachMenu.hidden=!attachMenu.hidden;attachMenuButton.setAttribute('aria-expanded',String(!attachMenu.hidden));});
 document.addEventListener('click',e=>{if(!attachMenu.contains(e.target)&&e.target!==attachMenuButton){attachMenu.hidden=true;attachMenuButton.setAttribute('aria-expanded','false');}});
-thinkingToggle.addEventListener('click',()=>{thinkingMore=!thinkingMore;thinkingToggle.setAttribute('aria-pressed',String(thinkingMore));thinkingToggle.textContent=thinkingMore?'Ativado':'Desativado';attachmentNote.textContent=thinkingMore?'Modo Pensar mais: a CENTRAL IA receberá uma orientação para elaborar a resposta com mais cuidado. Isso não ativa um modelo de raciocínio separado.':'Imagens até 3 MB. Leitura de documentos e plugins será ativada em etapas futuras.';});
-attachMenu.addEventListener('click',e=>{const action=e.target.closest('button[data-attach]')?.dataset.attach;if(!action)return;attachMenu.hidden=true;attachMenuButton.setAttribute('aria-expanded','false');if(action==='camera')cameraImage.click();if(action==='photos')chatImage.click();if(action==='files')generalFile.click();if(action==='plugins'){attachmentNote.textContent='Plugins e integrações ainda não estão conectados à CENTRAL IA. Esta opção ficará disponível quando os conectores forem configurados.';}});
+ 
+attachMenu.addEventListener('click',e=>{const action=e.target.closest('button[data-attach]')?.dataset.attach;if(!action)return;attachMenu.hidden=true;attachMenuButton.setAttribute('aria-expanded','false');if(action==='camera')cameraImage.click();if(action==='photos')chatImage.click();if(action==='files')generalFile.click();if(action==='plugins'){attachmentNote.textContent='Plugins e integrações ainda não estão conectados à CENTRAL IA. Esta opção ficará disponível quando os conectores forem configurados.';}if(action==='thinking'){thinkingMore=!thinkingMore;thinkingOption.textContent='🧠 Pensar mais: '+(thinkingMore?'ativado':'desativado');attachmentNote.textContent=thinkingMore?'Modo Pensar mais ativado: a mensagem receberá uma orientação extra para resposta cuidadosa. Não é um modelo de raciocínio separado.':'Modo Pensar mais desativado.';}});
 
 const imagePreview=document.getElementById('image-preview');
 const chatImagePreview=document.getElementById('chat-image-preview');
