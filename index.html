@@ -272,9 +272,9 @@ footer{font-size:.9rem;color:#999!important}
 <button id="open-resources" type="button">☰ Todos os recursos</button>
 </div>
 <section class="chat-workspace" aria-label="Conversa com CENTRAL IA"><div class="chat-heading"><div class="chat-avatar">✦</div><div><h2>Converse com a CENTRAL IA</h2><p>Sua central inteligente para ideias, negócios e automações.</p></div></div><div class="card" style="min-height:0">
-<p>Converse com o modelo conectado ao CENTRAL IA. A chave é usada somente nesta sessão e não é salva no navegador.</p>
-<label for="chat-token" style="display:block;margin-top:12px;font-size:.82rem">Chave de acesso da CENTRAL IA</label>
-<input id="chat-token" type="password" autocomplete="off" placeholder="Cole aqui sua chave API_TOKEN" style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important">
+<p>Entre uma vez com sua senha pessoal. A sessão deste aparelho permanece ativa por até 30 dias.</p>
+<label for="chat-token" style="display:block;margin-top:12px;font-size:.98rem">Senha de acesso</label>
+<input id="chat-token" type="password" autocomplete="current-password" placeholder="Digite sua senha pessoal" style="display:block;width:100%;margin-top:6px;padding:12px;border-radius:10px;border:1px solid #652020;background:#080808;color:#fff!important"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button id="login-chat" type="button">Entrar e manter conectado</button><button id="logout-chat" type="button" class="secondary" hidden>Sair da conta</button></div>
 <div id="chat-log" role="log" aria-live="polite" style="margin-top:12px;max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px">
 <div style="padding:10px;border:1px solid #401919;border-radius:10px;background:#090909">CENTRAL IA: Olá! Quando conectar sua chave, podemos conversar.</div>
 </div>
@@ -345,6 +345,33 @@ const chatMessage=document.getElementById('chat-message');
 const chatLog=document.getElementById('chat-log');
 const chatStatus=document.getElementById('chat-status');
 const sendChat=document.getElementById('send-chat');
+const loginChat=document.getElementById('login-chat');
+const logoutChat=document.getElementById('logout-chat');
+const SESSION_KEY='central_ia_session_v1';
+let sessionToken=localStorage.getItem(SESSION_KEY)||'';
+function updateSessionUI(){
+ const active=!!sessionToken;
+ chatToken.hidden=active;loginChat.hidden=active;logoutChat.hidden=!active;
+ const label=document.querySelector('label[for="chat-token"]');
+ if(label)label.hidden=active;
+ chatStatus.textContent=active?'Você está conectado neste aparelho.':'Entre com sua senha para começar.';
+}
+async function login(){
+ const password=chatToken.value;
+ if(!password){chatStatus.textContent='Digite sua senha pessoal.';chatToken.focus();return;}
+ loginChat.disabled=true;chatStatus.textContent='Verificando acesso…';
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password})});
+  const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
+  if(!response.ok)throw new Error(data.error||'Não foi possível entrar.');
+  sessionToken=data.token;localStorage.setItem(SESSION_KEY,sessionToken);chatToken.value='';
+  updateSessionUI();
+ }catch(error){chatStatus.textContent=error.message;}
+ finally{loginChat.disabled=false;}
+}
+loginChat.addEventListener('click',login);
+chatToken.addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+logoutChat.addEventListener('click',()=>{sessionToken='';localStorage.removeItem(SESSION_KEY);updateSessionUI();chatStatus.textContent='Você saiu da conta.';});
 function addChatLine(who,text){
  const line=document.createElement('div');
  line.style.cssText='padding:10px;border:1px solid #401919;border-radius:10px;background:#090909;white-space:pre-wrap;overflow-wrap:anywhere';
@@ -353,17 +380,15 @@ function addChatLine(who,text){
  line.append(label,body);chatLog.appendChild(line);chatLog.scrollTop=chatLog.scrollHeight;
 }
 async function sendChatMessage(){
- const token=chatToken.value.trim(),message=chatMessage.value.trim();
- if(!token){chatStatus.textContent='Informe a chave de acesso API_TOKEN no campo acima.';chatToken.focus();return;}
+ const message=chatMessage.value.trim();
+ if(!sessionToken){chatStatus.textContent='Entre com sua senha para conversar.';chatToken.focus();return;}
  if(!message){chatStatus.textContent='Digite uma mensagem antes de enviar.';chatMessage.focus();return;}
  sendChat.disabled=true;chatStatus.textContent='A CENTRAL IA está pensando…';
  addChatLine('Você',message);chatMessage.value='';
  try{
-  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{
-   method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-   body:JSON.stringify({message})
-  });
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message})});
   const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
+  if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);updateSessionUI();throw new Error('Sua sessão expirou. Entre novamente.');}
   if(!response.ok)throw new Error(data.error||('Erro HTTP '+response.status));
   if(typeof data.answer!=='string')throw new Error('O servidor não retornou uma resposta de texto.');
   addChatLine('CENTRAL IA',data.answer);chatStatus.textContent='Resposta recebida com sucesso.';
@@ -372,8 +397,8 @@ async function sendChatMessage(){
 }
 sendChat.addEventListener('click',sendChatMessage);
 chatMessage.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage();}});
-document.getElementById('clear-chat').addEventListener('click',()=>{chatLog.replaceChildren();chatStatus.textContent='Conversa limpa. A chave continua apenas nesta sessão.';});
-
+document.getElementById('clear-chat').addEventListener('click',()=>{chatLog.replaceChildren();chatStatus.textContent='Conversa limpa.';});
+updateSessionUI();
 const status=document.getElementById('notify-status'),enable=document.getElementById('enable-notifications'),test=document.getElementById('test-notification');let registration=null;
 async function setup(){if(!('Notification'in window)){status.textContent='Este navegador não oferece suporte a notificações.';enable.disabled=true;test.disabled=true;return;}if(!('serviceWorker'in navigator)||!window.isSecureContext){status.textContent='Abra o site por HTTPS para ativar notificações.';return;}try{registration=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;status.textContent='Permissão atual: '+Notification.permission+'. Serviço instalado neste aparelho.';enable.textContent=Notification.permission==='granted'?'Permissão concedida':'Ativar notificações';}catch(err){status.textContent='Não foi possível instalar o serviço: '+err.message;}}
 enable.addEventListener('click',async()=>{try{const p=await Notification.requestPermission();await setup();if(p==='granted')status.textContent='Permissão concedida. Envio automático ainda requer servidor de notificações.';}catch(e){status.textContent='Falha ao ativar: '+e.message;}});
