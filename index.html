@@ -497,6 +497,20 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <div id="global-affiliates-list" style="display:grid;gap:12px;margin-top:12px"><p>Entre na CENTRAL IA para carregar o catálogo.</p></div>
 <div class="notice">Automação segura: pesquisa, comparação, preparação de cadastros e acompanhamento. Confirmação de identidade, dados fiscais/bancários, aceite de contratos, verificações e publicação externa exigem a etapa autorizada pelo titular.</div>
 </div></div>
+<div class="resource-section" id="publication-center"><h3>📣 Estúdio de conteúdo e publicações</h3><div class="card">
+<p>Crie conteúdos para seus canais, salve rascunhos e organize horários. Nesta etapa, a fila é interna: nenhuma publicação é enviada às redes até conectarmos e autorizarmos a API oficial de cada canal.</p>
+<form id="publication-form" style="display:grid;gap:10px;margin-top:14px">
+<label for="publication-channel">Canal de destino</label><select id="publication-channel" required style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff"><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="youtube">YouTube</option><option value="tiktok">TikTok</option><option value="x">X</option><option value="pinterest">Pinterest</option><option value="linkedin">LinkedIn</option><option value="blog">Blog / site</option><option value="other">Outro</option></select>
+<label for="publication-title">Título / assunto</label><input id="publication-title" maxlength="180" required placeholder="Ex.: 3 vantagens deste produto" style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff">
+<label for="publication-content">Texto da publicação</label><textarea id="publication-content" maxlength="10000" rows="5" required placeholder="Escreva a legenda, roteiro ou descrição. Inclua informações verdadeiras e a identificação de conteúdo afiliado quando houver comissão." style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff"></textarea>
+<label for="publication-link">Link de afiliado (opcional)</label><input id="publication-link" type="url" maxlength="1000" placeholder="https://..." style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff">
+<label for="publication-schedule">Agendar data e horário (opcional)</label><input id="publication-schedule" type="datetime-local" style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff">
+<button id="publication-submit" type="submit">Salvar conteúdo</button></form>
+<p id="publication-status" role="status" aria-live="polite"></p>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Rascunhos e fila</b><button id="publication-refresh" type="button" class="secondary">Atualizar</button></div>
+<div id="publication-list" style="display:grid;gap:10px;margin-top:12px"><p>Entre na CENTRAL IA para carregar os conteúdos.</p></div>
+<div class="notice">A fila ainda não publica nas redes. Para ativar o envio automático será necessário conectar cada conta por autorização oficial (OAuth), respeitar as regras da plataforma e concluir eventuais aprovações.</div>
+</div></div>
 <div class="resource-section" id="affiliate-center"><h3>🛍️ Central de afiliados</h3><div class="card">
 <p>Cadastre produtos e links de divulgação para organizar oportunidades. A CENTRAL IA não publica anúncios nem se inscreve em programas automaticamente.</p>
 <form id="affiliate-form" style="display:grid;gap:10px;margin-top:14px">
@@ -747,6 +761,46 @@ async function loadGlobalAffiliatePrograms(){
 document.getElementById('global-affiliates-refresh')?.addEventListener('click',loadGlobalAffiliatePrograms);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadGlobalAffiliatePrograms);
 document.getElementById('open-resources')?.addEventListener('click',loadGlobalAffiliatePrograms);
+
+const publicationForm=document.getElementById('publication-form');
+const publicationStatus=document.getElementById('publication-status');
+const publicationList=document.getElementById('publication-list');
+const publicationLabels={draft:'Rascunho',queued:'Na fila interna',needs_connection:'Aguardando conexão',published:'Publicado',failed:'Falhou',paused:'Pausado'};
+function renderPublications(items){
+ publicationList.replaceChildren();
+ if(!items.length){const empty=document.createElement('p');empty.textContent='Nenhum conteúdo salvo ainda.';publicationList.append(empty);return;}
+ for(const item of items){
+  const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
+  const heading=document.createElement('b');heading.textContent=item.title;card.append(heading);
+  const meta=document.createElement('p');meta.style.cssText='font-size:.82rem;color:#bbb!important;margin:5px 0';meta.textContent=(item.channel||'Canal')+' • '+(publicationLabels[item.status]||item.status)+(item.scheduled_at?' • '+new Date(item.scheduled_at).toLocaleString('pt-BR'):'');card.append(meta);
+  const body=document.createElement('p');body.style.cssText='white-space:pre-wrap;font-size:.88rem;color:#eee!important;margin:8px 0';body.textContent=item.content;card.append(body);
+  if(item.affiliate_url){const link=document.createElement('a');link.href=item.affiliate_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir link associado';card.append(link);}
+  if(item.last_error){const error=document.createElement('p');error.textContent='Detalhe: '+item.last_error;error.style.color='#ffaaaa';card.append(error);}
+  if(item.status==='queued'||item.status==='paused'){
+   const action=document.createElement('button');action.type='button';action.className='secondary';action.textContent=item.status==='paused'?'Retomar fila':'Pausar';action.style.marginTop='9px';
+   action.addEventListener('click',async()=>{action.disabled=true;try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications/'+encodeURIComponent(item.id)+'/status',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({status:item.status==='paused'?'queued':'paused'})});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível atualizar.');publicationStatus.textContent=data.message;await loadPublications();}catch(error){publicationStatus.textContent=error.message;}finally{action.disabled=false;}});
+   card.append(action);
+  }
+  publicationList.append(card);
+ }
+}
+async function loadPublications(){
+ if(!sessionToken){publicationStatus.textContent='Entre para consultar seus conteúdos.';return;}
+ publicationStatus.textContent='Carregando conteúdos…';
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications',{headers:{'Authorization':'Bearer '+sessionToken}});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar conteúdos.');renderPublications(Array.isArray(data.publications)?data.publications:[]);publicationStatus.textContent='Conteúdos atualizados. A fila ainda não envia publicações externas.';}
+ catch(error){publicationStatus.textContent=error.message;}
+}
+publicationForm?.addEventListener('submit',async event=>{
+ event.preventDefault();if(!sessionToken){publicationStatus.textContent='Entre novamente para salvar.';return;}
+ const schedule=document.getElementById('publication-schedule').value;
+ const payload={channel:document.getElementById('publication-channel').value,title:document.getElementById('publication-title').value.trim(),content:document.getElementById('publication-content').value.trim(),affiliate_url:document.getElementById('publication-link').value.trim(),scheduled_at:schedule?new Date(schedule).toISOString():null};
+ const submit=document.getElementById('publication-submit');submit.disabled=true;publicationStatus.textContent='Salvando conteúdo na nuvem…';
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível salvar.');publicationForm.reset();publicationStatus.textContent=data.message||'Conteúdo salvo.';await loadPublications();}
+ catch(error){publicationStatus.textContent=error.message;}finally{submit.disabled=false;}
+});
+document.getElementById('publication-refresh')?.addEventListener('click',loadPublications);
+document.getElementById('sidebar-resources')?.addEventListener('click',loadPublications);
+document.getElementById('open-resources')?.addEventListener('click',loadPublications);
 
 const affiliateForm=document.getElementById('affiliate-form');
 const affiliateStatus=document.getElementById('affiliate-status');
