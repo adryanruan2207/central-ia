@@ -287,6 +287,42 @@ body.auth-locked{overflow:hidden}
 #attach-menu button:active,#attach-menu button:focus-visible{background:#454545!important}
 @media(max-width:600px){.composer{padding:10px;border-radius:20px}.composer-bottom span{font-size:.7rem}}
 
+
+/* Layout conversacional inspirado no ChatGPT */
+body{background:#212121!important;color:#ececec!important}
+.app-sidebar{position:fixed;inset:0 auto 0 0;width:260px;padding:14px 12px;background:#171717;border-right:1px solid #303030;z-index:40;display:flex;flex-direction:column;gap:12px}
+.sidebar-brand{padding:9px 10px 14px;font-size:1.08rem;font-weight:750;letter-spacing:-.03em;color:#f5f5f5!important}
+.sidebar-action{width:100%;justify-content:flex-start;gap:10px;padding:12px 13px;border-radius:12px;background:transparent!important;border:1px solid #414141!important;color:#eee!important;font-size:.93rem}
+.sidebar-action:hover{background:#2b2b2b!important}
+.sidebar-label{padding:12px 10px 3px;color:#999!important;font-size:.78rem;font-weight:700}
+.sidebar-current{padding:10px;border-radius:10px;background:#292929;color:#eee!important;font-size:.88rem}
+.sidebar-bottom{margin-top:auto;color:#999!important;font-size:.78rem;padding:10px}
+.sidebar-scrim{display:none}
+#sidebar-toggle{width:40px;height:40px;padding:0;border-radius:10px;background:transparent!important;border:1px solid #444!important;color:#eee!important;font-size:1.15rem}
+header.wrap{margin-left:260px;width:calc(100% - 260px);padding:0 22px}
+main.wrap{margin-left:260px;width:calc(100% - 260px);max-width:900px;padding:30px 28px 60px}
+footer.wrap{margin-left:260px;width:calc(100% - 260px)}
+.chat-workspace{min-height:calc(100vh - 170px);max-width:800px}
+.chat-heading{margin:10px auto 26px}
+.chat-workspace>.card{background:transparent!important;border:0!important;box-shadow:none!important;padding:8px 0!important}
+#chat-log>div{max-width:88%;width:fit-content;padding:13px 17px!important;border:0!important;border-radius:18px!important;background:#303030!important}
+#chat-log>div:has(b:first-child){align-self:flex-end;background:#303030!important}
+.composer{background:#303030;border:1px solid #4b4b4b;border-radius:26px;padding:12px 14px;box-shadow:0 5px 24px #0002}
+.composer #chat-message{background:transparent!important;min-height:48px!important}
+.composer-bottom span{color:#aaa!important}
+@media(max-width:760px){
+ .app-sidebar{transform:translateX(-105%);transition:transform .22s ease;width:min(290px,84vw);box-shadow:18px 0 45px #0008}
+ body.sidebar-open .app-sidebar{transform:translateX(0)}
+ .sidebar-scrim{display:block;position:fixed;inset:0;background:#0009;z-index:35;opacity:0;pointer-events:none;transition:opacity .22s}
+ body.sidebar-open .sidebar-scrim{opacity:1;pointer-events:auto}
+ header.wrap{margin-left:0;width:100%;padding:0 14px}
+ main.wrap{margin:0 auto;width:92%;padding:22px 0 48px}
+ footer.wrap{margin-left:0;width:100%}
+ .chat-workspace{min-height:calc(100dvh - 150px);padding-bottom:14px}
+ .chat-heading{margin:8px auto 22px}
+ #chat-log>div{max-width:94%}
+}
+
 </style>
 </head>
 <body>
@@ -296,7 +332,9 @@ body.auth-locked{overflow:hidden}
  <input id="login-password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required>
  <button id="login-submit" type="submit">Entrar na plataforma</button>
  <p id="login-status" role="status" aria-live="polite">Acesso protegido.</p></form></div>
+<aside class="app-sidebar" id="app-sidebar" aria-label="Menu principal"><div class="sidebar-brand">CENTRAL IA</div><button class="sidebar-action" id="new-chat" type="button">＋ Nova conversa</button><button class="sidebar-action" id="sidebar-resources" type="button">▦ Todos os recursos</button><div class="sidebar-label">Conversas</div><div class="sidebar-current">Conversa atual</div><div class="sidebar-bottom">CENTRAL IA · Seu espaço de inteligência</div></aside><div class="sidebar-scrim" id="sidebar-scrim"></div>
 <header class="wrap">
+<button id="sidebar-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
 <a class="brand" href="./">CENTRAL <span>IA</span></a>
 <div class="status">● IA ONLINE</div>
 </header>
@@ -380,6 +418,13 @@ body.auth-locked{overflow:hidden}
 <script>
 (() => {
 const panel=document.getElementById('resource-panel');
+const sidebarToggle=document.getElementById('sidebar-toggle');
+const sidebarScrim=document.getElementById('sidebar-scrim');
+const closeSidebar=()=>{document.body.classList.remove('sidebar-open');sidebarToggle?.setAttribute('aria-expanded','false');};
+sidebarToggle?.addEventListener('click',()=>{const open=!document.body.classList.contains('sidebar-open');document.body.classList.toggle('sidebar-open',open);sidebarToggle.setAttribute('aria-expanded',String(open));});
+sidebarScrim?.addEventListener('click',closeSidebar);
+document.getElementById('new-chat')?.addEventListener('click',()=>{document.getElementById('chat-log').replaceChildren();document.getElementById('chat-status').textContent='Nova conversa iniciada.';document.getElementById('chat-message').value='';closeSidebar();document.getElementById('chat-message').focus();});
+document.getElementById('sidebar-resources')?.addEventListener('click',()=>{panel.classList.add('open');closeSidebar();});
 document.getElementById('open-resources').addEventListener('click',()=>{panel.classList.add('open');document.getElementById('close-resources').focus();});
 document.getElementById('close-resources').addEventListener('click',()=>panel.classList.remove('open'));
 panel.addEventListener('click',e=>{if(e.target===panel)panel.classList.remove('open');});
