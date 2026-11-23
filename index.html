@@ -466,6 +466,12 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 </div></div>
 <div class="resource-section" id="task-center"><h3>🤖 Central de tarefas automáticas</h3><div class="card">
 <p>Crie pesquisas, análises, rascunhos e tarefas de manutenção. A CENTRAL IA processa tarefas seguras na nuvem e mostra os resultados aqui.</p>
+<div id="automation-monitor" style="padding:14px;margin:14px 0;border:1px solid #46598a;border-radius:14px;background:#202d50">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📡 Monitoramento da nuvem</b><button type="button" class="secondary" id="automation-refresh">Atualizar status</button></div>
+<p id="automation-health" role="status" aria-live="polite" style="margin:8px 0;color:#cbd5e1!important">Consultando automação…</p>
+<div id="automation-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:10px"></div>
+<p id="automation-last-check" style="font-size:.8rem;color:#b8c3e8!important;margin:10px 0 0">Última verificação: aguardando consulta.</p>
+</div>
 <form id="task-form" style="display:grid;gap:10px;margin-top:14px">
 <label for="task-title">O que a CENTRAL IA deve fazer?</label>
 <textarea id="task-title" maxlength="160" required rows="3" placeholder="Ex.: Analise oportunidades de produtos para afiliados no Brasil"></textarea>
@@ -687,9 +693,37 @@ taskForm?.addEventListener('submit',async event=>{
  taskTitle.value='';taskStatus.textContent=data.message||'Tarefa registrada.';await loadTasks();
  }catch(error){taskStatus.textContent=error.message;}finally{taskSubmit.disabled=false;}
 });
+
+const automationHealth=document.getElementById('automation-health');
+const automationMetrics=document.getElementById('automation-metrics');
+const automationLastCheck=document.getElementById('automation-last-check');
+async function loadAutomationStatus(){
+ if(!sessionToken){automationHealth.textContent='Entre para consultar o monitoramento.';return;}
+ automationHealth.textContent='Consultando status da nuvem…';
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/automation/status',{headers:{'Authorization':'Bearer '+sessionToken}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(data.error||'Não foi possível consultar a automação.');
+  automationHealth.textContent='Serviço: '+data.service+' • Execução programada: '+data.schedule;
+  const labels=[['Na fila',data.tasks?.queued||0],['Processando',data.tasks?.processing||0],['Concluídas',data.tasks?.completed||0],['Falhas',data.tasks?.failed||0],['Revisão necessária',data.tasks?.needs_review||0]];
+  automationMetrics.replaceChildren();
+  for(const [label,value] of labels){
+   const tile=document.createElement('div');tile.style.cssText='padding:10px;border:1px solid #46598a;border-radius:10px;background:#17213b;text-align:center';
+   const number=document.createElement('div');number.style.cssText='font-size:1.35rem;font-weight:800;color:#fff!important';number.textContent=String(value);
+   const caption=document.createElement('div');caption.style.cssText='font-size:.76rem;color:#c2cce8!important';caption.textContent=label;
+   tile.append(number,caption);automationMetrics.append(tile);
+  }
+  const last=data.last_check?new Date(data.last_check).toLocaleString('pt-BR'):'Ainda não há execução registrada';
+  automationLastCheck.textContent='Última execução registrada: '+last+' • Consulta: '+new Date(data.checked_at).toLocaleTimeString('pt-BR');
+ }catch(error){automationHealth.textContent=error.message;}
+}
+document.getElementById('automation-refresh')?.addEventListener('click',loadAutomationStatus);
+
 document.getElementById('task-refresh')?.addEventListener('click',loadTasks);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadTasks);
+document.getElementById('sidebar-resources')?.addEventListener('click',loadAutomationStatus);
 document.getElementById('open-resources')?.addEventListener('click',loadTasks);
+document.getElementById('open-resources')?.addEventListener('click',loadAutomationStatus);
 
 
 const marketSearchForm=document.getElementById('market-search-form');
