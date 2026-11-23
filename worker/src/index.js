@@ -53,6 +53,43 @@ async function handle(request, env) {
     return json({ model: "@cf/meta/llama-3.1-8b-instruct-fast", answer });
   }
 
+  if (url.pathname === "/affiliates/products" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
+    ).all();
+    return json({ products: result.results || [] });
+  }
+
+  if (url.pathname === "/affiliates/products" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const name = typeof body.name === "string" ? body.name.trim().slice(0, 160) : "";
+    const marketplace = typeof body.marketplace === "string" ? body.marketplace.trim().toLowerCase() : "";
+    const productUrl = typeof body.product_url === "string" ? body.product_url.trim().slice(0, 1000) : "";
+    const notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) : "";
+    const commission = body.commission_rate === null || body.commission_rate === undefined || body.commission_rate === ""
+      ? null : Number(body.commission_rate);
+    const allowedMarketplaces = ["shopee", "mercado livre", "amazon", "hotmart", "outro"];
+    if (!name) return json({ error: "Informe o nome do produto" }, 400);
+    if (!allowedMarketplaces.includes(marketplace)) return json({ error: "Marketplace inválido" }, 400);
+    if (productUrl) {
+      try {
+        const parsed = new URL(productUrl);
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("protocolo inválido");
+      } catch { return json({ error: "Informe um link de produto válido (http ou https)" }, 400); }
+    }
+    if (commission !== null && (!Number.isFinite(commission) || commission < 0 || commission > 100)) {
+      return json({ error: "Comissão deve estar entre 0 e 100" }, 400);
+    }
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      "INSERT INTO affiliate_products(id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'research', ?, ?)"
+    ).bind(id, name, marketplace, productUrl || null, commission, notes || null, now, now).run();
+    await record(env, "affiliate_product_created", id);
+    return json({ id, status: "research", message: "Oportunidade de produto cadastrada." }, 201);
+  }
+
   if (url.pathname === "/tasks" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, title, task_type, status, requires_approval, result, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT 100"
