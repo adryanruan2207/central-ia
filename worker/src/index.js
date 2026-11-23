@@ -116,6 +116,46 @@ async function handle(request, env) {
     return json({ model, answer });
   }
 
+  if (url.pathname === "/market/research" && request.method === "GET") {
+    const query = (url.searchParams.get("q") || "").trim().slice(0, 80);
+    if (query.length < 2) return json({ error: "Digite pelo menos 2 caracteres para pesquisar." }, 400);
+    try {
+      const endpoint = new URL("https://api.mercadolibre.com/sites/MLB/search");
+      endpoint.searchParams.set("q", query);
+      endpoint.searchParams.set("limit", "12");
+      const response = await fetch(endpoint.toString(), {
+        headers: { "Accept": "application/json", "User-Agent": "CENTRAL-IA/1.0" },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) {
+        await record(env, "market_research_error", "Mercado Livre HTTP " + response.status);
+        return json({
+          error: response.status === 401 || response.status === 403
+            ? "O Mercado Livre bloqueou a consulta pública. A integração oficial com OAuth será necessária."
+            : "O Mercado Livre não respondeu à pesquisa agora.",
+          provider_status: response.status
+        }, 502);
+      }
+      const data = await response.json();
+      const products = (Array.isArray(data.results) ? data.results : []).map(item => ({
+        id: String(item.id || ""),
+        title: String(item.title || "Produto sem título").slice(0, 240),
+        price: Number.isFinite(Number(item.price)) ? Number(item.price) : null,
+        currency: String(item.currency_id || "BRL"),
+        permalink: typeof item.permalink === "string" ? item.permalink : "",
+        thumbnail: typeof item.thumbnail === "string" ? item.thumbnail.replace(/^http:/, "https:") : "",
+        sold_quantity: Number.isFinite(Number(item.sold_quantity)) ? Number(item.sold_quantity) : null,
+        condition: String(item.condition || ""),
+        listing_type: String(item.listing_type_id || "")
+      }));
+      await record(env, "market_research", "Consulta Mercado Livre: " + query + " (" + products.length + " resultados)");
+      return json({ query, total: Number(data.paging?.total || products.length), products });
+    } catch (error) {
+      console.error("Market research error", error);
+      return json({ error: "Falha de conexão ao consultar o Mercado Livre. Tente novamente." }, 502);
+    }
+  }
+
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
