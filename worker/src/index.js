@@ -82,8 +82,16 @@ async function runMinuteHealthAudit(env, checkedAt) {
   try {
    const lastTavilyCheck = await env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'automatic_tavily_check' ORDER BY created_at DESC LIMIT 1").first();
    const lastCheckAt = lastTavilyCheck?.created_at ? Date.parse(lastTavilyCheck.created_at) : 0;
-   if (lastCheckAt && Date.now()-lastCheckAt < 24*60*60*1000) {
-    tavilyHealth = JSON.parse(lastTavilyCheck.details || "{}");
+   if (lastCheckAt) {
+    const cached = JSON.parse(lastTavilyCheck.details || "{}");
+    const retryWindow = cached.ok ? 24*60*60*1000 : 60*60*1000;
+    if (Date.now()-lastCheckAt < retryWindow) {
+     tavilyHealth = cached;
+    } else {
+     const test = await searchWebWithTavily("CENTRAL IA teste de conectividade pesquisa web", env);
+     tavilyHealth = {ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
+     await record(env,"automatic_tavily_check",JSON.stringify(tavilyHealth));
+    }
    } else {
     const test = await searchWebWithTavily("CENTRAL IA teste de conectividade pesquisa web", env);
     tavilyHealth = {ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
@@ -260,6 +268,10 @@ async function handle(request, env) {
     if (!env.TAVILY_API_KEY) {
       blockers.push("Pesquisa web automática depende da configuração da chave Tavily.");
       actionItems.push({priority:1,id:"tavily",title:"Ativar pesquisa automática na internet",reason:"A chave Tavily não está configurada no Worker.",action:"Criar/usar uma chave do plano gratuito e cadastrá-la como secret TAVILY_API_KEY no Cloudflare Worker. Nunca envie a chave pelo chat.",where:"Cloudflare Dashboard → Workers & Pages → central-ia-worker → Settings → Variables and Secrets."});
+    }
+    else if (!tavilyHealth.ok) {
+      blockers.push("A pesquisa web automática não passou no teste de conexão com a Tavily.");
+      actionItems.push({priority:1,id:"tavily",title:"Corrigir conexão com a Tavily",reason:tavilyHealth.error || "O teste automático não foi concluído.",action:"Confira se o secret TAVILY_API_KEY contém uma chave válida e ativa. Não envie a chave pelo chat.",where:"Cloudflare Dashboard → Workers & Pages → central-ia-worker → Settings → Variables and Secrets. O sistema tentará novamente automaticamente após 1 hora."});
     }
     if (!env.AI) {
       blockers.push("Workers AI não está disponível para análise e criação de conteúdo.");
