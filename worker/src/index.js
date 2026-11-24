@@ -309,9 +309,9 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     if (!campaignName || !Number.isSafeInteger(impressions) || impressions < 1 ||
         !Number.isSafeInteger(clicks) || clicks < 0 || clicks > impressions ||
         !Number.isFinite(spend) || spend < 0 || spend > 100000000 ||
-        !Number.isSafeInteger(conversions) || conversions < 0 || conversions > clicks ||
+        !Number.isSafeInteger(conversions) || conversions < 0 ||
         !Number.isFinite(revenue) || revenue < 0 || revenue > 1000000000) {
-      return json({ error: "Confira os dados: informe campanha, impressões maiores que zero, cliques até o total de impressões, conversões até o total de cliques e valores financeiros não negativos em R$." }, 400);
+      return json({ error: "Confira os dados: informe campanha, impressões maiores que zero, cliques até o total de impressões, conversões inteiras não negativas e valores financeiros não negativos em R$." }, 400);
     }
     const ctr = Math.round((clicks / impressions) * 10000) / 100;
     const conversionRate = clicks ? Math.round((conversions / clicks) * 10000) / 100 : 0;
