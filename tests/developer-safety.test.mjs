@@ -151,3 +151,13 @@ test("validação isolada verifica testes, TOML e não publica", async () => {
   assert.ok(!workflow.includes("CLOUDFLARE_API_TOKEN"));
   assert.ok(!workflow.includes("secrets."));
 });
+
+test("deploy do Worker exige TOML válido e compilação dry-run antes da produção", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/deploy-worker.yml", import.meta.url), "utf8");
+  const testJob = workflow.split("  deploy:")[0];
+  assert.ok(workflow.includes("needs: test"));
+  assert.ok(testJob.includes("tomllib"));
+  assert.ok(testJob.includes("wrangler deploy --dry-run"));
+  assert.ok(!testJob.includes("CLOUDFLARE_API_TOKEN"));
+  assert.ok(!testJob.includes("secrets."));
+});
