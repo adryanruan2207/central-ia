@@ -267,6 +267,41 @@ async function handle(request, env) {
     return json({ updated: Number(result.meta?.changes || 0) > 0, read_at: readAt });
   }
 
+  if (url.pathname === "/developer/audit" && request.method === "GET") {
+    const recent = await env.DB.prepare("SELECT COUNT(*) AS total FROM activity_log WHERE event = 'developer_repository_audit' AND created_at > ?").bind(new Date(Date.now()-60000).toISOString()).first();
+    if (Number(recent?.total || 0) >= 10) return json({error:"Limite de auditorias atingido. Aguarde um minuto."},429);
+    const files = [
+      {path:"worker/src/index.js",url:"https://raw.githubusercontent.com/adryanruan2207/central-ia/main/worker/src/index.js",checks:[
+        ["Rota de saúde", 'url.pathname === "/health"'],
+        ["Planejador técnico", 'url.pathname === "/developer/plan"'],
+        ["Histórico de planos", 'url.pathname === "/developer/plans"'],
+        ["Leitura correta por linhas", 'source.split("\\n")']
+      ]},
+      {path:"index.html",url:"https://raw.githubusercontent.com/adryanruan2207/central-ia/main/index.html",checks:[
+        ["Requisições com retentativa", "async function fetchJsonWithRetry"],
+        ["Interface da arquiteta", "developer-plan-button"],
+        ["Consulta do histórico", "loadDeveloperPlanHistory"]
+      ]}
+    ];
+    const inspected = await Promise.all(files.map(async file => {
+      try {
+        const response = await fetch(file.url,{headers:{"Accept":"text/plain"},signal:AbortSignal.timeout(7000)});
+        if (!response.ok) throw new Error("GitHub respondeu HTTP " + response.status);
+        const source = await response.text();
+        if (source.length > 500000) throw new Error("Arquivo excedeu o limite de leitura.");
+        return {path:file.path,ok:true,bytes:source.length,checks:file.checks.map(([label,needle])=>({label,ok:source.includes(needle)}))};
+      } catch(error) {
+        return {path:file.path,ok:false,error:String(error?.message||"Falha na leitura").slice(0,180),checks:[]};
+      }
+    }));
+    const total = inspected.reduce((sum,file)=>sum+file.checks.length,0);
+    const passed = inspected.reduce((sum,file)=>sum+file.checks.filter(check=>check.ok).length,0);
+    const ok = inspected.every(file=>file.ok) && passed===total;
+    const checkedAt = new Date().toISOString();
+    await record(env,"developer_repository_audit",JSON.stringify({ok,passed,total,files:inspected.map(file=>({path:file.path,ok:file.ok,checks:file.checks})),checked_at:checkedAt}));
+    return json({ok,passed,total,files:inspected,checked_at:checkedAt,mode:"read_only_static_checks",executed:false});
+  }
+
   if (url.pathname === "/developer/plans" && request.method === "GET") {
     const requested = Number(url.searchParams.get("limit") || 10);
     const limit = Number.isFinite(requested) ? Math.max(1, Math.min(30, Math.floor(requested))) : 10;
