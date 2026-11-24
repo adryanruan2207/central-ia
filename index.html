@@ -599,6 +599,15 @@ body.show-chat .intro{display:flex!important}
 <button type="button" id="developer-audit-button" style="margin:8px 0">Auditar arquivos do projeto</button>
 <p id="developer-audit-status" role="status" aria-live="polite"></p>
 <div id="developer-audit-results" aria-live="polite"></div>
+<div style="margin-top:16px;padding-top:12px;border-top:1px solid #52659a">
+<h4>🛠️ Propostas de alteração controlada</h4>
+<p>A IA prepara a mudança, os arquivos envolvidos, os testes e a reversão. Nenhum arquivo é alterado nesta etapa.</p>
+<textarea id="developer-change-request" rows="3" maxlength="1200" placeholder="Ex.: Melhorar o tratamento de falhas de conexão sem remover as proteções existentes." style="width:100%;box-sizing:border-box"></textarea>
+<button type="button" id="developer-proposal-button" style="margin-top:8px">Preparar proposta de alteração</button>
+<button type="button" id="developer-proposals-history-button" style="margin:8px 0">Ver propostas anteriores</button>
+<p id="developer-proposal-status" role="status" aria-live="polite"></p>
+<div id="developer-proposal-output" aria-live="polite"></div>
+</div>
 <div id="developer-plan-history" aria-live="polite"></div>
 </section>
 <form id="task-form" style="display:grid;gap:10px;margin-top:14px">
@@ -1046,6 +1055,40 @@ async function runDeveloperRepositoryAudit(){
  finally{button.disabled=false;}
 }
 document.getElementById('developer-audit-button')?.addEventListener('click',runDeveloperRepositoryAudit);
+
+function renderDeveloperProposal(container,proposal,statusText){
+ container.replaceChildren();
+ const status=document.createElement('p');status.textContent=statusText;container.append(status);
+ const heading=document.createElement('h4');heading.textContent=proposal.summary||'Proposta técnica';container.append(heading);
+ const sections=[['Arquivos envolvidos', (proposal.files||[]).map(x=>x.path+' — '+x.change+' Motivo: '+x.reason)],['Testes previstos',proposal.tests||[]],['Riscos',proposal.risks||[]],['Plano de reversão',[proposal.rollback||'Não informado']]];
+ for(const [title,items] of sections){const h=document.createElement('strong');h.textContent=title;container.append(h);const ul=document.createElement('ul');for(const item of items){const li=document.createElement('li');li.textContent=item;ul.append(li);}if(!items.length){const li=document.createElement('li');li.textContent='Nenhum item informado.';ul.append(li);}container.append(ul);}
+}
+async function createDeveloperChangeProposal(){
+ const button=document.getElementById('developer-proposal-button'),status=document.getElementById('developer-proposal-status'),output=document.getElementById('developer-proposal-output');
+ const request=document.getElementById('developer-change-request').value.trim();
+ if(!sessionToken){status.textContent='Entre para preparar uma proposta.';return;}
+ if(!request){status.textContent='Descreva a alteração desejada.';return;}
+ button.disabled=true;status.textContent='Preparando proposta técnica…';output.replaceChildren();
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposal',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({request})},1);
+  renderDeveloperProposal(output,data.proposal,'Proposta salva para revisão • nenhuma alteração foi aplicada.');
+ }catch(error){status.textContent='Não foi possível preparar a proposta: '+(error.message||'erro');}
+ finally{button.disabled=false;}
+}
+async function loadDeveloperChangeProposals(){
+ const status=document.getElementById('developer-proposal-status'),output=document.getElementById('developer-proposal-output');
+ if(!sessionToken){status.textContent='Entre para consultar propostas.';return;}
+ status.textContent='Carregando propostas…';output.replaceChildren();
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposals?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  if(!data.proposals?.length){status.textContent='Nenhuma proposta salva.';return;}
+  status.textContent='Últimas '+data.proposals.length+' propostas (somente leitura).';
+  for(const item of data.proposals){const card=document.createElement('details');card.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';const summary=document.createElement('summary');summary.textContent=(item.request||'Proposta')+' • '+new Date(item.created_at).toLocaleString('pt-BR');const body=document.createElement('div');renderDeveloperProposal(body,item.proposal,'Aguardando revisão • não aplicada.');card.append(summary,body);output.append(card);}
+ }catch(error){status.textContent='Não foi possível carregar propostas: '+(error.message||'erro');}
+}
+document.getElementById('developer-proposal-button')?.addEventListener('click',createDeveloperChangeProposal);
+document.getElementById('developer-proposals-history-button')?.addEventListener('click',loadDeveloperChangeProposals);
+
 
 
 async function testTavilyNow(){
