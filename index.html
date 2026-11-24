@@ -1299,6 +1299,25 @@ async function analyzeAffiliateShortlist(){
    const next=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Próximas verificações';next.append(summary);
    const list=document.createElement('ul');for(const step of item.next_steps){const li=document.createElement('li');li.textContent=step;list.append(li);}next.append(list);card.append(next);
    if(item.product_url){const link=document.createElement('a');link.href=item.product_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir produto';card.append(link);}
+   const createBrief=document.createElement('button');createBrief.type='button';createBrief.textContent='🎬 Preparar campanha deste produto';createBrief.style.cssText='display:block;margin-top:12px;padding:10px 13px;border:1px solid #6478b9;border-radius:10px;background:#202d50;color:#fff;cursor:pointer';
+   createBrief.addEventListener('click',()=>{
+    const productField=document.getElementById('video-product');
+    const benefitsField=document.getElementById('video-benefits');
+    const priceField=document.getElementById('video-price');
+    const affiliateField=document.getElementById('video-affiliate-url');
+    if(productField)productField.value=item.name;
+    if(benefitsField)benefitsField.value=[
+     item.price_observed===null?'Preço não disponível; confirmar antes de divulgar.':'Preço observado na captura: R$ '+Number(item.price_observed).toLocaleString('pt-BR',{minimumFractionDigits:2})+'; reconfirmar antes de divulgar.',
+     item.public_sales_count===null?'Não há volume público de vendas disponível.':'Indicador histórico informado pelo anúncio: '+item.public_sales_count+' vendas; não apresentar como resultado próprio nem como garantia.',
+     'Não foram fornecidas características confirmadas do produto. Pesquisar e confirmar benefícios no anúncio/fonte oficial antes de alegá-los.'
+    ].join('\n');
+    if(priceField)priceField.value=item.price_observed===null?'':'R$ '+Number(item.price_observed).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    if(affiliateField)affiliateField.value=item.product_url||'';
+    const section=document.getElementById('creative-studio');
+    section?.scrollIntoView({behavior:'smooth',block:'start'});
+    document.getElementById('video-script-status').textContent='Produto e evidências disponíveis preenchidos. Confirme os benefícios reais e o link de afiliado antes de gerar o roteiro.';
+   });
+   card.append(createBrief);
    results.append(card);
   }
  }catch(error){status.textContent=error.message;}
