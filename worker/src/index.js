@@ -1242,6 +1242,7 @@ export default {
           "UPDATE tasks SET status = 'completed', result = ?, updated_at = ? WHERE id = ? AND status = 'processing'"
         ).bind(output.slice(0, 12000), new Date().toISOString(), task.id).run();
         await record(env, "task_completed", task.id);
+        await notifyOwner(env, "task-completed:" + task.id, "Tarefa concluída pela CENTRAL IA", task.title + " foi concluída. Abra o painel de tarefas para consultar o resultado e as fontes utilizadas.", "success");
       } catch (error) {
         const message = String(error?.message || "Falha ao processar tarefa").slice(0, 500);
         await env.DB.prepare(
