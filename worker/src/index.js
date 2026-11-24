@@ -171,14 +171,26 @@ async function handle(request, env) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   if (url.pathname === "/health" && request.method === "GET") {
-    let database = {configured:Boolean(env.DB),ok:false};
+    let database = {configured:Boolean(env.DB),ok:false,tables:{}};
     if (env.DB) {
-      try { await env.DB.prepare("SELECT 1 AS ok").first(); database.ok = true; }
-      catch (error) { database.error = String(error?.message || error).slice(0,160); }
+      try {
+        await env.DB.prepare("SELECT 1 AS ok").first();
+        database.ok = true;
+        const requiredTables = ["tasks","activity_log","affiliate_products","supplier_leads","affiliate_programs","publication_queue","chat_messages","notifications","system_health_checks"];
+        const checks = await Promise.all(requiredTables.map(async table => {
+          try { await env.DB.prepare("SELECT 1 FROM " + table + " LIMIT 1").first(); return [table,true]; }
+          catch { return [table,false]; }
+        }));
+        database.tables = Object.fromEntries(checks);
+        database.schema_ready = checks.every(([,ok]) => ok);
+      } catch (error) {
+        database.error = String(error?.message || error).slice(0,160);
+      }
     }
+    const schemaReady = database.ok && database.schema_ready !== false;
     return json({
       service: "CENTRAL IA",
-      status: database.ok ? "online" : "degraded",
+      status: schemaReady ? "online" : "degraded",
       database,
       workers_ai_configured: Boolean(env.AI),
       web_research_configured: Boolean(env.TAVILY_API_KEY),
