@@ -267,6 +267,53 @@ async function handle(request, env) {
     return json({ updated: Number(result.meta?.changes || 0) > 0, read_at: readAt });
   }
 
+  if (url.pathname === "/developer/proposals" && request.method === "GET") {
+    const requested = Number(url.searchParams.get("limit") || 10);
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(30, Math.floor(requested))) : 10;
+    const result = await env.DB.prepare("SELECT id, details, created_at FROM activity_log WHERE event = 'developer_change_proposal_created' ORDER BY created_at DESC LIMIT ?").bind(limit).all();
+    const proposals = (result.results || []).map(row => {
+      try {
+        const details = JSON.parse(row.details || "{}");
+        return {id:row.id,request:String(details.request||"").slice(0,1200),proposal:details.proposal||{},status:"awaiting_review",created_at:row.created_at};
+      } catch { return null; }
+    }).filter(Boolean);
+    return json({proposals,count:proposals.length,mode:"proposal_history"});
+  }
+
+  if (url.pathname === "/developer/proposal" && request.method === "POST") {
+    if (!env.AI) return json({error:"Workers AI não está disponível para preparar a proposta."},503);
+    let body;
+    try { body = await request.json(); } catch { return json({error:"JSON inválido."},400); }
+    const requestText = typeof body.request === "string" ? body.request.trim().slice(0,1200) : "";
+    if (!requestText) return json({error:"Descreva a alteração desejada."},400);
+    const since = new Date(Date.now()-60000).toISOString();
+    const recent = await env.DB.prepare("SELECT COUNT(*) AS total FROM activity_log WHERE event = 'developer_change_proposal_created' AND created_at > ?").bind(since).first();
+    if (Number(recent?.total || 0) >= 3) return json({error:"Limite de propostas atingido. Aguarde um minuto."},429);
+    const allowedFiles = ["worker/src/index.js","index.html","worker/wrangler.toml",".github/workflows/deploy-worker.yml",".github/workflows/deploy-pages.yml"];
+    const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast",{
+      messages:[
+        {role:"system",content:"Você é responsável por preparar propostas de mudança para CENTRAL IA. NÃO edite arquivos, NÃO gere comandos de shell, NÃO alegue testes ou deploy. Crie uma proposta técnica estruturada e conservadora, sem inventar detalhes internos. Só pode indicar estes arquivos: "+allowedFiles.join(", ")+". Responda SOMENTE JSON válido com as chaves: summary (string), files (array de objetos {path,change,reason}), tests (array de strings), risks (array de strings), rollback (string). Se não souber o arquivo, use files vazio e explique em risks. Não solicite segredos, tokens, pagamentos, publicação ou transações."},
+        {role:"user",content:"Pedido de alteração: "+requestText+"\nEsta é apenas uma proposta para revisão. Nenhum código será modificado."}
+      ],
+      max_tokens:1000,
+      temperature:0.1
+    });
+    let proposal;
+    try {
+      const raw=String(generated?.response||generated?.result||generated?.output_text||"").trim().replace(/^\u0060{3}(?:json)?\s*/i,"").replace(/\s*\u0060{3}$/,"");
+      proposal=JSON.parse(raw);
+    } catch { return json({error:"A IA não retornou uma proposta estruturada válida. Tente novamente com um pedido mais específico."},502); }
+    if (!proposal || typeof proposal.summary!=="string" || !Array.isArray(proposal.files) || !Array.isArray(proposal.tests) || !Array.isArray(proposal.risks)) return json({error:"A proposta não passou na validação de estrutura."},502);
+    proposal.files=proposal.files.filter(file=>file && allowedFiles.includes(file.path) && typeof file.change==="string" && typeof file.reason==="string").slice(0,5);
+    proposal.summary=proposal.summary.slice(0,1200);
+    proposal.tests=proposal.tests.filter(x=>typeof x==="string").slice(0,8);
+    proposal.risks=proposal.risks.filter(x=>typeof x==="string").slice(0,8);
+    proposal.rollback=typeof proposal.rollback==="string"?proposal.rollback.slice(0,800):"Restaurar a versão anterior do arquivo caso os testes falhem.";
+    const createdAt=new Date().toISOString();
+    await record(env,"developer_change_proposal_created",JSON.stringify({request:requestText,proposal,status:"awaiting_review",created_at:createdAt}));
+    return json({proposal,status:"awaiting_review",applied:false,created_at:createdAt},201);
+  }
+
   if (url.pathname === "/developer/audit" && request.method === "GET") {
     const recent = await env.DB.prepare("SELECT COUNT(*) AS total FROM activity_log WHERE event = 'developer_repository_audit' AND created_at > ?").bind(new Date(Date.now()-60000).toISOString()).first();
     if (Number(recent?.total || 0) >= 10) return json({error:"Limite de auditorias atingido. Aguarde um minuto."},429);
