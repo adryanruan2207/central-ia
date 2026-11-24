@@ -77,7 +77,24 @@ async function runMinuteHealthAudit(env, checkedAt) {
   results.push({name:"task_flow",ok:false,error:String(error?.message||error).slice(0,180)});
  }
  results.push({name:"workers_ai",ok:!!env.AI});
- results.push({name:"web_research",ok:!!env.TAVILY_API_KEY});
+ let tavilyHealth = {ok:false,error:"Chave Tavily não configurada."};
+ if (env.TAVILY_API_KEY) {
+  try {
+   const lastTavilyCheck = await env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'automatic_tavily_check' ORDER BY created_at DESC LIMIT 1").first();
+   const lastCheckAt = lastTavilyCheck?.created_at ? Date.parse(lastTavilyCheck.created_at) : 0;
+   if (lastCheckAt && Date.now()-lastCheckAt < 24*60*60*1000) {
+    tavilyHealth = JSON.parse(lastTavilyCheck.details || "{}");
+   } else {
+    const test = await searchWebWithTavily("CENTRAL IA teste de conectividade pesquisa web", env);
+    tavilyHealth = {ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
+    await record(env,"automatic_tavily_check",JSON.stringify(tavilyHealth));
+   }
+  } catch(error) {
+   tavilyHealth = {ok:false,error:String(error?.message||error).slice(0,220),checked_at:new Date().toISOString()};
+   await record(env,"automatic_tavily_check",JSON.stringify(tavilyHealth));
+  }
+ }
+ results.push({name:"web_research",ok:!!tavilyHealth.ok,...(!tavilyHealth.ok?{error:tavilyHealth.error}:{})});
  const failures=results.filter(item=>!item.ok);
  const status=failures.length ? "degraded" : "healthy";
  const details=JSON.stringify({checks:results,failures,total:results.length,task_flow:taskFlow});
