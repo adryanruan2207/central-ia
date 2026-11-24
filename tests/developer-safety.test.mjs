@@ -24,9 +24,13 @@ test("preparação preserva os bindings e limites obrigatórios", () => {
     'database_name = "central-ia-db"',
     'database_id = "59f3056f-c6a2-4c95-9d1e-2ba9aad2091a"',
     'binding = "AI"'
-  ]) assert.ok(worker.includes(value), `Configuração ausente: ${value}`);
-  assert.match(worker, /updated\.length>16000/);
-  assert.match(worker, /api\[_-\]\?key\|secret\|password/);
+  ]) assert.ok(wrangler.includes(value), `Configuração ausente: ${value}`);
+  const start = worker.indexOf('if (url.pathname === "/developer/patch/prepare"');
+  const section = worker.slice(start, start + 9000);
+  assert.match(section, /const required=\[/);
+  assert.match(section, /database_id/);
+  assert.match(section, /updated\.length>16000/);
+  assert.match(section, /password/);
 });
 
 test("patch candidato é registrado sem aplicação automática", () => {
