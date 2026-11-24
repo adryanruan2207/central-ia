@@ -324,6 +324,44 @@ async function handle(request, env) {
     return json({patch_id:patchId,proposal_id:proposalId,path:"worker/wrangler.toml",diff,status:"candidate_only_not_applied",applied:false,created_at:createdAt},201);
   }
 
+  if (url.pathname === "/developer/patch/verify" && request.method === "POST") {
+    let body;
+    try{body=await request.json();}catch{return json({error:"JSON inválido."},400);}
+    const patchId=typeof body.patch_id==="string"?body.patch_id.trim():"";
+    if(!/^[0-9a-f-]{36}$/i.test(patchId)) return json({error:"Identificador de patch inválido."},400);
+    const recent=await env.DB.prepare("SELECT COUNT(*) AS total FROM activity_log WHERE event = 'developer_patch_verified' AND created_at >= datetime('now','-1 minute')").first();
+    if(Number(recent?.total||0)>=10) return json({error:"Limite de verificações atingido. Aguarde um minuto."},429);
+    const rows=await env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_patch_candidate_created' ORDER BY created_at DESC LIMIT 150").all();
+    let patch=null;
+    for(const row of rows.results||[]){try{const item=JSON.parse(row.details||"{}");if(item.patch_id===patchId){patch=item;break;}}catch{}}
+    if(!patch) return json({error:"Patch candidato não encontrado."},404);
+    const candidate=String(patch.updated_content||"");
+    const sha256=async value=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value)))).map(b=>b.toString(16).padStart(2,"0")).join("");
+    const candidateHash=candidate?await sha256(candidate):null;
+    const candidateHashOk=!!candidateHash&&!!patch.candidate_sha256&&candidateHash===patch.candidate_sha256;
+    const required=["name = \"central-ia-worker\"","main = \"src/index.js\"","compatibility_date = \"2026-11-19\"","binding = \"DB\"","database_name = \"central-ia-db\"","database_id = \"59f3056f-c6a2-4c95-9d1e-2ba9aad2091a\"","binding = \"AI\""];
+    const requiredOk=!!candidate&&required.every(line=>candidate.includes(line));
+    const noSecretLikeValues=!!candidate&&!/(?:api[_-]?key|secret|password)\\s*=\\s*["'][^"']{8,}/i.test(candidate);
+    const sizeOk=candidate.length>0&&candidate.length<=16000;
+    let currentHash=null,currentMatchesOriginal=null,currentRead=false;
+    try{
+      const response=await fetch("https://raw.githubusercontent.com/adryanruan2207/central-ia/main/worker/wrangler.toml",{headers:{"Accept":"text/plain"},signal:AbortSignal.timeout(7000)});
+      if(response.ok){currentHash=await sha256(await response.text());currentRead=true;currentMatchesOriginal=!!patch.original_sha256&&currentHash===patch.original_sha256;}
+    }catch{}
+    const checks=[
+      {name:"Hash do patch candidato",passed:candidateHashOk},
+      {name:"Configurações obrigatórias preservadas",passed:requiredOk},
+      {name:"Nenhum valor com aparência de segredo",passed:noSecretLikeValues},
+      {name:"Tamanho dentro do limite",passed:sizeOk},
+      {name:"Arquivo original ainda corresponde à versão registrada",passed:currentMatchesOriginal===true,informational:currentMatchesOriginal===null}
+    ];
+    const passed=checks.filter(x=>x.passed).length;
+    const verified=checks.slice(0,4).every(x=>x.passed);
+    const checkedAt=new Date().toISOString();
+    await record(env,"developer_patch_verified",JSON.stringify({patch_id:patchId,passed,total:checks.length,verified,original_matches_current:currentMatchesOriginal,checked_at:checkedAt,mode:"static_only_no_execution"}));
+    return json({patch_id:patchId,verified,passed,total:checks.length,checks,current_file_read:currentRead,current_file_sha256:currentHash,ready_for_isolated_test:false,applied:false,mode:"static_only_no_execution",checked_at:checkedAt});
+  }
+
   if (url.pathname === "/developer/patches" && request.method === "GET") {
     const requested=Number(url.searchParams.get("limit")||20);
     const limit=Number.isFinite(requested)?Math.max(1,Math.min(50,Math.floor(requested))):20;
