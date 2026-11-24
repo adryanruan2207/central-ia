@@ -141,3 +141,13 @@ test("validação isolada do Worker usa dry-run e não publica na produção", a
   assert.ok(!workflow.includes("CLOUDFLARE_API_TOKEN") && !workflow.includes("secrets."));
   assert.doesNotMatch(workflow, /wrangler deploy(?! --dry-run)/);
 });
+
+test("validação isolada verifica testes, TOML e não publica", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/central-ia-isolated-validation.yml", import.meta.url), "utf8");
+  assert.ok(workflow.includes('central-ia-test/**'));
+  assert.ok(workflow.includes("node --test tests/*.test.mjs"));
+  assert.ok(workflow.includes("tomllib"));
+  assert.ok(workflow.includes("wrangler deploy --dry-run"));
+  assert.ok(!workflow.includes("CLOUDFLARE_API_TOKEN"));
+  assert.ok(!workflow.includes("secrets."));
+});
