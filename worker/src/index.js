@@ -639,6 +639,16 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     const competitiveInsights = typeof body.competitive_insights === "string" ? body.competitive_insights.trim().slice(0, 5000) : "";
     const tone = ["energético","emocional","demonstrativo","educativo","humor leve"].includes(body.tone) ? body.tone : "demonstrativo";
     if (!product || product.length < 2) return json({ error: "Informe o nome do produto." }, 400);
+    if (affiliateUrl) {
+      try {
+        const parsedAffiliateUrl = new URL(affiliateUrl);
+        if (parsedAffiliateUrl.protocol !== "https:") throw new Error("HTTPS obrigatório");
+      } catch {
+        return json({ error: "O link informado precisa ser um endereço HTTPS válido. Não use link comum como se fosse link de afiliado." }, 400);
+      }
+    }
+    const factsProvided = benefits.length > 0;
+    const affiliateDisclosureRequired = Boolean(affiliateUrl);
     const prompt = `Crie um pacote de vídeo publicitário de alta qualidade para este produto: ${product}.
 Benefícios e fatos fornecidos: ${benefits || "Não informados; não invente características."}
 Público: ${audience}. Canal: ${platform}. Duração alvo: ${duration} segundos. Tom: ${tone}. Preço informado: ${price || "não informado"}.\nAprendizados da análise competitiva pública (use como contexto estratégico, não copie; diferencie observações de hipóteses): ${competitiveInsights || "Nenhuma análise competitiva conectada."}.
@@ -651,7 +661,7 @@ Entregue em português brasileiro, com esta estrutura clara:
 5. LEGENDA pronta, CTA e até 5 hashtags relevantes.
 6. 2 VARIAÇÕES A/B: o que mudar e qual hipótese medir.
 7. MÉTRICAS E TESTE: retenção nos 3 segundos, tempo médio assistido, conclusão, CTR e conversão; diga como escolher o vencedor sem confundir correlação com causalidade.
-Regras: não invente avaliações, depoimentos, números de vendas, resultados, certificações, garantias, descontos ou escassez. Se faltarem provas, marque claramente [CONFIRMAR FATO] e proponha demonstração visual verificável. Se houver link de afiliado, recomende identificação clara de publicidade/afiliado na legenda. Não prometa vendas ou lucro. Não diga que o vídeo foi produzido ou publicado: entregue roteiro e plano de produção.`;
+Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos como alegações ainda não verificadas, não como prova independente. Não invente avaliações, depoimentos, números de vendas, resultados, certificações, garantias, descontos, escassez, materiais, especificações ou compatibilidade. Separe explicitamente "FATOS FORNECIDOS" de "ALEGAÇÕES A VALIDAR". Se faltarem provas, marque claramente [CONFIRMAR FATO], não transforme hipótese em benefício e proponha demonstração visual verificável. Não use preço como oferta atual sem reconfirmação. Se houver link HTTPS de afiliado, inclua aviso claro de publicidade/link comissionado na legenda; se não houver, não invente link nem diga que é afiliado. Inclua checklist final antes da publicação: confirmar produto e vendedor ativos, preço e frete, estoque, características, política de devolução, comissão/regras do programa e identificação publicitária. Não prometa vendas ou lucro. Não diga que o vídeo foi produzido ou publicado: entregue roteiro e plano de produção.`;
     try {
       const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
         messages: [
@@ -667,7 +677,18 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
       return json({
         product, platform, duration, tone, script,
         production_status: "roteiro_criado",
-        notice: "Este recurso cria estratégia, roteiro e plano de cenas. Ainda não renderiza o arquivo de vídeo nem publica em redes sociais. A produção automática do vídeo será uma etapa separada, priorizando ferramentas gratuitas e sem contratar serviços pagos."
+        fact_check_required: true,
+        facts_provided: factsProvided,
+        affiliate_disclosure_required: affiliateDisclosureRequired,
+        prepublication_checklist: [
+          "Confirmar produto, vendedor, disponibilidade e estoque",
+          "Reconfirmar preço, frete e condições da oferta",
+          "Comprovar características e benefícios usados no roteiro",
+          "Confirmar comissão, elegibilidade e regras oficiais do programa",
+          "Revisar política de devolução e garantias anunciadas",
+          affiliateDisclosureRequired ? "Identificar claramente a publicidade e o link comissionado" : "Não inserir link nem alegar vínculo de afiliado sem confirmação"
+        ],
+        notice: "Este recurso cria estratégia, roteiro e plano de cenas. Alegações precisam de comprovação antes da publicação. Ainda não renderiza o arquivo de vídeo nem publica em redes sociais; nenhuma despesa ou publicação externa é realizada."
       });
     } catch (error) {
       console.error("Video script generation error", error);
