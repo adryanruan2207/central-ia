@@ -291,6 +291,55 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     }
   }
 
+  if (url.pathname === "/marketing/video-script" && request.method === "POST") {
+    if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
+    const product = typeof body.product === "string" ? body.product.trim().slice(0, 180) : "";
+    const benefits = typeof body.benefits === "string" ? body.benefits.trim().slice(0, 1200) : "";
+    const audience = typeof body.audience === "string" ? body.audience.trim().slice(0, 300) : "Público interessado no produto";
+    const platform = ["tiktok","instagram","youtube_shorts","facebook"].includes(body.platform) ? body.platform : "instagram";
+    const duration = [15,30,45,60].includes(Number(body.duration)) ? Number(body.duration) : 30;
+    const price = typeof body.price === "string" ? body.price.trim().slice(0, 80) : "";
+    const affiliateUrl = typeof body.affiliate_url === "string" ? body.affiliate_url.trim().slice(0, 1000) : "";
+    const tone = ["energético","emocional","demonstrativo","educativo","humor leve"].includes(body.tone) ? body.tone : "demonstrativo";
+    if (!product || product.length < 2) return json({ error: "Informe o nome do produto." }, 400);
+    const prompt = `Crie um pacote de vídeo publicitário de alta qualidade para este produto: ${product}.
+Benefícios e fatos fornecidos: ${benefits || "Não informados; não invente características."}
+Público: ${audience}. Canal: ${platform}. Duração alvo: ${duration} segundos. Tom: ${tone}. Preço informado: ${price || "não informado"}.
+Objetivo: aumentar atenção qualificada, retenção, cliques e conversões sem enganar o consumidor.
+Entregue em português brasileiro, com esta estrutura clara:
+1. ÂNGULO ESTRATÉGICO: dor/desejo do público, promessa central realista e por que o ângulo pode funcionar.
+2. 3 GANCHOS ALTERNATIVOS para os primeiros 1-3 segundos, sem clickbait enganoso.
+3. ROTEIRO CRONOMETRADO em cenas: tempo, imagem/ação, fala/narração, texto na tela, som/edição. Abrir com o melhor gancho; mostrar o produto em uso; explicar no máximo 3 benefícios comprováveis; responder uma objeção real; terminar com CTA claro.
+4. DIREÇÃO DE PRODUÇÃO: enquadramento vertical 9:16, ritmo, cortes, legendas, acessibilidade, B-roll e orientações de edição.
+5. LEGENDA pronta, CTA e até 5 hashtags relevantes.
+6. 2 VARIAÇÕES A/B: o que mudar e qual hipótese medir.
+7. MÉTRICAS E TESTE: retenção nos 3 segundos, tempo médio assistido, conclusão, CTR e conversão; diga como escolher o vencedor sem confundir correlação com causalidade.
+Regras: não invente avaliações, depoimentos, números de vendas, resultados, certificações, garantias, descontos ou escassez. Se faltarem provas, marque claramente [CONFIRMAR FATO] e proponha demonstração visual verificável. Se houver link de afiliado, recomende identificação clara de publicidade/afiliado na legenda. Não prometa vendas ou lucro. Não diga que o vídeo foi produzido ou publicado: entregue roteiro e plano de produção.`;
+    try {
+      const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+        messages: [
+          { role: "system", content: "Você é diretor criativo e estrategista de performance especializado em anúncios curtos para comércio eletrônico. Crie publicidade persuasiva, original, honesta e orientada por métricas. Não invente fatos sobre produtos." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 1500,
+        temperature: 0.65
+      });
+      const script = typeof generated?.response === "string" ? generated.response.trim() : "";
+      if (!script) return json({ error: "A IA não conseguiu gerar o roteiro agora. Tente novamente." }, 502);
+      await record(env, "marketing_video_script_generated", JSON.stringify({ product, platform, duration, tone }));
+      return json({
+        product, platform, duration, tone, script,
+        production_status: "roteiro_criado",
+        notice: "Este recurso cria estratégia, roteiro e plano de cenas. Ainda não renderiza o arquivo de vídeo nem publica em redes sociais. A produção automática do vídeo será uma etapa separada, priorizando ferramentas gratuitas e sem contratar serviços pagos."
+      });
+    } catch (error) {
+      console.error("Video script generation error", error);
+      return json({ error: "Falha ao gerar o roteiro. Tente novamente em instantes." }, 502);
+    }
+  }
+
   if (url.pathname === "/affiliates/evaluate" && request.method === "POST") {
     let body;
     try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
