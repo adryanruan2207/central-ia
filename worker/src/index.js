@@ -142,7 +142,7 @@ async function handle(request, env) {
   }
 
   if (url.pathname === "/automation/status" && request.method === "GET") {
-    const [heartbeat, counts, productCount, programCounts, publicationCounts, recentCompleted] = await Promise.all([
+    const [heartbeat, counts, productCount, supplierCount, supplierEvent, programCounts, publicationCounts, recentCompleted, discoveryEvent] = await Promise.all([
       env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all(),
       env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first(),
