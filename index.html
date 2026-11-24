@@ -1572,4 +1572,33 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  }
 })();
 </script>
+
+<script>
+/* Ferramentas manuais ficam opcionais: a operação automática não depende desses formulários. */
+(()=> {
+ const panel=document.getElementById('resource-panel');
+ if(!panel)return;
+ const forms=[...panel.querySelectorAll('form')].filter(form=>!form.closest('details[data-optional-manual]'));
+ for(const form of forms){
+  const details=document.createElement('details');
+  details.dataset.optionalManual='true';
+  details.style.cssText='margin:12px 0;padding:12px;border:1px solid #46506a;border-radius:12px;background:#202536';
+  const summary=document.createElement('summary');
+  summary.textContent='Preenchimento manual (opcional) — abrir somente se quiser';
+  summary.style.cssText='cursor:pointer;font-weight:700;color:#dce4ff;padding:3px';
+  form.parentNode.insertBefore(details,form);
+  details.append(summary,form);
+  form.style.marginTop='14px';
+ }
+ const intro=panel.querySelector('.panel-inner');
+ if(intro&&!intro.querySelector('[data-auto-mode-note]')){
+  const note=document.createElement('div');
+  note.dataset.autoModeNote='true';
+  note.className='notice';
+  note.style.cssText='margin:0 0 18px;padding:14px;border:1px solid #397b69;background:#18352f;border-radius:12px;color:#e2fff4!important';
+  note.textContent='MODO AUTOMÁTICO: você não precisa preencher os formulários abaixo para as rotinas automáticas já habilitadas. A CENTRAL IA pesquisa e organiza oportunidades em segundo plano. Os formulários foram recolhidos e ficam disponíveis apenas como ferramentas opcionais. Conexões oficiais, permissões de publicação e autorizações externas ainda precisam ser configuradas quando solicitadas.';
+  intro.insertBefore(note,intro.children[1]||null);
+ }
+})();
+</script>
 </body></html>
