@@ -712,7 +712,7 @@ main.wrap{background:#000!important}
 </div>
 <p id="affiliate-status" role="status" aria-live="polite"></p>
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Produtos cadastrados</b><button id="affiliate-refresh" type="button" class="secondary">Atualizar</button></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="affiliate-analyze-shortlist" type="button" class="secondary">🧠 Analisar seleção automaticamente</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="affiliate-analyze-shortlist" type="button" class="secondary">🧠 Analisar seleção automaticamente</button><button id="affiliate-check-readiness" type="button" class="secondary">🔗 Verificar links e prontidão de anúncios</button></div>
 <p id="affiliate-shortlist-status" role="status" aria-live="polite"></p>
 <div id="affiliate-shortlist-results" style="display:grid;gap:10px;margin-top:10px"></div>
 <div id="affiliate-list" style="display:grid;gap:10px;margin-top:12px"><p>Entre na CENTRAL IA para carregar as oportunidades.</p></div>
@@ -1341,7 +1341,7 @@ async function analyzeAffiliateShortlist(){
      'Não foram fornecidas características confirmadas do produto. Pesquisar e confirmar benefícios no anúncio/fonte oficial antes de alegá-los.'
     ].join('\n');
     if(priceField)priceField.value=item.price_observed===null?'':'R$ '+Number(item.price_observed).toLocaleString('pt-BR',{minimumFractionDigits:2});
-    if(affiliateField)affiliateField.value=item.product_url||'';
+    if(affiliateField)affiliateField.value=item.affiliate_url||'';
     const section=document.getElementById('creative-studio');
     section?.scrollIntoView({behavior:'smooth',block:'start'});
     document.getElementById('video-script-status').textContent='Produto e evidências disponíveis preenchidos. Confirme os benefícios reais e o link de afiliado antes de gerar o roteiro.';
@@ -1352,7 +1352,36 @@ async function analyzeAffiliateShortlist(){
  }catch(error){status.textContent=error.message;}
  finally{button.disabled=false;}
 }
+
+async function checkAffiliateCampaignReadiness(){
+ const token=localStorage.getItem('central_ia_session_v1');
+ const status=document.getElementById('affiliate-shortlist-status');
+ const results=document.getElementById('affiliate-shortlist-results');
+ const button=document.getElementById('affiliate-check-readiness');
+ if(!token){status.textContent='Entre novamente para verificar os links.';return;}
+ button.disabled=true;status.textContent='Verificando links rastreáveis, comissões e aprovação dos programas…';results.replaceChildren();
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/campaign-readiness',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível verificar a prontidão.');
+  status.textContent=data.count+' produtos verificados • '+data.ready_for_review+' prontos para revisão • '+data.blocked+' bloqueados. '+data.notice;
+  if(!data.products?.length){results.textContent='Nenhum produto cadastrado.';return;}
+  for(const item of data.products){
+   const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
+   const title=document.createElement('b');title.textContent=item.name+' — '+item.marketplace;card.append(title);
+   const state=document.createElement('p');state.style.cssText='margin:7px 0;font-weight:600;color:'+(item.campaign_status==='ready_for_review'?'#9cdeb1':'#f2c98b')+'!important';state.textContent=item.campaign_status==='ready_for_review'?'Dados mínimos presentes: pronto para revisão':'Bloqueado: faltam requisitos';card.append(state);
+   const details=document.createElement('p');details.style.cssText='font-size:.84rem;color:#ddd!important';details.textContent='Programa: '+(item.affiliate_program||'não vinculado')+' • Comissão: '+(item.commission_rate===null?'não confirmada':item.commission_rate+'%')+' • Aprovação: '+(item.program_status||'não informada');card.append(details);
+   if(item.blockers.length){const list=document.createElement('ul');for(const issue of item.blockers){const li=document.createElement('li');li.textContent=issue;list.append(li);}card.append(list);}
+   if(item.product_url){const product=document.createElement('a');product.href=item.product_url;product.target='_blank';product.rel='noopener noreferrer';product.textContent='Abrir página do produto';card.append(product);}
+   if(item.affiliate_url){const affiliate=document.createElement('a');affiliate.href=item.affiliate_url;affiliate.target='_blank';affiliate.rel='noopener noreferrer';affiliate.textContent='Abrir link de afiliado';affiliate.style.marginLeft='12px';card.append(affiliate);}
+   const note=document.createElement('p');note.style.cssText='font-size:.78rem;color:#aaa!important;margin-top:8px';note.textContent=item.notice+' Divulgação de afiliado deve ser identificada claramente.';card.append(note);
+   results.append(card);
+  }
+ }catch(error){status.textContent=error.message;}
+ finally{button.disabled=false;}
+}
+
 document.getElementById('affiliate-analyze-shortlist')?.addEventListener('click',analyzeAffiliateShortlist);
+document.getElementById('affiliate-check-readiness')?.addEventListener('click',checkAffiliateCampaignReadiness);
 async function loadAffiliateProducts(){
  if(!sessionToken){affiliateStatus.textContent='Entre para consultar suas oportunidades.';return;}
  affiliateStatus.textContent='Carregando oportunidades…';
