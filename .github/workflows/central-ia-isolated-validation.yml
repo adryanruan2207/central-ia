@@ -1,0 +1,31 @@
+name: CENTRAL IA Isolated Validation
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-worker-without-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout proposed changes
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Wrangler
+        run: npm install --global wrangler
+
+      - name: Validate Worker bundle and configuration without deployment
+        working-directory: worker
+        run: wrangler deploy --dry-run --outdir /tmp/central-ia-dry-run
+
+      - name: Confirm dry-run output exists
+        run: test -d /tmp/central-ia-dry-run
