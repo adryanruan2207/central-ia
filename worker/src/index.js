@@ -329,8 +329,8 @@ async function handle(request, env) {
     try{body=await request.json();}catch{return json({error:"JSON inválido."},400);}
     const patchId=typeof body.patch_id==="string"?body.patch_id.trim():"";
     if(!/^[0-9a-f-]{36}$/i.test(patchId)) return json({error:"Identificador de patch inválido."},400);
-    const recent=await env.DB.prepare("SELECT COUNT(*) AS total FROM activity_log WHERE event = 'developer_patch_verified' AND created_at >= datetime('now','-1 minute')").first();
-    if(Number(recent?.total||0)>=10) return json({error:"Limite de verificações atingido. Aguarde um minuto."},429);
+    const recent=await env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'developer_patch_verified' ORDER BY created_at DESC LIMIT 10").all();
+    if((recent.results||[]).filter(row=>Date.now()-Date.parse(row.created_at)<60000).length>=10) return json({error:"Limite de verificações atingido. Aguarde um minuto."},429);
     const rows=await env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_patch_candidate_created' ORDER BY created_at DESC LIMIT 150").all();
     let patch=null;
     for(const row of rows.results||[]){try{const item=JSON.parse(row.details||"{}");if(item.patch_id===patchId){patch=item;break;}}catch{}}
@@ -341,7 +341,7 @@ async function handle(request, env) {
     const candidateHashOk=!!candidateHash&&!!patch.candidate_sha256&&candidateHash===patch.candidate_sha256;
     const required=["name = \"central-ia-worker\"","main = \"src/index.js\"","compatibility_date = \"2026-11-19\"","binding = \"DB\"","database_name = \"central-ia-db\"","database_id = \"59f3056f-c6a2-4c95-9d1e-2ba9aad2091a\"","binding = \"AI\""];
     const requiredOk=!!candidate&&required.every(line=>candidate.includes(line));
-    const noSecretLikeValues=!!candidate&&!/(?:api[_-]?key|secret|password)\\s*=\\s*["'][^"']{8,}/i.test(candidate);
+    const noSecretLikeValues=!!candidate&&!/(?:api[_-]?key|secret|password)\s*=\s*["'][^"']{8,}/i.test(candidate);
     const sizeOk=candidate.length>0&&candidate.length<=16000;
     let currentHash=null,currentMatchesOriginal=null,currentRead=false;
     try{
