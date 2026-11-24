@@ -252,10 +252,15 @@ async function handle(request, env) {
       {id:"amazon",name:"Amazon Associados",keys:["AMAZON_PAAPI_ACCESS_KEY","AMAZON_PAAPI_SECRET_KEY","AMAZON_ASSOCIATES_TAG"]},
       {id:"shopee",name:"Shopee",keys:["SHOPEE_PARTNER_ID","SHOPEE_PARTNER_KEY"]},
       {id:"hotmart",name:"Hotmart",keys:["HOTMART_CLIENT_ID","HOTMART_CLIENT_SECRET"]},
-      {id:"mercado_livre",name:"Mercado Livre",keys:[]}
+      {id:"aliexpress",name:"AliExpress Portals",keys:["ALIEXPRESS_APP_KEY","ALIEXPRESS_APP_SECRET"]},
+      {id:"awin",name:"Awin",keys:["AWIN_API_TOKEN","AWIN_PUBLISHER_ID"]},
+      {id:"cj",name:"CJ Affiliate",keys:["CJ_API_KEY","CJ_WEBSITE_ID"]},
+      {id:"impact",name:"impact.com",keys:["IMPACT_ACCOUNT_SID","IMPACT_AUTH_TOKEN"]},
+      {id:"partnerstack",name:"PartnerStack",keys:["PARTNERSTACK_API_KEY"]},
+      {id:"ebay",name:"eBay Partner Network",keys:["EBAY_CLIENT_ID","EBAY_CLIENT_SECRET","EBAY_CAMPAIGN_ID"]}
     ];
     const pendingAffiliate = affiliateConnections.filter(item=>item.keys.length && !item.keys.every(key=>Boolean(env[key])));
-    if (pendingAffiliate.length) actionItems.push({priority:2,id:"affiliate_accounts",title:"Conectar programas de afiliados",reason:pendingAffiliate.map(item=>item.name).join(", ")+" ainda não têm todas as credenciais configuradas.",action:"Primeiro confirmar cadastro/aprovação no programa escolhido; depois cadastrar as credenciais oficiais como secrets no Worker. Não compartilhar senhas ou chaves no chat.",where:"Painel oficial de cada programa e Cloudflare Worker → Settings → Variables and Secrets."});
+    if (pendingAffiliate.length) actionItems.push({priority:2,id:"affiliate_accounts",title:"Conectar programas de afiliados",reason:pendingAffiliate.map(item=>item.name).join(", ")+" ainda não têm todas as credenciais configuradas.",action:"Escolher apenas os programas em que você já tem conta e aprovação. Depois cadastrar somente as chaves correspondentes como secrets do Worker; não é necessário conectar todos de uma vez.",where:"Painel oficial do programa escolhido → credenciais/API; depois Cloudflare Dashboard → Workers & Pages → central-ia-worker → Settings → Variables and Secrets. Nomes exigidos: "+pendingAffiliate.flatMap(item=>item.keys).join(", ")+". Não envie valores secretos pelo chat."});
     actionItems.push({priority:3,id:"publishing",title:"Autorizar canais de publicação",reason:"Publicação externa não está conectada por OAuth/API nesta versão.",action:"Escolher e autorizar os canais desejados quando a integração oficial estiver disponível. Até lá, a CENTRAL IA prepara rascunhos, mas não publica fora da plataforma.",where:"Contas oficiais dos canais (YouTube, Instagram, TikTok etc.)."});
     actionItems.push({priority:4,id:"push",title:"Ativar notificações mesmo com o site fechado",reason:"O site ainda não tem envio push remoto completo com VAPID e registro da assinatura do aparelho.",action:"Será necessário configurar chaves VAPID no servidor e vincular este dispositivo uma vez. A permissão do navegador, sozinha, não ativa push remoto.",where:"Configuração técnica do Worker e permissão de notificações do navegador."});
     return json({
