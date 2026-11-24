@@ -49,8 +49,12 @@ async function runMinuteHealthAudit(env, checkedAt) {
  const checks = [
   ["database", () => env.DB.prepare("SELECT 1 AS ok").first()],
   ["tasks_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM tasks").first()],
+  ["activity_log_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM activity_log").first()],
   ["products_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first()],
   ["suppliers_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM supplier_leads").first()],
+  ["affiliate_programs_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_programs").first()],
+  ["publication_queue_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM publication_queue").first()],
+  ["chat_history_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM chat_messages").first()],
   ["notifications_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM notifications").first()],
   ["health_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM system_health_checks").first()]
  ];
@@ -58,21 +62,37 @@ async function runMinuteHealthAudit(env, checkedAt) {
   try { await test(); return {name, ok:true}; }
   catch (error) { return {name, ok:false, error:String(error?.message || error).slice(0,180)}; }
  }));
+ let taskFlow = {stale_processing:0, queued_over_24h:0, failed:0};
+ try {
+  const staleBefore = new Date(Date.now()-45*60*1000).toISOString();
+  const queuedBefore = new Date(Date.now()-24*60*60*1000).toISOString();
+  const [stale, queued, failed] = await Promise.all([
+   env.DB.prepare("SELECT COUNT(*) AS total FROM tasks WHERE status = 'processing' AND updated_at < ?").bind(staleBefore).first(),
+   env.DB.prepare("SELECT COUNT(*) AS total FROM tasks WHERE status = 'queued' AND created_at < ? AND requires_approval = 0").bind(queuedBefore).first(),
+   env.DB.prepare("SELECT COUNT(*) AS total FROM tasks WHERE status = 'failed'").first()
+  ]);
+  taskFlow = {stale_processing:Number(stale?.total||0),queued_over_24h:Number(queued?.total||0),failed:Number(failed?.total||0)};
+  results.push({name:"task_flow",ok:taskFlow.stale_processing===0 && taskFlow.queued_over_24h===0, ...((taskFlow.stale_processing||taskFlow.queued_over_24h)?{error:"Existem tarefas paradas que precisam de recuperação ou revisão."}:{})});
+ } catch(error) {
+  results.push({name:"task_flow",ok:false,error:String(error?.message||error).slice(0,180)});
+ }
  results.push({name:"workers_ai",ok:!!env.AI});
  results.push({name:"web_research",ok:!!env.TAVILY_API_KEY});
  const failures=results.filter(item=>!item.ok);
  const status=failures.length ? "degraded" : "healthy";
- const details=JSON.stringify({checks:results,failures,total:results.length});
+ const details=JSON.stringify({checks:results,failures,total:results.length,task_flow:taskFlow});
  const previous=await env.DB.prepare("SELECT status, details FROM system_health_checks ORDER BY checked_at DESC LIMIT 1").first();
  await env.DB.prepare("INSERT INTO system_health_checks(id,checked_at,status,details) VALUES(?,?,?,?)").bind(crypto.randomUUID(),checkedAt,status,details).run();
  await env.DB.prepare("DELETE FROM system_health_checks WHERE checked_at < ?").bind(new Date(Date.now()-7*24*60*60*1000).toISOString()).run();
- if(status==="degraded"){
-  const issueKey=failures.map(item=>item.name).sort().join(",");
-  if(previous?.status!=="degraded" || previous.details!==details) await notifyOwner(env,"self-audit:degraded:"+issueKey+":"+checkedAt.slice(0,10),"Autoverificação detectou itens pendentes","A CENTRAL IA verificou os componentes. Pendências: "+failures.map(item=>item.name+(item.error?" ("+item.error+")":"")).join("; ")+". Consulte o monitor no painel.","warning");
- } else if(previous?.status==="degraded") {
-  await notifyOwner(env,"self-audit:recovered:"+checkedAt,"Autoverificação normalizada","Os componentes monitorados voltaram a responder.","success");
+ const failureKey=failures.map(item=>item.name).sort().join(",");
+ let previousFailureKey="";
+ try { previousFailureKey=JSON.parse(previous?.details||"{}").failures?.map(item=>item.name).sort().join(",")||""; } catch {}
+ if(status==="degraded" && (previous?.status!=="degraded" || previousFailureKey!==failureKey)) {
+  await notifyOwner(env,"self-audit:degraded:"+failureKey+":"+checkedAt.slice(0,10),"Autoverificação detectou itens pendentes","A CENTRAL IA encontrou: "+failures.map(item=>item.name+(item.error?" ("+item.error+")":"")).join("; ")+". Consulte o monitor no painel.","warning");
+ } else if(status==="healthy" && previous?.status==="degraded") {
+  await notifyOwner(env,"self-audit:recovered:"+checkedAt.slice(0,16),"Autoverificação normalizada","Os componentes monitorados e a fila de tarefas voltaram às condições verificadas.","success");
  }
- return {status,checked_at:checkedAt,checks:results,failures};
+ return {status,checked_at:checkedAt,checks:results,failures,task_flow:taskFlow};
 }
 
 async function notifyOwner(env, key, title, body, severity = "warning") {
