@@ -254,16 +254,37 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
       const products = (Array.isArray(data.results) ? data.results : []).map(item => ({
         id: String(item.id || ""),
         title: String(item.title || "Produto sem título").slice(0, 240),
-        price: Number.isFinite(Number(item.price)) ? Number(item.price) : null,
+        price: item.price != null && Number.isFinite(Number(item.price)) ? Number(item.price) : null,
         currency: String(item.currency_id || "BRL"),
         permalink: typeof item.permalink === "string" ? item.permalink : "",
         thumbnail: typeof item.thumbnail === "string" ? item.thumbnail.replace(/^http:/, "https:") : "",
-        sold_quantity: Number.isFinite(Number(item.sold_quantity)) ? Number(item.sold_quantity) : null,
+        sold_quantity: item.sold_quantity != null && Number.isFinite(Number(item.sold_quantity)) ? Number(item.sold_quantity) : null,
         condition: String(item.condition || ""),
         listing_type: String(item.listing_type_id || "")
       }));
-      await record(env, "market_research", "Consulta Mercado Livre: " + query + " (" + products.length + " resultados)");
-      return json({ query, total: Number(data.paging?.total || products.length), products });
+      // Ordena somente por vendas publicamente informadas pelo marketplace; não inventa demanda quando o dado falta.
+      products.sort((a, b) => {
+        if (a.sold_quantity == null && b.sold_quantity == null) return 0;
+        if (a.sold_quantity == null) return 1;
+        if (b.sold_quantity == null) return -1;
+        return b.sold_quantity - a.sold_quantity;
+      });
+      const ranked = products.map((item, index) => ({
+        ...item,
+        sales_rank: item.sold_quantity == null ? null : products.slice(0, index).filter(p => p.sold_quantity != null).length + 1,
+        demand_signal: item.sold_quantity == null ? "sem dado público de vendas" :
+          item.sold_quantity >= 1000 ? "alto volume histórico informado" :
+          item.sold_quantity >= 100 ? "volume histórico relevante" :
+          item.sold_quantity > 0 ? "há vendas informadas; validar tendência" : "sem vendas informadas neste anúncio"
+      }));
+      const marketTotal = Number(data.paging?.total || products.length);
+      await record(env, "market_research", "Consulta Mercado Livre: " + query + " (" + products.length + " resultados ordenados por vendas informadas)");
+      return json({
+        query, total: marketTotal, products: ranked,
+        ranking_method: "ordenação por sold_quantity fornecido pelo marketplace; sem projeção de vendas futuras",
+        competition_signal: "quantidade total de anúncios retornada pela busca; não equivale a concorrentes únicos",
+        notice: "Vendas são um indicador histórico do anúncio, não prova de demanda futura. Comissão, elegibilidade de afiliado, margem, estoque e custos ainda precisam ser verificados."
+      });
     } catch (error) {
       console.error("Market research error", error);
       return json({ error: "Falha de conexão ao consultar o Mercado Livre. Tente novamente." }, 502);
