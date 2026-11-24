@@ -918,7 +918,7 @@ function renderTasks(tasks){
  for(const task of tasks){
   const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
   const title=document.createElement('b');title.textContent=task.title;card.append(title);
-  const meta=document.createElement('p');meta.style.cssText='font-size:.8rem;color:#bbb!important;margin:5px 0';meta.textContent=taskStatusLabel(task.status)+' • '+task.task_type+(task.requires_approval?' • revisão exigida':'');card.append(meta);
+  const meta=document.createElement('p');meta.style.cssText='font-size:.8rem;color:#bbb!important;margin:5px 0';meta.textContent=taskStatusLabel(task.status)+' • '+task.task_type+(task.requires_approval?' • revisão exigida':'')+(Number(task.attempts||0)>0?' • '+Number(task.attempts)+' tentativa(s) usada(s) de 2':'');card.append(meta);
   if(task.result){const details=document.createElement('details');details.style.marginTop='8px';const summary=document.createElement('summary');summary.textContent=task.status==='completed'?'Ver resultado':'Ver detalhes';summary.style.cursor='pointer';const result=document.createElement('p');result.style.cssText='white-space:pre-wrap;font-size:.9rem;line-height:1.5;color:#eee!important';result.textContent=task.result;details.append(summary,result);card.append(details);}
   taskList.append(card);
  }
