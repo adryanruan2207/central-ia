@@ -316,10 +316,41 @@ async function handle(request, env) {
     const oldLines=original.replace(/\r\n/g,"\n").trimEnd().split("\n");
     const newLines=updated.trimEnd().split("\n");
     const diff=["--- a/worker/wrangler.toml","+++ b/worker/wrangler.toml","@@ -1,"+oldLines.length+" +1,"+newLines.length+" @@" ,...oldLines.map(line=>"-"+line),...newLines.map(line=>"+"+line)].join("\n");
+    const originalSha256=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(original)))).map(b=>b.toString(16).padStart(2,"0")).join("");
+    const candidateSha256=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(updated)))).map(b=>b.toString(16).padStart(2,"0")).join("");
     const patchId=crypto.randomUUID();
     const createdAt=new Date().toISOString();
-    await record(env,"developer_patch_candidate_created",JSON.stringify({patch_id:patchId,proposal_id:proposalId,path:"worker/wrangler.toml",original_sha256:null,diff,updated_content:updated,status:"candidate_only_not_applied",created_at:createdAt}));
+    await record(env,"developer_patch_candidate_created",JSON.stringify({patch_id:patchId,proposal_id:proposalId,path:"worker/wrangler.toml",original_sha256:originalSha256,candidate_sha256:candidateSha256,diff,updated_content:updated,status:"candidate_only_not_applied",created_at:createdAt}));
     return json({patch_id:patchId,proposal_id:proposalId,path:"worker/wrangler.toml",diff,status:"candidate_only_not_applied",applied:false,created_at:createdAt},201);
+  }
+
+  if (url.pathname === "/developer/patches" && request.method === "GET") {
+    const requested=Number(url.searchParams.get("limit")||20);
+    const limit=Number.isFinite(requested)?Math.max(1,Math.min(50,Math.floor(requested))):20;
+    const rows=await env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'developer_patch_candidate_created' ORDER BY created_at DESC LIMIT ?").bind(limit).all();
+    const patches=[];
+    for(const row of rows.results||[]){
+      try{
+        const d=JSON.parse(row.details||"{}");
+        patches.push({patch_id:d.patch_id,proposal_id:d.proposal_id,path:d.path,status:d.status||"candidate_only_not_applied",original_sha256:d.original_sha256||null,candidate_sha256:d.candidate_sha256||null,diff:String(d.diff||"").slice(0,40000),created_at:d.created_at||row.created_at});
+      }catch{}
+    }
+    let currentSha256=null, integrityChecked=false;
+    if(patches.length){
+      try{
+        const response=await fetch("https://raw.githubusercontent.com/adryanruan2207/central-ia/main/worker/wrangler.toml",{headers:{"Accept":"text/plain"},signal:AbortSignal.timeout(7000)});
+        if(response.ok){
+          const current=await response.text();
+          currentSha256=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(current)))).map(b=>b.toString(16).padStart(2,"0")).join("");
+          integrityChecked=true;
+        }
+      }catch{}
+    }
+    for(const patch of patches){
+      patch.current_file_matches_original=integrityChecked&&patch.original_sha256?patch.original_sha256===currentSha256:null;
+      patch.integrity_status=!integrityChecked?"not_checked":!patch.original_sha256?"legacy_without_hash":patch.current_file_matches_original?"original_unchanged":"file_changed_since_patch";
+    }
+    return json({patches,count:patches.length,current_file_sha256:currentSha256,integrity_checked:integrityChecked,mode:"read_only_patch_history"});
   }
 
   if (url.pathname === "/developer/proposals" && request.method === "GET") {
