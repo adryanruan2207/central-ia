@@ -658,6 +658,45 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 </div></div>
 <script>
 (() => {
+const loginFormEarly=document.getElementById('login-form');
+const loginPasswordEarly=document.getElementById('login-password');
+const loginSubmitEarly=document.getElementById('login-submit');
+const loginStatusEarly=document.getElementById('login-status');
+let loginBusyEarly=false;
+loginFormEarly?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ event.stopImmediatePropagation();
+ if(loginBusyEarly)return;
+ const password=loginPasswordEarly?.value||'';
+ if(!password){loginStatusEarly.textContent='Digite sua senha de acesso.';return;}
+ loginBusyEarly=true;
+ loginSubmitEarly.disabled=true;
+ loginStatusEarly.textContent='Conectando ao servidor de acesso…';
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/login',{
+   method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({password}),signal:controller.signal,cache:'no-store'
+  });
+  const raw=await response.text();
+  let data={};
+  try{data=raw?JSON.parse(raw):{};}catch{throw Error('Resposta inválida do servidor (HTTP '+response.status+').');}
+  if(!response.ok)throw Error(data.error||('Falha no acesso (HTTP '+response.status+').'));
+  if(typeof data.token!=='string'||!data.token)throw Error('O servidor não retornou uma sessão válida.');
+  localStorage.setItem('central_ia_session_v1',data.token);
+  loginPasswordEarly.value='';
+  document.body.classList.remove('auth-locked');
+  const screen=document.getElementById('login-screen');
+  if(screen)screen.hidden=true;
+  const status=document.getElementById('chat-status');
+  if(status)status.textContent='Você está conectado neste aparelho.';
+ }catch(error){
+  loginStatusEarly.textContent=error.name==='AbortError'?'O servidor demorou mais de 15 segundos. Tente novamente.':error instanceof TypeError?'Falha de conexão ou bloqueio do navegador. Verifique a internet.':(error.message||'Falha inesperada no acesso.');
+ }finally{
+  clearTimeout(timeout);loginBusyEarly=false;loginSubmitEarly.disabled=false;
+ }
+},true);
 const panel=document.getElementById('resource-panel');
 const sidebarToggle=document.getElementById('sidebar-toggle');
 const sidebarScrim=document.getElementById('sidebar-scrim');
@@ -748,8 +787,7 @@ async function login(event){
   loginStatus.textContent=error.name==='AbortError'?'O servidor demorou mais de 15 segundos. Verifique a conexão e tente novamente.':(error instanceof TypeError?'Não foi possível conectar ao servidor. Verifique a internet e tente novamente.':(error.message||'Falha inesperada no acesso.'));
  }finally{loginInProgress=false;loginSubmit.disabled=false;}
 }
-loginForm.addEventListener('submit',login);
-loginSubmit.addEventListener('click',login);
+// O login principal é tratado pelo listener antecipado, antes dos demais módulos.
 logoutChat.addEventListener('click',()=>{sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Você saiu da conta. Entre novamente.');});
 let chatHistory=[];
 function addChatLine(who,text){
