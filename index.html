@@ -927,8 +927,10 @@ async function loadAutomationStatus(){
     const programTotal=Object.values(p.affiliate_programs||{}).reduce((sum,n)=>sum+Number(n||0),0);
     const publicationTotal=Object.values(p.publication_queue||{}).reduce((sum,n)=>sum+Number(n||0),0);
     const discovery=p.automatic_discovery;
-    const discoveryText=discovery?(discovery.status==='completed'?'Última descoberta automática: '+new Date(discovery.last_run).toLocaleString('pt-BR')+'. ':'Última descoberta automática apresentou erro. '):'Aguardando primeira descoberta automática. ';
-    pipeline.textContent=discoveryText+'Esteira: '+(p.products_registered||0)+' produtos no catálogo interno • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. Produtos descobertos entram como candidatos em pesquisa; comissão e elegibilidade precisam ser confirmadas antes de divulgar.';
+    const supplierDiscovery=p.supplier_discovery;
+    const discoveryText=discovery?(discovery.status==='completed'?'Última descoberta de produtos: '+new Date(discovery.last_run).toLocaleString('pt-BR')+'. ':'Última descoberta de produtos apresentou erro. '):'Aguardando descoberta automática de produtos. ';
+    const supplierText=supplierDiscovery?(supplierDiscovery.status==='completed'?'Pesquisa de fornecedores: '+new Date(supplierDiscovery.last_run).toLocaleString('pt-BR')+'. ':'Pesquisa de fornecedores apresentou erro. '):'Pesquisa de fornecedores aguardando primeira execução. ';
+    pipeline.textContent=discoveryText+supplierText+'Esteira: '+(p.products_registered||0)+' produtos candidatos • '+(p.supplier_leads||0)+' fornecedores para validar • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. A CENTRAL IA pesquisa múltiplos caminhos de afiliação e fornecedores para venda sem estoque; leads ainda exigem diligência antes de fechar parceria.';
    }
    if(blockers){
     blockers.replaceChildren();
