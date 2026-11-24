@@ -132,3 +132,12 @@ test("preparação de patch exige aprovação e limita o escopo a um arquivo", (
   assert.match(section, /worker\/wrangler\.toml/);
   assert.match(section, /Já existe um patch candidato/);
 });
+
+test("validação isolada do Worker usa dry-run e não publica na produção", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/central-ia-isolated-validation.yml", import.meta.url), "utf8");
+  assert.match(workflow, /pull_request:/);
+  assert.match(workflow, /wrangler deploy --dry-run/);
+  assert.match(workflow, /permissions:\\n  contents: read/);
+  assert.doesNotMatch(workflow, /CLOUDFLARE_API_TOKEN|secrets\\./);
+  assert.doesNotMatch(workflow, /wrangler deploy(?! --dry-run)/);
+});
