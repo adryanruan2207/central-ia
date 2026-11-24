@@ -951,6 +951,8 @@ async function loadAutomationStatus(){
  }catch(error){automationHealth.textContent=error.message;}
 }
 document.getElementById('automation-refresh')?.addEventListener('click',loadAutomationStatus);
+setInterval(()=>{if(sessionToken)loadAutomationStatus();},60000);
+if(sessionToken)loadAutomationStatus();
 
 document.getElementById('task-refresh')?.addEventListener('click',loadTasks);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadTasks);
