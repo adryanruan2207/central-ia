@@ -488,12 +488,20 @@ async function handle(request, env) {
         ["Rota de saúde", 'url.pathname === "/health"'],
         ["Planejador técnico", 'url.pathname === "/developer/plan"'],
         ["Histórico de planos", 'url.pathname === "/developer/plans"'],
-        ["Leitura correta por linhas", 'source.split("\\n")']
+        ["Leitura correta por linhas", 'source.split("\\n")'],
+        ["Validação de sessão", "async function validSession(token, secret)"],
+        ["Bloqueio de API sem autenticação", "if (!isApiToken && !isSession)"],
+        ["Limite de tamanho do token", "token.length > 2000"],
+        ["Sem execução dinâmica por eval", "eval(", true],
+        ["Sem construtor dinâmico Function", "new Function(", true]
       ]},
       {path:"index.html",url:"https://raw.githubusercontent.com/adryanruan2207/central-ia/main/index.html",checks:[
         ["Requisições com retentativa", "async function fetchJsonWithRetry"],
         ["Interface da arquiteta", "developer-plan-button"],
-        ["Consulta do histórico", "loadDeveloperPlanHistory"]
+        ["Consulta do histórico", "loadDeveloperPlanHistory"],
+        ["Renderização segura de conteúdo", "textContent"],
+        ["Sem execução dinâmica por eval", "eval(", true],
+        ["Sem construtor dinâmico Function", "new Function(", true]
       ]}
     ];
     const inspected = await Promise.all(files.map(async file => {
@@ -502,7 +510,7 @@ async function handle(request, env) {
         if (!response.ok) throw new Error("GitHub respondeu HTTP " + response.status);
         const source = await response.text();
         if (source.length > 500000) throw new Error("Arquivo excedeu o limite de leitura.");
-        return {path:file.path,ok:true,bytes:source.length,checks:file.checks.map(([label,needle])=>({label,ok:source.includes(needle)}))};
+        return {path:file.path,ok:true,bytes:source.length,checks:file.checks.map(([label,needle,mustBeAbsent])=>({label,ok:mustBeAbsent?!source.includes(needle):source.includes(needle)}))};
       } catch(error) {
         return {path:file.path,ok:false,error:String(error?.message||"Falha na leitura").slice(0,180),checks:[]};
       }
