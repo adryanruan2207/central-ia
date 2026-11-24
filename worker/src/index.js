@@ -270,14 +270,40 @@ async function handle(request, env) {
   if (url.pathname === "/developer/proposals" && request.method === "GET") {
     const requested = Number(url.searchParams.get("limit") || 10);
     const limit = Number.isFinite(requested) ? Math.max(1, Math.min(30, Math.floor(requested))) : 10;
-    const result = await env.DB.prepare("SELECT id, details, created_at FROM activity_log WHERE event = 'developer_change_proposal_created' ORDER BY created_at DESC LIMIT ?").bind(limit).all();
-    const proposals = (result.results || []).map(row => {
+    const [created, reviewed] = await Promise.all([
+      env.DB.prepare("SELECT id, details, created_at FROM activity_log WHERE event = 'developer_change_proposal_created' ORDER BY created_at DESC LIMIT ?").bind(limit).all(),
+      env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'developer_change_proposal_reviewed' ORDER BY created_at DESC LIMIT 100").all()
+    ]);
+    const decisions = new Map();
+    for (const row of reviewed.results || []) {
+      try { const item=JSON.parse(row.details||"{}"); if(item.proposal_id && !decisions.has(item.proposal_id)) decisions.set(item.proposal_id,{decision:item.decision,reviewed_at:row.created_at}); } catch {}
+    }
+    const proposals = (created.results || []).map(row => {
       try {
-        const details = JSON.parse(row.details || "{}");
-        return {id:row.id,request:String(details.request||"").slice(0,1200),proposal:details.proposal||{},status:"awaiting_review",created_at:row.created_at};
+        const details=JSON.parse(row.details||"{}");
+        const proposalId=String(details.proposal_id||"");
+        const review=decisions.get(proposalId);
+        return {id:proposalId,request:String(details.request||"").slice(0,1200),proposal:details.proposal||{},status:review?.decision||"awaiting_review",reviewed_at:review?.reviewed_at||null,created_at:row.created_at};
       } catch { return null; }
     }).filter(Boolean);
     return json({proposals,count:proposals.length,mode:"proposal_history"});
+  }
+
+  if (url.pathname === "/developer/proposal/review" && request.method === "POST") {
+    let body;
+    try { body=await request.json(); } catch { return json({error:"JSON inválido."},400); }
+    const proposalId=typeof body.proposal_id==="string"?body.proposal_id.trim():"";
+    const decision=body.decision;
+    if(!/^[0-9a-f-]{36}$/i.test(proposalId) || !["approved_for_patch","rejected"].includes(decision)) return json({error:"Identificador ou decisão inválida."},400);
+    const proposalRow=await env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_change_proposal_created' ORDER BY created_at DESC LIMIT 200").all();
+    let exists=false;
+    for(const row of proposalRow.results||[]){try{if(JSON.parse(row.details||"{}").proposal_id===proposalId){exists=true;break;}}catch{}}
+    if(!exists) return json({error:"Proposta não encontrada."},404);
+    const prior=await env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_change_proposal_reviewed' ORDER BY created_at DESC LIMIT 100").all();
+    for(const row of prior.results||[]){try{if(JSON.parse(row.details||"{}").proposal_id===proposalId)return json({error:"Esta proposta já foi revisada e não pode ser decidida novamente."},409);}catch{}}
+    const reviewedAt=new Date().toISOString();
+    await record(env,"developer_change_proposal_reviewed",JSON.stringify({proposal_id:proposalId,decision,reviewed_at:reviewedAt,scope:"review_only_no_code_changes"}));
+    return json({proposal_id:proposalId,decision,reviewed_at:reviewedAt,applied:false,message:decision==="approved_for_patch"?"Proposta autorizada apenas para preparar um patch revisável. Nenhum arquivo foi alterado.":"Proposta rejeitada. Nenhum arquivo foi alterado."});
   }
 
   if (url.pathname === "/developer/proposal" && request.method === "POST") {
@@ -310,8 +336,9 @@ async function handle(request, env) {
     proposal.risks=proposal.risks.filter(x=>typeof x==="string").slice(0,8);
     proposal.rollback=typeof proposal.rollback==="string"?proposal.rollback.slice(0,800):"Restaurar a versão anterior do arquivo caso os testes falhem.";
     const createdAt=new Date().toISOString();
-    await record(env,"developer_change_proposal_created",JSON.stringify({request:requestText,proposal,status:"awaiting_review",created_at:createdAt}));
-    return json({proposal,status:"awaiting_review",applied:false,created_at:createdAt},201);
+    const proposalId=crypto.randomUUID();
+    await record(env,"developer_change_proposal_created",JSON.stringify({proposal_id:proposalId,request:requestText,proposal,status:"awaiting_review",created_at:createdAt}));
+    return json({proposal_id:proposalId,proposal,status:"awaiting_review",applied:false,created_at:createdAt},201);
   }
 
   if (url.pathname === "/developer/audit" && request.method === "GET") {
