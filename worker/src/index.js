@@ -9,7 +9,7 @@ function cors(request, response) {
     headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Vary", "Origin");
   }
-  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   return new Response(response.body, { status: response.status, headers });
 }
@@ -111,6 +111,35 @@ async function handle(request, env) {
   const isSession = await validSession(bearer, env.SESSION_SECRET);
   if (!isApiToken && !isSession) return json({ error: "Sessão expirada ou não autorizada" }, 401);
   if (!env.DB) return json({ error: "Banco D1 ainda não configurado" }, 503);
+
+  if (url.pathname === "/chat/history" && request.method === "GET") {
+    const requested = Number(url.searchParams.get("limit") || 100);
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(200, Math.floor(requested))) : 100;
+    const result = await env.DB.prepare(
+      "SELECT id, role, content, created_at FROM chat_messages ORDER BY id DESC LIMIT ?"
+    ).bind(limit).all();
+    return json({ messages: (result.results || []).reverse() });
+  }
+
+  if (url.pathname === "/chat/history" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const role = body.role === "assistant" ? "assistant" : body.role === "user" ? "user" : "";
+    const content = typeof body.content === "string" ? body.content.trim().slice(0, 12000) : "";
+    if (!role || !content) return json({ error: "Informe uma mensagem válida e seu papel (user ou assistant)." }, 400);
+    const createdAt = new Date().toISOString();
+    const result = await env.DB.prepare(
+      "INSERT INTO chat_messages(role, content, created_at) VALUES (?, ?, ?)"
+    ).bind(role, content, createdAt).run();
+    await record(env, "chat_message_saved", role);
+    return json({ id: result.meta?.last_row_id || null, role, content, created_at: createdAt }, 201);
+  }
+
+  if (url.pathname === "/chat/history" && request.method === "DELETE") {
+    await env.DB.prepare("DELETE FROM chat_messages").run();
+    await record(env, "chat_history_cleared", "Histórico da conversa apagado pelo proprietário.");
+    return json({ cleared: true });
+  }
 
   if (url.pathname === "/automation/status" && request.method === "GET") {
     const [heartbeat, counts] = await Promise.all([
