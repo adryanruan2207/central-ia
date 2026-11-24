@@ -710,6 +710,9 @@ main.wrap{background:#000!important}
 </div>
 <p id="affiliate-status" role="status" aria-live="polite"></p>
 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Produtos cadastrados</b><button id="affiliate-refresh" type="button" class="secondary">Atualizar</button></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="affiliate-analyze-shortlist" type="button" class="secondary">🧠 Analisar seleção automaticamente</button></div>
+<p id="affiliate-shortlist-status" role="status" aria-live="polite"></p>
+<div id="affiliate-shortlist-results" style="display:grid;gap:10px;margin-top:10px"></div>
 <div id="affiliate-list" style="display:grid;gap:10px;margin-top:12px"><p>Entre na CENTRAL IA para carregar as oportunidades.</p></div>
 </div></div>
 <div class="resource-section"><h3>Notificações</h3><div class="card">
@@ -1275,6 +1278,33 @@ function renderAffiliateProducts(products){
   affiliateList.append(card);
  }
 }
+async function analyzeAffiliateShortlist(){
+ const token=localStorage.getItem('central_ia_session_v1');
+ const status=document.getElementById('affiliate-shortlist-status');
+ const results=document.getElementById('affiliate-shortlist-results');
+ const button=document.getElementById('affiliate-analyze-shortlist');
+ if(!token){status.textContent='Entre novamente para analisar sua seleção.';return;}
+ button.disabled=true;status.textContent='Analisando evidências dos produtos cadastrados…';results.replaceChildren();
+ try{
+  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/shortlist/analyze',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível analisar a seleção.');
+  if(!Array.isArray(data.products)||!data.products.length){status.textContent='Sua seleção ainda está vazia. Pesquise produtos e use “Adicionar à seleção”.';return;}
+  status.textContent=data.count+' produtos analisados. '+data.ranking_basis;
+  for(const item of data.products){
+   const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
+   const title=document.createElement('b');title.textContent=item.name;card.append(title);
+   const priority=document.createElement('p');priority.style.cssText='margin:6px 0;color:#c8d7ff!important;font-weight:600';priority.textContent='Prioridade: '+item.priority+' • Dados disponíveis: '+item.evidence_completeness+'%';card.append(priority);
+   const metrics=document.createElement('p');metrics.style.cssText='font-size:.86rem;color:#ddd!important;margin:4px 0';metrics.textContent='Plataforma: '+item.marketplace+' • Preço observado: '+(item.price_observed===null?'não informado':new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(item.price_observed))+' • Vendas informadas: '+(item.public_sales_count===null?'não disponíveis':item.public_sales_count)+' • Comissão: '+(item.commission_rate===null?'não confirmada':item.commission_rate+'%');card.append(metrics);
+   const flags=document.createElement('p');flags.style.cssText='font-size:.82rem;color:#f2c98b!important;white-space:normal;margin:7px 0';flags.textContent='Pendências: '+item.flags.join('; ');card.append(flags);
+   const next=document.createElement('details');const summary=document.createElement('summary');summary.textContent='Próximas verificações';next.append(summary);
+   const list=document.createElement('ul');for(const step of item.next_steps){const li=document.createElement('li');li.textContent=step;list.append(li);}next.append(list);card.append(next);
+   if(item.product_url){const link=document.createElement('a');link.href=item.product_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir produto';card.append(link);}
+   results.append(card);
+  }
+ }catch(error){status.textContent=error.message;}
+ finally{button.disabled=false;}
+}
+document.getElementById('affiliate-analyze-shortlist')?.addEventListener('click',analyzeAffiliateShortlist);
 async function loadAffiliateProducts(){
  if(!sessionToken){affiliateStatus.textContent='Entre para consultar suas oportunidades.';return;}
  affiliateStatus.textContent='Carregando oportunidades…';
