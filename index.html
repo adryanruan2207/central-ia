@@ -910,7 +910,7 @@ async function loadAutomationStatus(){
   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/automation/status',{headers:{'Authorization':'Bearer '+sessionToken}});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||'Não foi possível consultar a automação.');
-  automationHealth.textContent='Serviço: '+data.service+' • Execução programada: '+data.schedule;
+  automationHealth.textContent='Serviço: '+data.service+' • Execução programada: '+data.schedule+' • Autoverificação: '+(data.self_monitor?.status==='healthy'?'NORMAL':data.self_monitor?.status==='degraded'?'COM PENDÊNCIAS':'AGUARDANDO PRIMEIRA VERIFICAÇÃO')+' • Última análise: '+(data.self_monitor?.checked_at?new Date(data.self_monitor.checked_at).toLocaleTimeString('pt-BR'):'—');
   const labels=[['Na fila',data.tasks?.queued||0],['Processando',data.tasks?.processing||0],['Concluídas',data.tasks?.completed||0],['Falhas',data.tasks?.failed||0],['Revisão necessária',data.tasks?.needs_review||0]];
   automationMetrics.replaceChildren();
   for(const [label,value] of labels){
@@ -920,7 +920,7 @@ async function loadAutomationStatus(){
    tile.append(number,caption);automationMetrics.append(tile);
   }
   const last=data.last_check?new Date(data.last_check).toLocaleString('pt-BR'):'Ainda não há execução registrada';
-  automationLastCheck.textContent='Última execução registrada: '+last+' • Consulta: '+new Date(data.checked_at).toLocaleTimeString('pt-BR');
+  automationLastCheck.textContent='Última execução registrada: '+last+' • Consulta: '+new Date(data.checked_at).toLocaleTimeString('pt-BR')+(data.self_monitor?.details?.failures?.length?' • Pendências: '+data.self_monitor.details.failures.map(x=>x.name).join(', '):'');
    const pipeline=document.getElementById('automation-pipeline');
    const blockers=document.getElementById('automation-blockers');
    if(pipeline){
