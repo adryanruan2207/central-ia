@@ -1093,7 +1093,9 @@ export default {
         "UPDATE tasks SET status = 'queued', updated_at = ? WHERE status = 'processing' AND updated_at < ? AND requires_approval = 0"
       ).bind(now, staleBefore).run();
       if (Number(recovered.meta?.changes || 0) > 0) {
-        await record(env, "stale_tasks_requeued", String(recovered.meta.changes) + " tarefa(s) recuperada(s) após interrupção.");
+        const recoveredCount=Number(recovered.meta.changes||0);
+        await record(env, "stale_tasks_requeued", recoveredCount + " tarefa(s) recuperada(s) após interrupção.");
+        await notifyOwner(env, "self-repair:stale-tasks:" + now.slice(0,16), "Tarefa(s) recuperada(s) automaticamente", recoveredCount + " tarefa(s) que ficaram interrompidas foram recolocadas na fila. A CENTRAL IA tentará processá-las novamente no próximo ciclo.", "success");
       }
 
       // O planejador não fica bloqueado por itens que aguardam revisão humana.
