@@ -1166,6 +1166,12 @@ export default {
         await record(env, "tasks_retry_exhausted", String(exhaustedCount));
         await notifyOwner(env, "task-retry-exhausted:" + now.slice(0,16), "Uma tarefa precisa de verificação", exhaustedCount + " tarefa(s) atingiram o limite de tentativas automáticas e foram interrompidas para evitar repetição infinita. Consulte o resultado no painel.", "error");
       }
+      const terminalFailures = await env.DB.prepare(
+        "SELECT COUNT(*) AS total FROM tasks WHERE status = 'failed' AND requires_approval = 0 AND attempts >= 2"
+      ).first();
+      if (Number(terminalFailures?.total || 0) > 0) {
+        await notifyOwner(env, "task-terminal-failures:" + now.slice(0,10), "Tarefas precisam de atenção", Number(terminalFailures.total) + " tarefa(s) continuam com falha após as tentativas automáticas. Consulte os detalhes no painel para decidir o próximo passo.", "error");
+      }
 
       // O planejador não fica bloqueado por itens que aguardam revisão humana.
       // Cria uma nova pesquisa no máximo a cada 6 horas, respeitando a fila e o limite de uma execução por ciclo.
