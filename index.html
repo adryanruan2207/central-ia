@@ -508,6 +508,22 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <button id="video-script-copy" type="button" class="secondary" style="display:none">Copiar roteiro</button>
 <div class="notice">A IA não inventa depoimentos, avaliações, vendas, descontos ou escassez. Confirme as características do produto e identifique claramente links de afiliado e publicidade.</div>
 </div></div>
+<div class="resource-section" id="video-maker"><h3>📽️ Criador automático de vídeo</h3><div class="card">
+<p>Monte um vídeo vertical curto com movimento, cenas e textos publicitários usando a foto real do produto. A renderização acontece neste aparelho, sem serviço pago. Nesta primeira versão, o arquivo é WebM e não inclui narração nem música.</p>
+<form id="video-maker-form" style="display:grid;gap:10px;margin-top:14px">
+<label>Imagem do produto<input id="video-maker-image" type="file" accept="image/png,image/jpeg,image/webp" required style="display:block;width:100%;padding:10px;margin-top:5px"></label>
+<label>Gancho inicial<input id="video-maker-hook" maxlength="100" required placeholder="Ex.: Cansado de fios que atrapalham?" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Benefício principal<input id="video-maker-benefit1" maxlength="110" required placeholder="Ex.: Mais liberdade para ouvir sua música" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Segundo benefício ou diferencial<input id="video-maker-benefit2" maxlength="110" placeholder="Ex.: Design leve para o dia a dia" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Chamada para ação<input id="video-maker-cta" maxlength="100" required placeholder="Ex.: Confira os detalhes no link" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Duração<select id="video-maker-duration" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"><option value="15">15 segundos</option><option value="20">20 segundos</option></select></label>
+<button id="video-maker-submit" type="submit">Renderizar vídeo vertical</button>
+</form>
+<p id="video-maker-status" role="status" aria-live="polite"></p>
+<video id="video-maker-preview" controls playsinline style="display:none;width:100%;max-width:360px;border-radius:12px;background:#000"></video>
+<a id="video-maker-download" style="display:none" download="central-ia-campanha.webm">Baixar vídeo criado</a>
+<div class="notice">Use apenas imagens e afirmações que você tem direito de utilizar e que sejam verdadeiras. A primeira versão cria um vídeo visual com textos e movimento; a geração automática de cenas originais, voz gravada, música licenciada e publicação social será desenvolvida separadamente.</div>
+</div></div>
 <div class="resource-section" id="market-research"><h3>🔎 Pesquisa de produtos do mercado</h3><div class="card">
 <p>Pesquise anúncios do Mercado Livre para comparar preços e sinais públicos de procura. Resultados não significam aprovação como afiliado nem garantem vendas ou comissão.</p>
 <form id="market-search-form" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
@@ -772,6 +788,62 @@ document.getElementById('open-resources')?.addEventListener('click',loadTasks);
 document.getElementById('open-resources')?.addEventListener('click',loadAutomationStatus);
 
 
+const videoMakerForm=document.getElementById('video-maker-form');
+const videoMakerStatus=document.getElementById('video-maker-status');
+const videoMakerPreview=document.getElementById('video-maker-preview');
+const videoMakerDownload=document.getElementById('video-maker-download');
+videoMakerForm?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const file=document.getElementById('video-maker-image').files?.[0];
+ if(!file){videoMakerStatus.textContent='Escolha uma imagem do produto.';return;}
+ if(!/^image\/(png|jpeg|webp)$/.test(file.type)||file.size>8*1024*1024){videoMakerStatus.textContent='Use uma imagem PNG, JPEG ou WEBP de até 8 MB.';return;}
+ if(!HTMLCanvasElement.prototype.captureStream||typeof MediaRecorder==='undefined'){videoMakerStatus.textContent='Este navegador não oferece gravação de vídeo. Tente a versão atual do Chrome.';return;}
+ const submit=document.getElementById('video-maker-submit');submit.disabled=true;videoMakerStatus.textContent='Preparando cenas e renderizando o vídeo neste aparelho…';videoMakerPreview.style.display='none';videoMakerDownload.style.display='none';
+ let objectUrl=null;
+ try{
+  const imageUrl=URL.createObjectURL(file);const productImage=new Image();
+  await new Promise((resolve,reject)=>{productImage.onload=resolve;productImage.onerror=()=>reject(Error('Não foi possível abrir a imagem.'));productImage.src=imageUrl;});
+  const hook=document.getElementById('video-maker-hook').value.trim();
+  const benefit1=document.getElementById('video-maker-benefit1').value.trim();
+  const benefit2=document.getElementById('video-maker-benefit2').value.trim();
+  const cta=document.getElementById('video-maker-cta').value.trim();
+  const scenes=[{text:hook,kicker:'PARE E DESCUBRA',image:true},{text:benefit1,kicker:'CONHEÇA O BENEFÍCIO',image:true}];
+  if(benefit2)scenes.push({text:benefit2,kicker:'MAIS UM DIFERENCIAL',image:true});
+  scenes.push({text:cta,kicker:'SAIBA MAIS',image:true});
+  const canvas=document.createElement('canvas');canvas.width=720;canvas.height=1280;const ctx=canvas.getContext('2d');
+  const duration=Number(document.getElementById('video-maker-duration').value)||15;
+  const sceneDuration=duration/scenes.length;
+  const stream=canvas.captureStream(24);
+  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'].find(type=>MediaRecorder.isTypeSupported(type));
+  if(!mime)throw Error('Gravação WebM não é suportada neste navegador.');
+  const recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000});const chunks=[];
+  recorder.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+  const stopped=new Promise((resolve,reject)=>{recorder.onstop=resolve;recorder.onerror=()=>reject(Error('Falha durante a gravação do vídeo.'));});
+  const started=performance.now();let frame=0;
+  const draw=now=>{
+   const elapsed=Math.min((now-started)/1000,duration);const sceneIndex=Math.min(scenes.length-1,Math.floor(elapsed/sceneDuration));const scene=scenes[sceneIndex];const local=(elapsed-sceneIndex*sceneDuration)/sceneDuration;
+   const gradient=ctx.createLinearGradient(0,0,720,1280);gradient.addColorStop(0,'#111827');gradient.addColorStop(1,'#312e81');ctx.fillStyle=gradient;ctx.fillRect(0,0,720,1280);
+   const scale=Math.max(620/productImage.width,760/productImage.height)*(1+0.035*local);const iw=productImage.width*scale,ih=productImage.height*scale;const ix=(720-iw)/2,iy=150+(760-ih)/2;
+   ctx.save();ctx.beginPath();ctx.roundRect(35,145,650,760,32);ctx.clip();ctx.fillStyle='#ffffff';ctx.fillRect(35,145,650,760);ctx.globalAlpha=.98;ctx.drawImage(productImage,ix+(iw-650)/2+35,iy+(ih-760)/2+145,iw,ih);ctx.restore();
+   ctx.fillStyle='rgba(8,12,25,.72)';ctx.fillRect(0,0,720,1280);
+   ctx.save();ctx.beginPath();ctx.roundRect(35,145,650,760,32);ctx.clip();ctx.globalAlpha=1;ctx.drawImage(productImage,ix+(iw-650)/2+35,iy+(ih-760)/2+145,iw,ih);ctx.restore();
+   ctx.fillStyle='#a5b4fc';ctx.font='bold 25px Arial';ctx.textAlign='center';ctx.fillText(scene.kicker,360,100);
+   ctx.fillStyle='#ffffff';ctx.font='bold 52px Arial';ctx.textAlign='center';
+   const words=scene.text.split(/\s+/);const lines=[];let line='';
+   for(const word of words){const test=line?line+' '+word:word;if(ctx.measureText(test).width>620&&line){lines.push(line);line=word;}else line=test;}if(line)lines.push(line);
+   const lineHeight=64;const startY=1010-(lines.length-1)*lineHeight/2;
+   lines.slice(0,3).forEach((text,index)=>{ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=12;ctx.fillText(text,360,startY+index*lineHeight,640);});
+   ctx.shadowBlur=0;ctx.fillStyle='#c7d2fe';ctx.font='22px Arial';ctx.fillText('CENTRAL IA • CONHEÇA O PRODUTO',360,1210);
+   ctx.fillStyle='rgba(255,255,255,.25)';ctx.fillRect(40,1240,640,8);ctx.fillStyle='#a5b4fc';ctx.fillRect(40,1240,640*(elapsed/duration),8);
+   frame++;
+   if(elapsed<duration){requestAnimationFrame(draw);}else{recorder.stop();}
+  };
+  recorder.start(250);requestAnimationFrame(draw);await stopped;stream.getTracks().forEach(track=>track.stop());URL.revokeObjectURL(imageUrl);
+  const blob=new Blob(chunks,{type:mime});objectUrl=URL.createObjectURL(blob);videoMakerPreview.src=objectUrl;videoMakerPreview.style.display='block';videoMakerDownload.href=objectUrl;videoMakerDownload.style.display='inline-block';videoMakerDownload.textContent='⬇ Baixar vídeo ('+(blob.size/1024/1024).toFixed(1)+' MB)';
+  videoMakerStatus.textContent='Vídeo renderizado. Assista e confira o resultado antes de publicar.';
+ }catch(error){videoMakerStatus.textContent=error.message||'Não foi possível renderizar o vídeo.';}
+ finally{submit.disabled=false;}
+});
 const videoScriptForm=document.getElementById('video-script-form');
 const videoScriptStatus=document.getElementById('video-script-status');
 const videoScriptResult=document.getElementById('video-script-result');
