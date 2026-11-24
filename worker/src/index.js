@@ -267,6 +267,19 @@ async function handle(request, env) {
     return json({ updated: Number(result.meta?.changes || 0) > 0, read_at: readAt });
   }
 
+  if (url.pathname === "/developer/plans" && request.method === "GET") {
+    const requested = Number(url.searchParams.get("limit") || 10);
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(30, Math.floor(requested))) : 10;
+    const result = await env.DB.prepare("SELECT id, details, created_at FROM activity_log WHERE event = 'developer_plan_created' ORDER BY created_at DESC LIMIT ?").bind(limit).all();
+    const plans = (result.results || []).map(row => {
+      try {
+        const details = JSON.parse(row.details || "{}");
+        return {id:row.id,command:String(details.command||"").slice(0,1500),plan:String(details.plan||"").slice(0,10000),mode:details.mode||"read_only_plan",created_at:row.created_at};
+      } catch { return null; }
+    }).filter(Boolean);
+    return json({plans,count:plans.length,mode:"read_only_history"});
+  }
+
   if (url.pathname === "/developer/plan" && request.method === "POST") {
     if (!env.AI) return json({error:"Workers AI não está disponível para gerar o plano."},503);
     let body;
