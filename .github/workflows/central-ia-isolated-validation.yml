@@ -3,6 +3,7 @@ name: CENTRAL IA Isolated Validation
 on:
   push:
     branches:
+      - main
       - "central-ia-test/**"
   pull_request:
     branches: [main]
