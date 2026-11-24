@@ -578,7 +578,7 @@ body.show-chat .intro{display:flex!important}
 <div class="resource-section" id="task-center"><h3>🤖 Central de tarefas automáticas</h3><div class="card">
 <p>Crie pesquisas, análises, rascunhos e tarefas de manutenção. A CENTRAL IA processa tarefas seguras na nuvem e mostra os resultados aqui.</p>
 <div id="automation-monitor" style="padding:14px;margin:14px 0;border:1px solid #46598a;border-radius:14px;background:#202d50">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📡 Monitoramento da nuvem</b><button type="button" class="secondary" id="automation-refresh">Atualizar status</button></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📡 Monitoramento da nuvem</b><small>Atualização automática</small></div>
 <p id="automation-health" role="status" aria-live="polite" style="margin:8px 0;color:#cbd5e1!important">Consultando automação…</p>
 <div id="automation-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:10px"></div>
 <div id="automation-pipeline" style="margin-top:12px;padding:12px;border:1px solid #46598a;border-radius:10px;background:#17213b"></div>
@@ -596,7 +596,7 @@ body.show-chat .intro{display:flex!important}
 <button id="task-submit" type="submit">Adicionar tarefa</button>
 </form>
 <p id="task-status" role="status" aria-live="polite" style="margin-top:10px"></p>
-<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px"><b>Fila e resultados</b><button type="button" class="secondary" id="task-refresh">Atualizar</button></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px"><b>Fila e resultados</b><small>Atualização automática</small></div>
 <div id="task-list" style="display:grid;gap:10px;margin-top:12px"><p>Entre na CENTRAL IA para carregar as tarefas.</p></div>
 <div class="notice" style="margin-top:14px"><b>Pesquisa na internet — integração gratuita preparada.</b><p>Para habilitar pesquisas com fontes e links, a CENTRAL IA usa o plano gratuito da Tavily: até 1.000 créditos por mês, sem cartão de crédito. É necessária uma chave privada cadastrada diretamente como secret <code>TAVILY_API_KEY</code> no Cloudflare Worker. Não cole essa chave no chat nem no site. Não ative pagamento automático; quando os créditos gratuitos acabarem, a pesquisa deve parar até a renovação.</p><p><a href="https://www.tavily.com/pricing" target="_blank" rel="noopener noreferrer">Conferir plano gratuito Tavily</a> · <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Abrir Cloudflare</a></p></div>
 <p style="font-size:.78rem;margin-top:12px">O processamento automático ocorre em ciclos de até 15 minutos, uma tarefa segura por ciclo. Tarefas marcadas para revisão ficam aguardando sua autorização. Pesquisas web só serão executadas depois de configurar a chave gratuita; sem ela, a tarefa fica aguardando configuração.</p>
@@ -618,7 +618,7 @@ body.show-chat .intro{display:flex!important}
 <p id="campaign-metrics-status" role="status" aria-live="polite"></p>
 <div id="campaign-metrics-kpis" style="display:none;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin:12px 0"></div>
 <pre id="campaign-metrics-analysis" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.55;background:#202020;border:1px solid #454545;border-radius:10px;padding:13px"></pre>
-<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px"><strong>Histórico recente</strong><button type="button" id="campaign-metrics-refresh" class="secondary">Atualizar</button></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:15px"><strong>Histórico recente</strong><small>Atualização automática</small></div>
 <div id="campaign-metrics-history" style="display:grid;gap:8px;margin-top:9px"></div>
 <div class="notice">Use dados reais e o mesmo período de atribuição para comparar campanhas. ROAS é receita dividida pelo gasto, não lucro. Para afiliados, registre a comissão efetivamente aprovada/recebida, não o valor total do produto.</div>
 </div></div>
@@ -710,7 +710,7 @@ body.show-chat .intro{display:flex!important}
 </div></div>
 <div class="resource-section" id="global-affiliates"><h3>🌍 Afiliados globais — cadastro e acompanhamento</h3><div class="card">
 <p>Catálogo inicial de redes e programas internacionais. A CENTRAL IA organiza os cadastros e acompanha cada etapa. Elegibilidade, aprovação, comissões e pagamentos precisam ser confirmados em cada plataforma.</p>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><button type="button" id="global-affiliates-refresh">Atualizar programas</button><span id="global-affiliates-count" style="align-self:center;font-size:.88rem;color:#bbb!important"></span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><small>Atualização automática</small><span id="global-affiliates-count" style="align-self:center;font-size:.88rem;color:#bbb!important"></span></div>
 <p id="global-affiliates-status" role="status" aria-live="polite"></p>
 <div id="global-affiliates-list" style="display:grid;gap:12px;margin-top:12px"><p>Entre na CENTRAL IA para carregar o catálogo.</p></div>
 <div class="notice">Automação segura: pesquisa, comparação, preparação de cadastros e acompanhamento. Confirmação de identidade, dados fiscais/bancários, aceite de contratos, verificações e publicação externa exigem a etapa autorizada pelo titular.</div>
@@ -725,7 +725,7 @@ body.show-chat .intro{display:flex!important}
 <label for="publication-schedule">Agendar data e horário (opcional)</label><input id="publication-schedule" type="datetime-local" style="padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff">
 <button id="publication-submit" type="submit">Salvar conteúdo</button></form>
 <p id="publication-status" role="status" aria-live="polite"></p>
-<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Rascunhos e fila</b><button id="publication-refresh" type="button" class="secondary">Atualizar</button></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Rascunhos e fila</b><small>Atualização automática</small></div>
 <div id="publication-list" style="display:grid;gap:10px;margin-top:12px"><p>Entre na CENTRAL IA para carregar os conteúdos.</p></div>
 <div class="notice">A fila ainda não publica nas redes. Para ativar o envio automático será necessário conectar cada conta por autorização oficial (OAuth), respeitar as regras da plataforma e concluir eventuais aprovações.</div>
 </div></div>
@@ -754,7 +754,7 @@ body.show-chat .intro{display:flex!important}
 <div id="affiliate-evaluate-result" role="status" aria-live="polite" style="margin-top:12px;white-space:pre-wrap;color:#fff!important"></div>
 </div>
 <p id="affiliate-status" role="status" aria-live="polite"></p>
-<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Produtos cadastrados</b><button id="affiliate-refresh" type="button" class="secondary">Atualizar</button></div>
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:14px"><b>Produtos cadastrados</b><small>Atualização automática</small></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="affiliate-analyze-shortlist" type="button" class="secondary">🧠 Analisar seleção automaticamente</button><button id="affiliate-check-readiness" type="button" class="secondary">🔗 Verificar links e prontidão de anúncios</button></div>
 <p id="affiliate-shortlist-status" role="status" aria-live="polite"></p>
 <div id="affiliate-shortlist-results" style="display:grid;gap:10px;margin-top:10px"></div>
@@ -763,14 +763,10 @@ body.show-chat .intro{display:flex!important}
 <div class="resource-section"><h3>Notificações</h3><div class="card">
 <p id="notify-status" role="status" aria-live="polite">Verificando suporte a notificações…</p>
 <div id="notifications-inbox" style="display:grid;gap:8px;margin-top:12px"></div>
-<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px"><button id="enable-notifications" type="button">Ativar notificações</button><button class="secondary" id="test-notification" type="button">Enviar aviso de teste</button></div>
+<div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px"><button id="enable-notifications" type="button">Ativar notificações</button></div>
 <p style="font-size:.78rem;margin-top:12px">Os avisos automáticos quando o site estiver fechado ainda dependem de configurar um servidor de envio e vincular este dispositivo.</p>
 </div></div>
-<div class="resource-section"><h3>Administração e manutenção</h3><div class="cards">
-<article class="card"><h3>🛠️ Diagnóstico da plataforma</h3><p>Verifique conexão, navegador, notificações e instalação do aplicativo neste aparelho.</p><button type="button" id="run-diagnostics" style="margin-top:12px">Executar diagnóstico</button><p id="diagnostic-result" role="status" aria-live="polite" style="margin-top:10px"></p></article>
-<article class="card"><h3>🧰 Relatar erro ou pedir melhoria</h3><p>Gere um relatório técnico para facilitar a correção e o desenvolvimento.</p><button type="button" id="copy-diagnostic" class="secondary" style="margin-top:12px">Copiar relatório</button><a class="button secondary" style="margin-top:9px" href="https://github.com/adryanruan2207/central-ia/issues/new" target="_blank" rel="noopener">Abrir suporte técnico</a></article>
-<article class="card"><h3>📋 Próximas etapas</h3><p>Integração de notificações push no servidor, módulos inteligentes, conexões seguras e painel de tarefas.</p><small>AGUARDANDO CONFIGURAÇÃO</small></article>
-</div></div>
+<div class="notice"><b>Monitoramento automático:</b> a CENTRAL IA verifica a plataforma em segundo plano, tenta recuperar tarefas interrompidas com segurança e envia avisos quando detectar falhas ou precisar de autorização. Não é necessário executar diagnóstico manualmente.</div>
 <div class="notice"><b>Segurança:</b> módulos identificados como “em desenvolvimento” ainda não executam tarefas. Operações financeiras, acesso a contas e publicações externas exigirão autorização explícita. Este painel fornece informações, não garantia de resultados.</div>
 </div></div>
 <script>
@@ -993,11 +989,17 @@ async function loadAutomationStatus(){
    }
  }catch(error){automationHealth.textContent=error.message;}
 }
-document.getElementById('automation-refresh')?.addEventListener('click',loadAutomationStatus);
-setInterval(()=>{if(sessionToken)loadAutomationStatus();},60000);
+setInterval(()=>{if(sessionToken)loadAutomationStatus();
+ // Atualiza os painéis sem exigir cliques do proprietário.
+ let autoRefreshBusy=false;
+ setInterval(async()=>{
+  if(!sessionToken||document.hidden||autoRefreshBusy)return;
+  autoRefreshBusy=true;
+  try{await Promise.allSettled([loadAutomationStatus(),loadTasks(),loadCampaignMetrics(),loadGlobalAffiliatePrograms(),loadPublications(),loadAffiliateProducts()]);}
+  finally{autoRefreshBusy=false;}
+ },60000);},60000);
 if(sessionToken)loadAutomationStatus();
 
-document.getElementById('task-refresh')?.addEventListener('click',loadTasks);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadTasks);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadAutomationStatus);
 document.getElementById('open-resources')?.addEventListener('click',loadTasks);
@@ -1023,7 +1025,6 @@ async function loadCampaignMetrics(){
  for(const item of rows){const card=document.createElement('div');card.style.cssText='background:#202020;border:1px solid #454545;border-radius:9px;padding:11px';const title=document.createElement('strong');title.textContent=item.campaign_name+' · '+item.platform;const details=document.createElement('div');details.style.cssText='font-size:13px;opacity:.85;margin-top:5px';details.textContent=new Date(item.created_at).toLocaleString('pt-BR')+' | '+item.impressions.toLocaleString('pt-BR')+' impressões | '+item.clicks+' cliques | '+item.conversions+' conversões | CTR '+item.ctr+'% | Receita '+campaignMoney(item.revenue)+' | Gasto '+campaignMoney(item.spend);card.append(title,details);campaignMetricsHistory.append(card);}
  }catch(error){campaignMetricsHistory.textContent=error.message;}
 }
-document.getElementById('campaign-metrics-refresh')?.addEventListener('click',loadCampaignMetrics);
 campaignMetricsForm?.addEventListener('submit',async event=>{
  event.preventDefault();if(!sessionToken){campaignMetricsStatus.textContent='Entre novamente para registrar resultados.';return;}
  const payload={campaign_name:document.getElementById('campaign-metrics-name').value.trim(),platform:document.getElementById('campaign-metrics-platform').value,impressions:Number(document.getElementById('campaign-metrics-impressions').value),clicks:Number(document.getElementById('campaign-metrics-clicks').value),spend:Number(document.getElementById('campaign-metrics-spend').value),conversions:Number(document.getElementById('campaign-metrics-conversions').value),revenue:Number(document.getElementById('campaign-metrics-revenue').value)};
@@ -1273,7 +1274,6 @@ async function loadGlobalAffiliatePrograms(){
   globalAffiliateStatus.textContent='Catálogo carregado. A disponibilidade e os critérios devem ser verificados no site oficial.';
  }catch(error){globalAffiliateStatus.textContent=error.message;}
 }
-document.getElementById('global-affiliates-refresh')?.addEventListener('click',loadGlobalAffiliatePrograms);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadGlobalAffiliatePrograms);
 document.getElementById('open-resources')?.addEventListener('click',loadGlobalAffiliatePrograms);
 
@@ -1313,7 +1313,6 @@ publicationForm?.addEventListener('submit',async event=>{
  try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível salvar.');publicationForm.reset();publicationStatus.textContent=data.message||'Conteúdo salvo.';await loadPublications();}
  catch(error){publicationStatus.textContent=error.message;}finally{submit.disabled=false;}
 });
-document.getElementById('publication-refresh')?.addEventListener('click',loadPublications);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadPublications);
 document.getElementById('open-resources')?.addEventListener('click',loadPublications);
 
@@ -1447,7 +1446,6 @@ affiliateForm?.addEventListener('submit',async event=>{
  affiliateForm.reset();affiliateStatus.textContent=data.message||'Oportunidade cadastrada.';await loadAffiliateProducts();
  }catch(error){affiliateStatus.textContent=error.message;}finally{submit.disabled=false;}
 });
-document.getElementById('affiliate-refresh')?.addEventListener('click',loadAffiliateProducts);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadAffiliateProducts);
 document.getElementById('open-resources')?.addEventListener('click',loadAffiliateProducts);
 
