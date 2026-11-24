@@ -497,6 +497,16 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <p id="market-search-status" role="status" aria-live="polite"></p>
 <div id="market-search-results" style="display:grid;gap:10px;margin-top:12px"></div>
 </div></div>
+<div class="resource-section" id="supplier-research"><h3>🏭 Pesquisa de fornecedores</h3><div class="card">
+<p>Pesquise fabricantes, distribuidores e atacadistas a partir de fontes públicas. Os resultados são pistas para verificação, não fornecedores aprovados.</p>
+<form id="supplier-search-form" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+<input id="supplier-search-query" maxlength="100" required placeholder="Ex.: fornecedor de garrafa térmica" style="flex:1;min-width:190px;padding:12px;border-radius:10px;background:#202020;border:1px solid #555;color:#fff">
+<button id="supplier-search-submit" type="submit">Buscar fornecedores</button>
+</form>
+<p id="supplier-search-status" role="status" aria-live="polite"></p>
+<div id="supplier-search-results" style="display:grid;gap:10px;margin-top:12px"></div>
+<div class="notice">Antes de negociar, confirme CNPJ, endereço, titularidade do domínio, referências comerciais, política de devolução, amostras, pedido mínimo e condições por escrito. Nunca pague antecipadamente sem validação independente.</div>
+</div></div>
 <div class="resource-section" id="global-affiliates"><h3>🌍 Afiliados globais — cadastro e acompanhamento</h3><div class="card">
 <p>Catálogo inicial de redes e programas internacionais. A CENTRAL IA organiza os cadastros e acompanha cada etapa. Elegibilidade, aprovação, comissões e pagamentos precisam ser confirmados em cada plataforma.</p>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><button type="button" id="global-affiliates-refresh">Atualizar programas</button><span id="global-affiliates-count" style="align-self:center;font-size:.88rem;color:#bbb!important"></span></div>
@@ -772,6 +782,29 @@ marketSearchForm?.addEventListener('submit',async event=>{
  finally{submit.disabled=false;}
 });
 
+const supplierForm=document.getElementById('supplier-search-form');
+supplierForm?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!sessionToken){document.getElementById('supplier-search-status').textContent='Entre novamente para pesquisar.';return;}
+ const query=document.getElementById('supplier-search-query').value.trim();
+ const status=document.getElementById('supplier-search-status'),results=document.getElementById('supplier-search-results'),submit=document.getElementById('supplier-search-submit');
+ submit.disabled=true;status.textContent='Pesquisando fontes públicas…';results.replaceChildren();
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/suppliers?q='+encodeURIComponent(query),{headers:{'Authorization':'Bearer '+sessionToken}});
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível pesquisar fornecedores.');
+  if(!Array.isArray(data.suppliers)||!data.suppliers.length){status.textContent='Nenhum resultado utilizável encontrado. Tente outra descrição.';return;}
+  status.textContent='Encontrados '+data.suppliers.length+' resultados. Nenhum foi verificado ou aprovado.';
+  for(const item of data.suppliers){
+   const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
+   const title=document.createElement('b');title.textContent=item.name;card.append(title);
+   const evidence=document.createElement('p');evidence.style.cssText='font-size:.88rem;color:#ddd!important;white-space:pre-wrap;margin:7px 0';evidence.textContent=item.evidence;card.append(evidence);
+   const warning=document.createElement('p');warning.style.cssText='font-size:.8rem;color:#ffcf8a!important;margin:6px 0';warning.textContent=item.verification;card.append(warning);
+   if(item.website&&/^https:\/\//.test(item.website)){const link=document.createElement('a');link.href=item.website;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir site / fonte';card.append(link);}
+   results.append(card);
+  }
+ }catch(error){status.textContent=error.message;}
+ finally{submit.disabled=false;}
+});
 const globalAffiliateList=document.getElementById('global-affiliates-list');
 const globalAffiliateStatus=document.getElementById('global-affiliates-status');
 const globalAffiliateCount=document.getElementById('global-affiliates-count');
