@@ -588,6 +588,14 @@ body.show-chat .intro{display:flex!important}
 <div id="automation-blockers" style="display:grid;gap:6px;margin-top:8px"></div>
 <p id="automation-last-check" style="font-size:.8rem;color:#b8c3e8!important;margin:10px 0 0">Última verificação: aguardando consulta.</p>
 </div>
+<section id="developer-planner" style="margin:16px 0;padding:14px;border:1px solid #52659a;border-radius:14px;background:#192744">
+<h3 style="margin-top:0">🧠 Arquiteta desenvolvedora da CENTRAL IA</h3>
+<p>Descreva uma melhoria. A IA analisa o estado operacional e cria um plano técnico com etapas, testes e riscos. Nesta fase, ela não altera arquivos nem publica código.</p>
+<textarea id="developer-command" rows="3" maxlength="1500" placeholder="Ex.: Analise como melhorar a recuperação automática de falhas..." style="width:100%;box-sizing:border-box"></textarea>
+<button type="button" id="developer-plan-button" style="margin-top:8px">Analisar e criar plano técnico</button>
+<p id="developer-plan-status" role="status" aria-live="polite"></p>
+<pre id="developer-plan-output" style="white-space:pre-wrap;overflow-wrap:anywhere;color:#e5eaf7!important"></pre>
+</section>
 <form id="task-form" style="display:grid;gap:10px;margin-top:14px">
 <label for="task-title">O que a CENTRAL IA deve fazer?</label>
 <textarea id="task-title" maxlength="160" required rows="3" placeholder="Ex.: Analise oportunidades de produtos para afiliados no Brasil"></textarea>
@@ -974,6 +982,22 @@ async function checkPublicWorkerHealth(){
   line.textContent='Servidor na nuvem: '+(data.status==='online'?'RESPONDENDO':'COM PENDÊNCIAS')+' • Banco: '+(data.database?.ok?'conectado':'indisponível')+' • Estrutura: '+schema+' • Workers AI: '+(data.workers_ai_configured?'configurado':'não configurado')+' • Tavily: '+(data.web_research_configured?'chave cadastrada (conexão ainda precisa de teste)':'chave não cadastrada')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
  }catch(error){line.textContent='Servidor na nuvem: '+(error.message||'não foi possível verificar');}
 }
+async function createDeveloperPlan(){
+ const button=document.getElementById('developer-plan-button');
+ const command=document.getElementById('developer-command').value.trim();
+ const status=document.getElementById('developer-plan-status');
+ const output=document.getElementById('developer-plan-output');
+ if(!sessionToken){status.textContent='Entre na CENTRAL IA para usar a arquiteta desenvolvedora.';return;}
+ if(!command){status.textContent='Descreva a melhoria que deseja analisar.';return;}
+ button.disabled=true;status.textContent='Analisando módulos, tarefas e falhas recentes…';output.textContent='';
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/plan',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({command})},1);
+  output.textContent=data.plan||'A IA não retornou um plano.';
+  status.textContent='Plano técnico criado • modo somente leitura • nenhuma alteração ou publicação foi executada.';
+ }catch(error){status.textContent='Não foi possível criar o plano: '+(error.message||'erro desconhecido');}
+ finally{button.disabled=false;}
+}
+document.getElementById('developer-plan-button')?.addEventListener('click',createDeveloperPlan);
 async function testTavilyNow(){
  const button=document.getElementById('test-tavily-now');
  const status=document.getElementById('automation-tavily-status');
