@@ -1148,7 +1148,7 @@ videoScriptForm?.addEventListener('submit',async event=>{
  try{
   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/marketing/video-script',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível criar o roteiro.');
-  videoScriptResult.textContent=data.script+'\\n\\nSTATUS: '+data.production_status+'\\n\\nLIMITAÇÃO: '+data.notice;videoScriptResult.style.display='block';videoScriptCopy.style.display='inline-block';videoScriptStatus.textContent='Roteiro estratégico criado. Revise os fatos marcados para confirmação antes de usar.';
+  videoScriptResult.textContent=data.script+'\\n\\nSTATUS: '+data.production_status+'\\nCHECAGEM DE FATOS OBRIGATÓRIA: '+(data.fact_check_required?'SIM':'não')+'\\nFATOS/benefícios fornecidos: '+(data.facts_provided?'sim — ainda precisam ser comprovados':'não — não alegar benefícios específicos')+'\\nIDENTIFICAÇÃO DE AFILIADO: '+(data.affiliate_disclosure_required?'obrigatória':'não informada; não alegar vínculo')+'\\n\\nCHECKLIST ANTES DE PUBLICAR:\\n'+(data.prepublication_checklist||[]).map((item,index)=>(index+1)+'. '+item).join('\\n')+'\\n\\nLIMITAÇÃO: '+data.notice;videoScriptResult.style.display='block';videoScriptCopy.style.display='inline-block';videoScriptStatus.textContent='Roteiro estratégico criado. Revise os fatos marcados para confirmação antes de usar.';
  }catch(error){videoScriptStatus.textContent=error.message;}
  finally{submit.disabled=false;}
 });
