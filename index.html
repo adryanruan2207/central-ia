@@ -500,7 +500,7 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <button id="competitor-analysis-submit" type="submit">Pesquisar concorrentes e melhorar nosso anúncio</button>
 </form>
 <p id="competitor-analysis-status" role="status" aria-live="polite"></p>
-<pre id="competitor-analysis-result" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.55;background:#202020;border:1px solid #454545;border-radius:10px;padding:13px"></pre>
+<pre id="competitor-analysis-result" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.55;background:#202020;border:1px solid #454545;border-radius:10px;padding:13px"></pre>\n<button id="competitor-to-script" type="button" class="secondary" style="display:none">Usar esta análise para criar nosso anúncio</button>
 <div id="competitor-analysis-sources" style="display:grid;gap:8px"></div>
 <div class="notice">As fontes públicas podem não mostrar o vídeo completo ou os resultados comerciais. A IA separa fatos de hipóteses; valide as melhorias com testes e métricas das nossas campanhas.</div>
 </div></div>
@@ -804,7 +804,7 @@ document.getElementById('open-resources')?.addEventListener('click',loadTasks);
 document.getElementById('open-resources')?.addEventListener('click',loadAutomationStatus);
 
 
-const competitorAnalysisForm=document.getElementById('competitor-analysis-form');
+let latestCompetitorInsights='';\nconst competitorAnalysisForm=document.getElementById('competitor-analysis-form');
 const competitorAnalysisStatus=document.getElementById('competitor-analysis-status');
 const competitorAnalysisResult=document.getElementById('competitor-analysis-result');
 const competitorAnalysisSources=document.getElementById('competitor-analysis-sources');
@@ -816,11 +816,20 @@ competitorAnalysisForm?.addEventListener('submit',async event=>{
  try{
   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/competitor-analysis',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Falha na análise competitiva.');
-  competitorAnalysisResult.textContent=data.analysis+'\\n\\nOBSERVAÇÃO: '+data.notice;competitorAnalysisResult.style.display='block';
+  competitorAnalysisResult.textContent=data.analysis+'\\n\\nOBSERVAÇÃO: '+data.notice;competitorAnalysisResult.style.display='block';latestCompetitorInsights=data.analysis;document.getElementById('competitor-to-script').style.display='inline-block';
   for(const source of (data.sources||[])){if(!source.url||!/^https:\/\//.test(source.url))continue;const link=document.createElement('a');link.href=source.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=source.title+' — consultar fonte';competitorAnalysisSources.append(link);}
   competitorAnalysisStatus.textContent='Análise concluída com '+(data.sources||[]).length+' fontes públicas. Revise as evidências e teste as ideias.';
  }catch(error){competitorAnalysisStatus.textContent=error.message;}
  finally{submit.disabled=false;}
+});
+document.getElementById('competitor-to-script')?.addEventListener('click',()=>{
+ const product=document.getElementById('competitor-product').value.trim();
+ document.getElementById('video-product').value=product;
+ const audience=document.getElementById('competitor-audience').value.trim();if(audience)document.getElementById('video-audience').value=audience;
+ const channel=document.getElementById('competitor-platform').value;
+ document.getElementById('video-platform').value=channel==='youtube'?'youtube_shorts':channel;
+ document.getElementById('video-script-status').textContent='Análise competitiva conectada. A IA vai considerar os aprendizados e criar uma campanha original.';
+ document.getElementById('video-script-form').scrollIntoView({behavior:'smooth',block:'center'});
 });
 const videoMakerForm=document.getElementById('video-maker-form');
 const videoMakerStatus=document.getElementById('video-maker-status');
@@ -885,7 +894,7 @@ const videoScriptCopy=document.getElementById('video-script-copy');
 videoScriptForm?.addEventListener('submit',async event=>{
  event.preventDefault();
  if(!sessionToken){videoScriptStatus.textContent='Entre novamente para criar o roteiro.';return;}
- const payload={product:document.getElementById('video-product').value.trim(),benefits:document.getElementById('video-benefits').value.trim(),audience:document.getElementById('video-audience').value.trim(),platform:document.getElementById('video-platform').value,duration:Number(document.getElementById('video-duration').value),tone:document.getElementById('video-tone').value,price:document.getElementById('video-price').value.trim(),affiliate_url:document.getElementById('video-affiliate-url').value.trim()};
+ const payload={product:document.getElementById('video-product').value.trim(),benefits:document.getElementById('video-benefits').value.trim(),audience:document.getElementById('video-audience').value.trim(),platform:document.getElementById('video-platform').value,duration:Number(document.getElementById('video-duration').value),tone:document.getElementById('video-tone').value,price:document.getElementById('video-price').value.trim(),affiliate_url:document.getElementById('video-affiliate-url').value.trim(),competitive_insights:latestCompetitorInsights};
  const submit=document.getElementById('video-script-submit');submit.disabled=true;videoScriptStatus.textContent='A IA está criando ângulos, ganchos, cenas e testes A/B…';videoScriptResult.style.display='none';videoScriptCopy.style.display='none';
  try{
   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/video-script',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
