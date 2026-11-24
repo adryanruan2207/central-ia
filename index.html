@@ -538,6 +538,8 @@ main.wrap{background:#000!important}
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📡 Monitoramento da nuvem</b><button type="button" class="secondary" id="automation-refresh">Atualizar status</button></div>
 <p id="automation-health" role="status" aria-live="polite" style="margin:8px 0;color:#cbd5e1!important">Consultando automação…</p>
 <div id="automation-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:10px"></div>
+<div id="automation-pipeline" style="margin-top:12px;padding:12px;border:1px solid #46598a;border-radius:10px;background:#17213b"></div>
+<div id="automation-blockers" style="display:grid;gap:6px;margin-top:8px"></div>
 <p id="automation-last-check" style="font-size:.8rem;color:#b8c3e8!important;margin:10px 0 0">Última verificação: aguardando consulta.</p>
 </div>
 <form id="task-form" style="display:grid;gap:10px;margin-top:14px">
@@ -918,6 +920,20 @@ async function loadAutomationStatus(){
   }
   const last=data.last_check?new Date(data.last_check).toLocaleString('pt-BR'):'Ainda não há execução registrada';
   automationLastCheck.textContent='Última execução registrada: '+last+' • Consulta: '+new Date(data.checked_at).toLocaleTimeString('pt-BR');
+   const pipeline=document.getElementById('automation-pipeline');
+   const blockers=document.getElementById('automation-blockers');
+   if(pipeline){
+    const p=data.pipeline||{};
+    const programTotal=Object.values(p.affiliate_programs||{}).reduce((sum,n)=>sum+Number(n||0),0);
+    const publicationTotal=Object.values(p.publication_queue||{}).reduce((sum,n)=>sum+Number(n||0),0);
+    pipeline.textContent='Esteira automática: '+(p.products_registered||0)+' produtos registrados • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. A IA pesquisa e prepara materiais; a publicação externa ainda depende de conexão oficial autorizada.';
+   }
+   if(blockers){
+    blockers.replaceChildren();
+    for(const item of (data.blockers||[])){
+     const line=document.createElement('p');line.style.cssText='margin:0;padding:8px 10px;border-left:3px solid #d6a64b;background:#242424;border-radius:5px;font-size:.82rem;color:#e8e8e8!important';line.textContent='Pendente: '+item;blockers.append(line);
+    }
+   }
  }catch(error){automationHealth.textContent=error.message;}
 }
 document.getElementById('automation-refresh')?.addEventListener('click',loadAutomationStatus);
