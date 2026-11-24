@@ -358,8 +358,23 @@ async function handle(request, env) {
     const passed=checks.filter(x=>x.passed).length;
     const verified=checks.slice(0,4).every(x=>x.passed);
     const checkedAt=new Date().toISOString();
-    await record(env,"developer_patch_verified",JSON.stringify({patch_id:patchId,passed,total:checks.length,verified,original_matches_current:currentMatchesOriginal,checked_at:checkedAt,mode:"static_only_no_execution"}));
+    await record(env,"developer_patch_verified",JSON.stringify({patch_id:patchId,passed,total:checks.length,verified,checks,current_file_read:currentRead,current_file_sha256:currentHash,original_matches_current:currentMatchesOriginal,checked_at:checkedAt,mode:"static_only_no_execution"}));
     return json({patch_id:patchId,verified,passed,total:checks.length,checks,current_file_read:currentRead,current_file_sha256:currentHash,ready_for_isolated_test:false,applied:false,mode:"static_only_no_execution",checked_at:checkedAt});
+  }
+
+  if (url.pathname === "/developer/patch/verification-history" && request.method === "GET") {
+    const patchId=(url.searchParams.get("patch_id")||"").trim();
+    if(!/^[0-9a-f-]{36}$/i.test(patchId)) return json({error:"Identificador de patch inválido."},400);
+    const rows=await env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'developer_patch_verified' ORDER BY created_at DESC LIMIT 200").all();
+    const verifications=[];
+    for(const row of rows.results||[]){
+      try{
+        const item=JSON.parse(row.details||"{}");
+        if(item.patch_id===patchId) verifications.push({passed:Number(item.passed||0),total:Number(item.total||0),verified:item.verified===true,checks:Array.isArray(item.checks)?item.checks:[],original_matches_current:item.original_matches_current??null,current_file_read:item.current_file_read===true,checked_at:item.checked_at||row.created_at,mode:item.mode||"static_only_no_execution"});
+        if(verifications.length>=10) break;
+      }catch{}
+    }
+    return json({patch_id:patchId,verifications,count:verifications.length,mode:"read_only_verification_history"});
   }
 
   if (url.pathname === "/developer/patches" && request.method === "GET") {
