@@ -931,6 +931,15 @@ async function loadAutomationStatus(){
     const discoveryText=discovery?(discovery.status==='completed'?'Última descoberta de produtos: '+new Date(discovery.last_run).toLocaleString('pt-BR')+'. ':'Última descoberta de produtos apresentou erro. '):'Aguardando descoberta automática de produtos. ';
     const supplierText=supplierDiscovery?(supplierDiscovery.status==='completed'?'Pesquisa de fornecedores: '+new Date(supplierDiscovery.last_run).toLocaleString('pt-BR')+'. ':'Pesquisa de fornecedores apresentou erro. '):'Pesquisa de fornecedores aguardando primeira execução. ';
     pipeline.textContent=discoveryText+supplierText+'Esteira: '+(p.products_registered||0)+' produtos candidatos • '+(p.supplier_leads||0)+' fornecedores para validar • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. A CENTRAL IA pesquisa múltiplos caminhos de afiliação e fornecedores para venda sem estoque; leads ainda exigem diligência antes de fechar parceria.';
+    try{
+     const integrationsResponse=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/integrations/affiliate',{headers:{'Authorization':'Bearer '+sessionToken}});
+     const integrationsData=await integrationsResponse.json().catch(()=>({}));
+     if(integrationsResponse.ok&&Array.isArray(integrationsData.integrations)){
+      const connected=integrationsData.integrations.filter(x=>x.credentials_configured).length;
+      const pending=integrationsData.integrations.filter(x=>x.status==='connection_required').length;
+      pipeline.textContent+=' Conexões de plataformas: '+connected+' com credenciais configuradas • '+pending+' aguardando conexão. Configurar credenciais não significa aprovação nem integração testada.';
+     }
+    }catch(integrationError){pipeline.textContent+=' Não foi possível consultar o estado das conexões agora.';}
    }
    if(blockers){
     blockers.replaceChildren();
