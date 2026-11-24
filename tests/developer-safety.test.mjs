@@ -169,8 +169,20 @@ test("auditoria do repositório verifica autenticação e bloqueia execução di
   assert.match(section, /Validação de sessão/);
   assert.match(section, /Bloqueio de API sem autenticação/);
   assert.match(section, /Limite de tamanho do token/);
-  assert.match(section, /eval\(/);
-  assert.match(section, /new Function\(/);
+  assert.match(section, /\["ev","al\("\]\.join\(""/);
+  assert.match(section, /\["new ","Function\("\]\.join\(""/);
+  assert.doesNotMatch(section, /eval\(/);
+  assert.doesNotMatch(section, /new Function\(/);
   assert.match(section, /mustBeAbsent\?!source\.includes\(needle\):source\.includes\(needle\)/);
   assert.match(section, /mode:"read_only_static_checks",executed:false/);
+});
+
+test("auditoria não se acusa por conter os próprios padrões de detecção", () => {
+  const start = worker.indexOf('url.pathname === "/developer/audit" && request.method === "GET"');
+  const end = worker.indexOf('if (url.pathname === "/developer/plans"', start);
+  const section = worker.slice(start, end);
+  assert.ok(section.includes('["ev","al("].join("")'));
+  assert.ok(section.includes('["new ","Function("].join("")'));
+  assert.doesNotMatch(section, /"eval\("/);
+  assert.doesNotMatch(section, /"new Function\("/);
 });
