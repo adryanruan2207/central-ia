@@ -488,6 +488,26 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <div class="notice" style="margin-top:14px"><b>Pesquisa na internet — integração gratuita preparada.</b><p>Para habilitar pesquisas com fontes e links, a CENTRAL IA usa o plano gratuito da Tavily: até 1.000 créditos por mês, sem cartão de crédito. É necessária uma chave privada cadastrada diretamente como secret <code>TAVILY_API_KEY</code> no Cloudflare Worker. Não cole essa chave no chat nem no site. Não ative pagamento automático; quando os créditos gratuitos acabarem, a pesquisa deve parar até a renovação.</p><p><a href="https://www.tavily.com/pricing" target="_blank" rel="noopener noreferrer">Conferir plano gratuito Tavily</a> · <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Abrir Cloudflare</a></p></div>
 <p style="font-size:.78rem;margin-top:12px">O processamento automático ocorre em ciclos de até 15 minutos, uma tarefa segura por ciclo. Tarefas marcadas para revisão ficam aguardando sua autorização. Pesquisas web só serão executadas depois de configurar a chave gratuita; sem ela, a tarefa fica aguardando configuração.</p>
 </div></div>
+<div class="resource-section" id="creative-studio"><h3>🎬 Estúdio de campanhas inteligentes</h3><div class="card">
+<p>Crie roteiros publicitários estratégicos para vídeos curtos. A IA prepara ganchos, cenas, narração, textos na tela, CTA e testes A/B. Este módulo gera o plano criativo; ainda não renderiza nem publica o vídeo.</p>
+<form id="video-script-form" style="display:grid;gap:10px;margin-top:14px">
+<label>Produto<input id="video-product" maxlength="180" required placeholder="Ex.: fone bluetooth com cancelamento de ruído" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Benefícios e características comprováveis<textarea id="video-benefits" maxlength="1200" rows="3" placeholder="Informe apenas características confirmadas pelo fabricante ou demonstráveis." style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></textarea></label>
+<label>Público que queremos alcançar<input id="video-audience" maxlength="300" placeholder="Ex.: pessoas que trabalham em ambientes barulhentos" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<label style="flex:1;min-width:145px">Plataforma<select id="video-platform" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"><option value="tiktok">TikTok</option><option value="instagram">Instagram Reels</option><option value="youtube_shorts">YouTube Shorts</option><option value="facebook">Facebook</option></select></label>
+<label style="flex:1;min-width:110px">Duração<select id="video-duration" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"><option value="15">15 segundos</option><option value="30" selected>30 segundos</option><option value="45">45 segundos</option><option value="60">60 segundos</option></select></label>
+<label style="flex:1;min-width:145px">Estilo<select id="video-tone" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"><option>demonstrativo</option><option>energético</option><option>emocional</option><option>educativo</option><option>humor leve</option></select></label>
+</div>
+<label>Preço (opcional)<input id="video-price" maxlength="80" placeholder="Ex.: R$ 129,90" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Link de afiliado (opcional)<input id="video-affiliate-url" type="url" maxlength="1000" placeholder="https://..." style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<button id="video-script-submit" type="submit">Criar estratégia e roteiro do vídeo</button>
+</form>
+<p id="video-script-status" role="status" aria-live="polite"></p>
+<pre id="video-script-result" style="white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.55;background:#202020;border:1px solid #454545;border-radius:10px;padding:13px;display:none"></pre>
+<button id="video-script-copy" type="button" class="secondary" style="display:none">Copiar roteiro</button>
+<div class="notice">A IA não inventa depoimentos, avaliações, vendas, descontos ou escassez. Confirme as características do produto e identifique claramente links de afiliado e publicidade.</div>
+</div></div>
 <div class="resource-section" id="market-research"><h3>🔎 Pesquisa de produtos do mercado</h3><div class="card">
 <p>Pesquise anúncios do Mercado Livre para comparar preços e sinais públicos de procura. Resultados não significam aprovação como afiliado nem garantem vendas ou comissão.</p>
 <form id="market-search-form" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
@@ -752,6 +772,23 @@ document.getElementById('open-resources')?.addEventListener('click',loadTasks);
 document.getElementById('open-resources')?.addEventListener('click',loadAutomationStatus);
 
 
+const videoScriptForm=document.getElementById('video-script-form');
+const videoScriptStatus=document.getElementById('video-script-status');
+const videoScriptResult=document.getElementById('video-script-result');
+const videoScriptCopy=document.getElementById('video-script-copy');
+videoScriptForm?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!sessionToken){videoScriptStatus.textContent='Entre novamente para criar o roteiro.';return;}
+ const payload={product:document.getElementById('video-product').value.trim(),benefits:document.getElementById('video-benefits').value.trim(),audience:document.getElementById('video-audience').value.trim(),platform:document.getElementById('video-platform').value,duration:Number(document.getElementById('video-duration').value),tone:document.getElementById('video-tone').value,price:document.getElementById('video-price').value.trim(),affiliate_url:document.getElementById('video-affiliate-url').value.trim()};
+ const submit=document.getElementById('video-script-submit');submit.disabled=true;videoScriptStatus.textContent='A IA está criando ângulos, ganchos, cenas e testes A/B…';videoScriptResult.style.display='none';videoScriptCopy.style.display='none';
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/video-script',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível criar o roteiro.');
+  videoScriptResult.textContent=data.script+'\\n\\nSTATUS: '+data.production_status+'\\n\\nLIMITAÇÃO: '+data.notice;videoScriptResult.style.display='block';videoScriptCopy.style.display='inline-block';videoScriptStatus.textContent='Roteiro estratégico criado. Revise os fatos marcados para confirmação antes de usar.';
+ }catch(error){videoScriptStatus.textContent=error.message;}
+ finally{submit.disabled=false;}
+});
+videoScriptCopy?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(videoScriptResult.textContent);videoScriptStatus.textContent='Roteiro copiado.';}catch(error){videoScriptStatus.textContent='Não foi possível copiar automaticamente neste navegador.';}});
 const marketSearchForm=document.getElementById('market-search-form');
 const marketSearchStatus=document.getElementById('market-search-status');
 const marketSearchResults=document.getElementById('market-search-results');
