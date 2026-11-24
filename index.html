@@ -719,6 +719,7 @@ main.wrap{background:#000!important}
 </div></div>
 <div class="resource-section"><h3>Notificações</h3><div class="card">
 <p id="notify-status" role="status" aria-live="polite">Verificando suporte a notificações…</p>
+<div id="notifications-inbox" style="display:grid;gap:8px;margin-top:12px"></div>
 <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:12px"><button id="enable-notifications" type="button">Ativar notificações</button><button class="secondary" id="test-notification" type="button">Enviar aviso de teste</button></div>
 <p style="font-size:.78rem;margin-top:12px">Os avisos automáticos quando o site estiver fechado ainda dependem de configurar um servidor de envio e vincular este dispositivo.</p>
 </div></div>
@@ -1408,6 +1409,41 @@ async function setup(){if(!('Notification'in window)){status.textContent='Este n
 enable.addEventListener('click',async()=>{try{const p=await Notification.requestPermission();await setup();if(p==='granted')status.textContent='Permissão concedida. Envio automático ainda requer servidor de notificações.';}catch(e){status.textContent='Falha ao ativar: '+e.message;}});
 test.addEventListener('click',async()=>{if(!('Notification'in window)||Notification.permission!=='granted'){status.textContent='Ative e permita as notificações primeiro.';return;}try{if(!registration)await setup();if(registration)await registration.showNotification('CENTRAL IA',{body:'Aviso de teste: notificações deste aparelho estão configuradas.',icon:'./icon.svg',tag:'central-ia-test'});else new Notification('CENTRAL IA',{body:'Aviso de teste.'});status.textContent='Aviso de teste enviado.';}catch(e){status.textContent='Falha no teste: '+e.message;}});
 setup();
+const inbox=document.getElementById('notifications-inbox');
+const notificationApi='https://central-ia-worker.adryanruan2207.workers.dev/notifications';
+async function pollOwnerNotifications(){
+ const token=localStorage.getItem('central_ia_session_v1');
+ if(!token||!inbox)return;
+ try{
+  const response=await fetch(notificationApi,{headers:{'Authorization':'Bearer '+token},cache:'no-store'});
+  if(!response.ok)return;
+  const data=await response.json();
+  const items=Array.isArray(data.notifications)?data.notifications:[];
+  inbox.replaceChildren();
+  if(!items.length){const empty=document.createElement('p');empty.textContent='Nenhum aviso registrado até agora.';inbox.append(empty);return;}
+  const seen=JSON.parse(localStorage.getItem('central_ia_notified_ids')||'[]');
+  for(const item of items){
+   const card=document.createElement('article');card.style.cssText='padding:10px;border:1px solid #46598a;border-radius:10px;background:#17213b';
+   const heading=document.createElement('b');heading.textContent=item.title||'Aviso da CENTRAL IA';
+   const body=document.createElement('p');body.style.cssText='margin:5px 0;color:#dce5ff!important;font-size:.88rem';body.textContent=item.body||'';
+   const meta=document.createElement('small');meta.style.cssText='color:#aebce0!important';meta.textContent=(item.status==='unread'?'Não lido':'Lido')+' • '+(item.created_at?new Date(item.created_at).toLocaleString('pt-BR'):'');
+   card.append(heading,body,meta);
+   if(item.status==='unread'){
+    const read=document.createElement('button');read.type='button';read.className='secondary';read.textContent='Marcar como lido';read.style.marginTop='8px';
+    read.addEventListener('click',async()=>{try{await fetch(notificationApi+'/'+encodeURIComponent(item.id)+'/read',{method:'POST',headers:{'Authorization':'Bearer '+token}});await pollOwnerNotifications();}catch(_){}});
+    card.append(read);
+   }
+   inbox.append(card);
+   if(!seen.includes(item.id)&&Notification.permission==='granted'&&registration){
+    try{await registration.showNotification('CENTRAL IA • '+(item.title||'Novo aviso'),{body:item.body||'Abra a plataforma para consultar.',icon:'./icon.svg',tag:'central-ia-'+item.id,data:{url:'./'}});}catch(_){}
+    seen.push(item.id);
+   }
+  }
+  localStorage.setItem('central_ia_notified_ids',JSON.stringify(seen.slice(-150)));
+ }catch(_){}
+}
+pollOwnerNotifications();
+setInterval(pollOwnerNotifications,60000);
 let diagnosticText='';
 function runDiagnostics(){
  const checks=[
