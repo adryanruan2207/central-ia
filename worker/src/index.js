@@ -44,6 +44,37 @@ async function record(env, event, details = "") {
 }
 
 
+
+async function runMinuteHealthAudit(env, checkedAt) {
+ const checks = [
+  ["database", () => env.DB.prepare("SELECT 1 AS ok").first()],
+  ["tasks_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM tasks").first()],
+  ["products_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first()],
+  ["suppliers_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM supplier_leads").first()],
+  ["notifications_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM notifications").first()],
+  ["health_table", () => env.DB.prepare("SELECT COUNT(*) AS total FROM system_health_checks").first()]
+ ];
+ const results = await Promise.all(checks.map(async ([name, test]) => {
+  try { await test(); return {name, ok:true}; }
+  catch (error) { return {name, ok:false, error:String(error?.message || error).slice(0,180)}; }
+ }));
+ results.push({name:"workers_ai",ok:!!env.AI});
+ results.push({name:"web_research",ok:!!env.TAVILY_API_KEY});
+ const failures=results.filter(item=>!item.ok);
+ const status=failures.length ? "degraded" : "healthy";
+ const details=JSON.stringify({checks:results,failures,total:results.length});
+ const previous=await env.DB.prepare("SELECT status, details FROM system_health_checks ORDER BY checked_at DESC LIMIT 1").first();
+ await env.DB.prepare("INSERT INTO system_health_checks(id,checked_at,status,details) VALUES(?,?,?,?)").bind(crypto.randomUUID(),checkedAt,status,details).run();
+ await env.DB.prepare("DELETE FROM system_health_checks WHERE checked_at < ?").bind(new Date(Date.now()-7*24*60*60*1000).toISOString()).run();
+ if(status==="degraded"){
+  const issueKey=failures.map(item=>item.name).sort().join(",");
+  if(previous?.status!=="degraded" || previous.details!==details) await notifyOwner(env,"self-audit:degraded:"+issueKey+":"+checkedAt.slice(0,10),"Autoverificação detectou itens pendentes","A CENTRAL IA verificou os componentes. Pendências: "+failures.map(item=>item.name+(item.error?" ("+item.error+")":"")).join("; ")+". Consulte o monitor no painel.","warning");
+ } else if(previous?.status==="degraded") {
+  await notifyOwner(env,"self-audit:recovered:"+checkedAt,"Autoverificação normalizada","Os componentes monitorados voltaram a responder.","success");
+ }
+ return {status,checked_at:checkedAt,checks:results,failures};
+}
+
 async function notifyOwner(env, key, title, body, severity = "warning") {
   if (!env.DB || !key) return;
   const id = crypto.randomUUID();
@@ -169,8 +200,9 @@ async function handle(request, env) {
   }
 
   if (url.pathname === "/automation/status" && request.method === "GET") {
-    const [heartbeat, counts, productCount, supplierCount, supplierEvent, programCounts, publicationCounts, recentCompleted, discoveryEvent] = await Promise.all([
+    const [heartbeat, health, counts, productCount, supplierCount, supplierEvent, programCounts, publicationCounts, recentCompleted, discoveryEvent] = await Promise.all([
       env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
+      env.DB.prepare("SELECT checked_at, status, details FROM system_health_checks ORDER BY checked_at DESC LIMIT 1").first(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all(),
       env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first(),
       env.DB.prepare("SELECT COUNT(*) AS total FROM supplier_leads").first(),
@@ -194,8 +226,9 @@ async function handle(request, env) {
     return json({
       service: "CENTRAL IA",
       automation: "cloud-cron",
-      schedule: "A cada 5 minutos",
+      schedule: "Autoverificação a cada 1 minuto; processamento automático conforme fila e limites.",
       last_check: heartbeat?.created_at || null,
+      self_monitor: health ? { status: health.status, checked_at: health.checked_at, details: JSON.parse(health.details || "{}") } : null,
       tasks: {
         queued: tasks.queued || 0,
         processing: tasks.processing || 0,
@@ -942,6 +975,7 @@ export default {
     ctx.waitUntil((async () => {
       if (!env.DB) return;
       const now = new Date().toISOString();
+      await runMinuteHealthAudit(env, now);
       await record(env, "scheduled_check", "Verificação automática da fila executada.");
       if (!env.TAVILY_API_KEY) await notifyOwner(env, "setup:tavily:v1", "Pesquisa automática aguardando autorização", "A pesquisa de mercado e fornecedores está pausada porque falta configurar TAVILY_API_KEY como secret no Cloudflare Worker. Não envie a chave pelo chat.", "warning");
       if (!env.AI) await notifyOwner(env, "setup:workers-ai:v1", "Análise por IA indisponível", "O vínculo Workers AI não está disponível. A CENTRAL IA continuará verificando a fila, mas não conseguirá executar análises com IA até o vínculo ser corrigido.", "error");
