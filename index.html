@@ -950,6 +950,8 @@ async function loadAutomationStatus(){
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||'Não foi possível consultar a automação.');
   automationHealth.textContent='Serviço: '+data.service+' • Execução programada: '+data.schedule+' • Autoverificação: '+(data.self_monitor?.status==='healthy'?'NORMAL':data.self_monitor?.status==='degraded'?'COM PENDÊNCIAS':'AGUARDANDO PRIMEIRA VERIFICAÇÃO')+' • Última análise: '+(data.self_monitor?.checked_at?new Date(data.self_monitor.checked_at).toLocaleTimeString('pt-BR'):'—');
+   const tavilyLine=document.getElementById('automation-tavily-status');
+   if(tavilyLine){const t=data.tavily_connection||{};tavilyLine.textContent='Pesquisa Tavily: '+(t.ok?'CONECTADA • '+(t.result_count||0)+' resultados no teste':'PENDENTE • '+(t.error||'Aguardando verificação'))+' • Último teste: '+(t.checked_at?new Date(t.checked_at).toLocaleString('pt-BR'):'ainda não realizado');}
   const labels=[['Na fila',data.tasks?.queued||0],['Processando',data.tasks?.processing||0],['Concluídas',data.tasks?.completed||0],['Falhas',data.tasks?.failed||0],['Revisão necessária',data.tasks?.needs_review||0]];
   automationMetrics.replaceChildren();
   for(const [label,value] of labels){
