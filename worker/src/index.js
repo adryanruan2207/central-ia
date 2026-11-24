@@ -584,6 +584,53 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     return json({ id, status, message: "Etapa do programa atualizada." });
   }
 
+  if (url.pathname === "/affiliates/shortlist/analyze" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, name, marketplace, product_url, commission_rate, notes, status, updated_at FROM affiliate_products ORDER BY updated_at DESC LIMIT 200"
+    ).all();
+    const products = (result.results || []).map((item) => {
+      const notes = String(item.notes || "");
+      const priceMatch = notes.match(/Preço observado:\s*([0-9]+(?:[.,][0-9]+)?)/i);
+      const salesMatch = notes.match(/Vendas informadas pelo anúncio:\s*([0-9]+)/i);
+      const price = priceMatch ? Number(priceMatch[1].replace(",", ".")) : null;
+      const sales = salesMatch ? Number(salesMatch[1]) : null;
+      const evidence = {
+        price_observed: Number.isFinite(price) && price > 0,
+        public_sales_count: Number.isFinite(sales) && sales >= 0,
+        product_link: /^https:\/\//i.test(String(item.product_url || ""))
+      };
+      const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
+      const flags = [];
+      if (price === null) flags.push("Preço atual não confirmado");
+      if (sales === null) flags.push("Volume de vendas não disponível");
+      if (item.commission_rate === null) flags.push("Comissão não confirmada");
+      flags.push("Concorrência, margem líquida, estoque e elegibilidade do programa ainda não verificados");
+      let priority = "Coletar mais dados";
+      if (sales !== null && sales >= 1000 && completeness >= 66) priority = "Investigar primeiro";
+      else if (sales !== null && sales >= 100 && completeness >= 66) priority = "Investigar";
+      else if (sales !== null && sales > 0) priority = "Validar demanda";
+      return {
+        id: item.id, name: item.name, marketplace: item.marketplace, product_url: item.product_url,
+        commission_rate: item.commission_rate, price_observed: price, public_sales_count: sales,
+        evidence, evidence_completeness: completeness, priority, flags,
+        next_steps: [
+          "Confirmar se o produto e o vendedor continuam ativos e disponíveis",
+          "Verificar comissão e regras do programa de afiliados na fonte oficial",
+          "Comparar preço, frete e concorrentes equivalentes",
+          "Calcular margem líquida considerando taxas, devoluções e impostos antes de promover"
+        ],
+        updated_at: item.updated_at
+      };
+    });
+    products.sort((a, b) => (b.public_sales_count ?? -1) - (a.public_sales_count ?? -1) || b.evidence_completeness - a.evidence_completeness);
+    return json({
+      analyzed_at: new Date().toISOString(),
+      count: products.length,
+      ranking_basis: "Sinais históricos públicos e completude dos dados cadastrados; não é previsão de vendas nem cálculo de lucro.",
+      products
+    });
+  }
+
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
