@@ -592,6 +592,16 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     }
   }
 
+  if (url.pathname === "/affiliates/supplier-leads" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, name, website, category, evidence, source_url, verification_status, created_at, updated_at FROM supplier_leads ORDER BY updated_at DESC LIMIT 100"
+    ).all();
+    return json({
+      suppliers: result.results || [],
+      notice: "Leads encontrados em fontes públicas. Não são fornecedores aprovados: valide identidade empresarial, amostras, qualidade, estoque, prazo, devoluções, integração, contrato e custos antes de vender."
+    });
+  }
+
   if (url.pathname === "/affiliates/programs" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, region, category, signup_url, notes, status, created_at, updated_at FROM affiliate_programs ORDER BY name ASC"
@@ -851,6 +861,36 @@ export default {
           await record(env, "automatic_product_discovery_failed", String(error?.message || "Falha na descoberta").slice(0, 300));
         }
       }
+      // Pesquisa recorrente de fornecedores para modelos sem estoque (dropshipping/fulfillment).
+      const lastSupplierScan = await env.DB.prepare(
+        "SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery' ORDER BY created_at DESC LIMIT 1"
+      ).first();
+      const supplierScanDue = !lastSupplierScan?.created_at || (Date.now() - new Date(lastSupplierScan.created_at).getTime()) >= 24 * 60 * 60 * 1000;
+      if (supplierScanDue && env.TAVILY_API_KEY) {
+        const supplierCategories = ["utilidades domésticas", "acessórios para celular", "produtos pet", "organização e decoração", "beleza e cuidados pessoais", "moda e acessórios"];
+        const category = supplierCategories[Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % supplierCategories.length];
+        try {
+          const research = await searchWebWithTavily(
+            "Fornecedores e fabricantes oficiais no Brasil que aceitam dropshipping, envio direto ao consumidor ou fulfillment para a categoria " + category + ". Priorize sites oficiais de fabricantes, distribuidores e atacadistas. Procure condições públicas de pedido mínimo, integração, envio, devolução e cadastro de lojista. Não confunda marketplace varejista com fornecedor.",
+            env
+          );
+          let saved = 0;
+          for (const item of research.results) {
+            let website = "";
+            try { const parsed = new URL(item.url); if (parsed.protocol === "https:") website = parsed.origin; } catch {}
+            if (!website || !item.title) continue;
+            const timestamp = new Date().toISOString();
+            const result = await env.DB.prepare(
+              "INSERT OR IGNORE INTO supplier_leads(id, name, website, category, evidence, source_url, verification_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'unverified', ?, ?)"
+            ).bind(crypto.randomUUID(), item.title.slice(0, 180), website, category, item.content.slice(0, 1400), item.url, timestamp, timestamp).run();
+            saved += Number(result.meta?.changes || 0);
+          }
+          await record(env, "automatic_supplier_discovery", JSON.stringify({ category, sources: research.results.length, saved }));
+        } catch (error) {
+          await record(env, "automatic_supplier_discovery_failed", String(error?.message || "Falha na pesquisa de fornecedores").slice(0, 300));
+        }
+      }
+
       await env.DB.prepare(
         "UPDATE tasks SET status = 'needs_review', updated_at = ? WHERE status = 'queued' AND requires_approval = 1"
       ).bind(now).run();
