@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import vm from "node:vm";
 
 const worker = await readFile(new URL("../worker/src/index.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../index.html", import.meta.url), "utf8");
@@ -64,4 +66,27 @@ test("configuração do Worker mantém os bindings essenciais", () => {
   assert.match(wrangler, /^binding = "DB"$/m);
   assert.match(wrangler, /^binding = "AI"$/m);
   assert.match(wrangler, /database_id = "59f3056f-c6a2-4c95-9d1e-2ba9aad2091a"/);
+});
+
+test("Worker e scripts JavaScript da interface não possuem erros de sintaxe", () => {
+  const workerCheck = spawnSync(process.execPath, ["--input-type=module", "--check"], {
+    input: worker, encoding: "utf8"
+  });
+  assert.equal(workerCheck.status, 0, workerCheck.stderr || workerCheck.stdout);
+
+  const scripts = [...ui.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)];
+  const executable = scripts.filter(([, attrs]) =>
+    !/\\bsrc\\s*=/.test(attrs) &&
+    !/\\btype\\s*=\\s*["'](?:application\\/json|application\\/ld\\+json)["']/i.test(attrs)
+  );
+  assert.ok(executable.length > 0, "Nenhum script JavaScript inline encontrado");
+  for (let i = 0; i < executable.length; i++) {
+    new vm.Script(executable[i][2], { filename: `index.html:inline-script-${i + 1}` });
+  }
+});
+
+test("implantação do Worker depende da aprovação dos testes", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/deploy-worker.yml", import.meta.url), "utf8");
+  assert.match(workflow, /node --test tests\\/\\*\\.test\\.mjs/);
+  assert.match(workflow, /deploy:\\n\\s+needs: test/);
 });
