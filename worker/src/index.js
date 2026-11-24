@@ -270,6 +270,48 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     }
   }
 
+  if (url.pathname === "/affiliates/evaluate" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const name = typeof body.name === "string" ? body.name.trim().slice(0, 160) : "";
+    const price = Number(body.price);
+    const commissionRate = Number(body.commission_rate);
+    const demand = Number(body.demand_score);
+    const competition = Number(body.competition_score);
+    const evidence = Number(body.evidence_score);
+    const risk = Number(body.risk_score);
+    const values = [price, commissionRate, demand, competition, evidence, risk];
+    if (!name || values.some(v => !Number.isFinite(v)) || price <= 0 ||
+        commissionRate < 0 || commissionRate > 100 ||
+        [demand, competition, evidence, risk].some(v => v < 0 || v > 10)) {
+      return json({ error: "Informe nome, preço maior que zero, comissão entre 0 e 100 e notas de 0 a 10 para demanda, concorrência, evidência e risco." }, 400);
+    }
+    // Pontuação transparente: demanda 30%, comissão 20%, concorrência 15%, evidência 20%, risco 15%.
+    const commissionScore = Math.min(10, commissionRate / 5);
+    const factors = {
+      demand: Number((demand * 3).toFixed(2)),
+      commission: Number((commissionScore * 2).toFixed(2)),
+      competition: Number(((10 - competition) * 1.5).toFixed(2)),
+      evidence: Number((evidence * 2).toFixed(2)),
+      risk: Number(((10 - risk) * 1.5).toFixed(2))
+    };
+    const score = Number(Object.values(factors).reduce((sum, value) => sum + value, 0).toFixed(1));
+    const estimatedCommissionPerSale = Number((price * commissionRate / 100).toFixed(2));
+    const recommendation = score >= 75 ? "priorizar validação" : score >= 55 ? "fazer teste pequeno e coletar dados" : "não priorizar; pesquisar melhor ou descartar";
+    const result = {
+      name, score, classification: score >= 75 ? "forte candidata" : score >= 55 ? "candidata para teste" : "baixa prioridade",
+      factors, estimated_commission_per_sale: estimatedCommissionPerSale,
+      recommendation,
+      limitations: [
+        "As notas de demanda, concorrência, evidência e risco foram informadas na solicitação; não são verificações automáticas.",
+        "A comissão estimada por venda não considera cancelamentos, devoluções, impostos, taxas ou custos.",
+        "Pontuação é triagem, não previsão de vendas nem garantia de lucro."
+      ]
+    };
+    await record(env, "affiliate_product_evaluated", JSON.stringify({ name, score }));
+    return json(result);
+  }
+
   if (url.pathname === "/affiliates/programs" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, region, category, signup_url, notes, status, created_at, updated_at FROM affiliate_programs ORDER BY name ASC"
