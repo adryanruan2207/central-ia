@@ -146,6 +146,8 @@ async function handle(request, env) {
       env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all(),
       env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first(),
+      env.DB.prepare("SELECT COUNT(*) AS total FROM supplier_leads").first(),
+      env.DB.prepare("SELECT event, details, created_at FROM activity_log WHERE event IN ('automatic_supplier_discovery','automatic_supplier_discovery_failed') ORDER BY created_at DESC LIMIT 1").first(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM affiliate_programs GROUP BY status").all(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM publication_queue GROUP BY status").all(),
       env.DB.prepare("SELECT title, result, updated_at FROM tasks WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 3").all(),
@@ -176,6 +178,12 @@ async function handle(request, env) {
       },
       pipeline: {
         products_registered: Number(productCount?.total || 0),
+        supplier_leads: Number(supplierCount?.total || 0),
+        supplier_discovery: supplierEvent ? {
+          status: supplierEvent.event === "automatic_supplier_discovery" ? "completed" : "failed",
+          details: String(supplierEvent.details || "").slice(0, 400),
+          last_run: supplierEvent.created_at
+        } : null,
         automatic_discovery: discoveryEvent ? {
           status: discoveryEvent.event === "automatic_product_discovery" ? "completed" : "failed",
           details: String(discoveryEvent.details || "").slice(0, 400),
