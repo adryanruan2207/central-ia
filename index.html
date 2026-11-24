@@ -580,6 +580,7 @@ body.show-chat .intro{display:flex!important}
 <div id="automation-monitor" style="padding:14px;margin:14px 0;border:1px solid #46598a;border-radius:14px;background:#202d50">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📡 Monitoramento da nuvem</b><small>Atualização automática</small></div>
 <p id="automation-health" role="status" aria-live="polite" style="margin:8px 0;color:#cbd5e1!important">Consultando automação…</p>
+<p id="worker-health-public" role="status" aria-live="polite" style="margin:6px 0;color:#cbd5e1!important">Conectividade do servidor: verificando…</p>
 <p id="automation-tavily-status" role="status" aria-live="polite" style="margin:6px 0;color:#cbd5e1!important">Pesquisa Tavily: aguardando teste automático.</p>
 <button type="button" id="test-tavily-now" class="secondary" style="margin:4px 0">Testar conexão Tavily agora</button>
 <div id="automation-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:10px"></div>
@@ -964,6 +965,14 @@ async function fetchJsonWithRetry(url,options={},attempts=2){
  if(lastError instanceof TypeError)throw new Error('Falha de rede: o navegador não conseguiu alcançar o Worker. Pode ser conexão, DNS ou bloqueio CORS.');
  throw lastError||new Error('Não foi possível consultar o serviço.');
 }
+async function checkPublicWorkerHealth(){
+ const line=document.getElementById('worker-health-public');
+ if(!line)return;
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/health',{},2);
+  line.textContent='Servidor na nuvem: '+(data.status==='online'?'RESPONDENDO':'COM PENDÊNCIAS')+' • Banco de dados: '+(data.database?.ok?'conectado':'indisponível')+' • Workers AI: '+(data.workers_ai_configured?'configurado':'não configurado')+' • Tavily: '+(data.web_research_configured?'chave cadastrada (conexão ainda precisa de teste)':'chave não cadastrada')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
+ }catch(error){line.textContent='Servidor na nuvem: '+(error.message||'não foi possível verificar');}
+}
 async function testTavilyNow(){
  const button=document.getElementById('test-tavily-now');
  const status=document.getElementById('automation-tavily-status');
@@ -1048,8 +1057,9 @@ async function refreshAutomaticPanels(){
   await Promise.allSettled([loadAutomationStatus(),loadTasks(),loadCampaignMetrics(),loadGlobalAffiliatePrograms(),loadPublications(),loadAffiliateProducts()]);
  }finally{autoRefreshBusy=false;}
 }
+checkPublicWorkerHealth();
 if(sessionToken)refreshAutomaticPanels();
-setInterval(refreshAutomaticPanels,60000);
+setInterval(()=>{checkPublicWorkerHealth();refreshAutomaticPanels();},60000);
 
 document.getElementById('sidebar-resources')?.addEventListener('click',loadTasks);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadAutomationStatus);
