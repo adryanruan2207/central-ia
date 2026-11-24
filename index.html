@@ -1319,7 +1319,35 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  const menuButton=$('attach-menu-button'), menu=$('attach-menu');
  const note=$('attachment-note'), status=$('chat-status'), input=$('chat-message'), send=$('send-chat'), log=$('chat-log');
  const tokenKey='central_ia_session_v1';
+ const apiBase='https://central-ia-worker.adryanruan2207.workers.dev';
  let busy=false, thinking=false;
+ const authHeaders=token=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
+ function drawMessage(role,content){
+  const line=document.createElement('div');
+  line.className='chat-message '+(role==='user'?'user-message':'assistant-message');
+  line.setAttribute('data-speaker',role==='user'?'Você':'CENTRAL IA');
+  const label=document.createElement('b');label.textContent=role==='user'?'Você':'CENTRAL IA';
+  const body=document.createElement('span');body.textContent=content;
+  line.append(label,body);log?.append(line);
+ }
+ async function saveMessage(role,content,token){
+  try{await fetch(apiBase+'/chat/history',{method:'POST',headers:authHeaders(token),body:JSON.stringify({role,content})});}catch(_){}
+ }
+ async function loadHistory(){
+  const token=localStorage.getItem(tokenKey);if(!token||!log)return;
+  try{
+   const response=await fetch(apiBase+'/chat/history?limit=100',{headers:authHeaders(token),cache:'no-store'});
+   if(!response.ok)return;
+   const data=await response.json();if(!Array.isArray(data.messages)||!data.messages.length)return;
+   log.replaceChildren();
+   for(const item of data.messages){if((item.role==='user'||item.role==='assistant')&&typeof item.content==='string')drawMessage(item.role,item.content);}
+   if(status)status.textContent='Histórico sincronizado com segurança.';
+   log.scrollTop=log.scrollHeight;
+  }catch(_){if(status)status.textContent='Não foi possível sincronizar o histórico agora.';}
+ }
+ if(!document.body.classList.contains('auth-locked'))loadHistory();
+ const authObserver=new MutationObserver(()=>{if(!document.body.classList.contains('auth-locked'))loadHistory();});
+ authObserver.observe(document.body,{attributes:true,attributeFilter:['class']});
  if(menuButton&&menu&&!menuButton.dataset.centralMenuBound){
   menuButton.addEventListener('click',()=>{menu.hidden=!menu.hidden;menuButton.setAttribute('aria-expanded',String(!menu.hidden));});
  }
@@ -1338,14 +1366,14 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
   const token=localStorage.getItem(tokenKey);
   if(!token){if(status)status.textContent='Sua sessão não foi encontrada. Saia e entre novamente.';return;}
   busy=true;if(send)send.disabled=true;if(status)status.textContent='Enviando mensagem para a CENTRAL IA…';
-  const userLine=document.createElement('div');userLine.textContent='Você: '+message;log?.append(userLine);if(input)input.value='';
+  drawMessage('user',message);if(input)input.value='';await saveMessage('user',message,token);
   try{
    const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({message:(thinking?'Responda com reflexão aprofundada: ':'')+message,messages:[]})});
    const data=await response.json().catch(()=>({}));
    if(response.status===401){localStorage.removeItem(tokenKey);throw Error('Sua sessão expirou. Atualize a página e entre novamente.');}
    if(!response.ok)throw Error(data.error||('O servidor respondeu com erro HTTP '+response.status+'.'));
    if(typeof data.answer!=='string')throw Error('O servidor não retornou uma resposta. Tente novamente.');
-   const answer=document.createElement('div');answer.textContent='CENTRAL IA: '+data.answer;log?.append(answer);if(status)status.textContent='Resposta recebida.';
+   drawMessage('assistant',data.answer);await saveMessage('assistant',data.answer,token);if(status)status.textContent='Resposta recebida.';
   }catch(error){if(status)status.textContent=error.message||'Falha ao enviar mensagem.';const warning=document.createElement('div');warning.textContent='Aviso: '+(error.message||'Falha ao enviar mensagem.');log?.append(warning);}
   finally{busy=false;if(send)send.disabled=false;if(log)log.scrollTop=log.scrollHeight;}
  }
@@ -1361,7 +1389,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  if(topButton&&topMenu){
   topButton.addEventListener('click',e=>{e.stopPropagation();topMenu.hidden=!topMenu.hidden;topButton.setAttribute('aria-expanded',String(!topMenu.hidden));});
   topMenu.addEventListener('click',e=>{e.stopPropagation();const action=e.target.closest('[data-top-action]')?.dataset.topAction;if(!action)return;topMenu.hidden=true;topButton.setAttribute('aria-expanded','false');
-   if(action==='new'){document.getElementById('chat-log')?.replaceChildren();const status=document.getElementById('chat-status');if(status)status.textContent='Nova conversa iniciada.';const input=document.getElementById('chat-message');if(input){input.value='';input.focus();}}
+   if(action==='new'){const token=localStorage.getItem('central_ia_session_v1');if(token){fetch('https://central-ia-worker.adryanru2207.workers.dev/chat/history',{method:'DELETE',headers:{'Authorization':'Bearer '+token}}).catch(()=>{});}document.getElementById('chat-log')?.replaceChildren();const status=document.getElementById('chat-status');if(status)status.textContent='Nova conversa iniciada.';const input=document.getElementById('chat-message');if(input){input.value='';input.focus();}}
    if(action==='resources'){document.getElementById('resource-panel')?.classList.add('open');}
    if(action==='logout'){localStorage.removeItem('central_ia_session_v1');location.reload();}
   });
