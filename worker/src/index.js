@@ -580,6 +580,63 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     return json(result);
   }
 
+  if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.status, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
+    ).all();
+    const products = (result.results || []).map(item => {
+      const blockers = [];
+      if (!item.product_url) blockers.push("Link original do produto ausente");
+      if (!item.affiliate_url) blockers.push("Link rastreável de afiliado ainda não cadastrado");
+      if (item.commission_rate === null) blockers.push("Comissão não confirmada em fonte oficial");
+      if (!item.affiliate_program_id) blockers.push("Programa de afiliados não vinculado");
+      else if (item.program_status !== "approved") blockers.push("Programa ainda não está marcado como aprovado");
+      const ready = blockers.length === 0;
+      return {
+        id: item.id, name: item.name, marketplace: item.marketplace,
+        product_url: item.product_url, affiliate_url: item.affiliate_url,
+        commission_rate: item.commission_rate, affiliate_program: item.program_name || null,
+        program_status: item.program_status || null,
+        campaign_status: ready ? "ready_for_review" : "blocked",
+        blockers,
+        disclosure_required: true,
+        notice: ready ? "Dados mínimos cadastrados. Revisar regras do canal e conteúdo antes de publicar." : "Não publicar enquanto houver bloqueios."
+      };
+    });
+    return json({
+      count: products.length,
+      ready_for_review: products.filter(item => item.campaign_status === "ready_for_review").length,
+      blocked: products.filter(item => item.campaign_status === "blocked").length,
+      products,
+      notice: "Este é um controle de prontidão, não uma confirmação externa de que o link funciona, de que há estoque ou de que a comissão será paga."
+    });
+  }
+
+  if (url.pathname.startsWith("/affiliates/products/") && url.pathname.endsWith("/affiliate-link") && request.method === "POST") {
+    const parts = url.pathname.split("/");
+    const id = (parts[3] || "").slice(0, 100);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const affiliateUrl = typeof body.affiliate_url === "string" ? body.affiliate_url.trim().slice(0, 1000) : "";
+    const commission = body.commission_rate === null || body.commission_rate === undefined || body.commission_rate === "" ? null : Number(body.commission_rate);
+    const programId = typeof body.affiliate_program_id === "string" ? body.affiliate_program_id.trim().slice(0, 100) : "";
+    if (!id || !affiliateUrl) return json({ error: "Informe o identificador do produto e o link de afiliado." }, 400);
+    try { const parsed = new URL(affiliateUrl); if (parsed.protocol !== "https:") throw new Error("HTTPS obrigatório"); }
+    catch { return json({ error: "O link de afiliado deve usar HTTPS." }, 400); }
+    if (commission !== null && (!Number.isFinite(commission) || commission < 0 || commission > 100)) return json({ error: "Comissão inválida." }, 400);
+    if (programId) {
+      const program = await env.DB.prepare("SELECT id FROM affiliate_programs WHERE id = ?").bind(programId).first();
+      if (!program) return json({ error: "Programa de afiliados não encontrado." }, 404);
+    }
+    const existing = await env.DB.prepare("SELECT id FROM affiliate_products WHERE id = ?").bind(id).first();
+    if (!existing) return json({ error: "Produto não encontrado." }, 404);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE affiliate_products SET affiliate_url = ?, affiliate_program_id = ?, commission_rate = COALESCE(?, commission_rate), updated_at = ? WHERE id = ?")
+      .bind(affiliateUrl, programId || null, commission, now, id).run();
+    await record(env, "affiliate_tracking_link_saved", JSON.stringify({ id, programId: programId || null, commissionProvided: commission !== null }));
+    return json({ id, saved: true, message: "Link rastreável registrado. A validade externa e a aprovação do programa ainda precisam ser confirmadas." });
+  }
+
   if (url.pathname === "/affiliates/suppliers" && request.method === "GET") {
     const query = (url.searchParams.get("q") || "").trim().slice(0, 100);
     if (query.length < 2) return json({ error: "Informe um produto ou categoria com pelo menos 2 caracteres." }, 400);
@@ -716,7 +773,7 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
 
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
+      "SELECT id, name, marketplace, product_url, affiliate_url, affiliate_program_id, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
     ).all();
     return json({ products: result.results || [] });
   }
@@ -727,6 +784,8 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     const name = typeof body.name === "string" ? body.name.trim().slice(0, 160) : "";
     const marketplace = typeof body.marketplace === "string" ? body.marketplace.trim().toLowerCase() : "";
     const productUrl = typeof body.product_url === "string" ? body.product_url.trim().slice(0, 1000) : "";
+    const affiliateUrl = typeof body.affiliate_url === "string" ? body.affiliate_url.trim().slice(0, 1000) : "";
+    const affiliateProgramId = typeof body.affiliate_program_id === "string" ? body.affiliate_program_id.trim().slice(0, 100) : "";
     const notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 2000) : "";
     const commission = body.commission_rate === null || body.commission_rate === undefined || body.commission_rate === ""
       ? null : Number(body.commission_rate);
@@ -738,6 +797,10 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
         const parsed = new URL(productUrl);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("protocolo inválido");
       } catch { return json({ error: "Informe um link de produto válido (http ou https)" }, 400); }
+    }
+    if (affiliateUrl) {
+      try { const parsed = new URL(affiliateUrl); if (parsed.protocol !== "https:") throw new Error("HTTPS obrigatório"); }
+      catch { return json({ error: "Link rastreável de afiliado inválido. Use HTTPS." }, 400); }
     }
     if (commission !== null && (!Number.isFinite(commission) || commission < 0 || commission > 100)) {
       return json({ error: "Comissão deve estar entre 0 e 100" }, 400);
@@ -751,8 +814,8 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await env.DB.prepare(
-      "INSERT INTO affiliate_products(id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'research', ?, ?)"
-    ).bind(id, name, marketplace, productUrl || null, commission, notes || null, now, now).run();
+      "INSERT INTO affiliate_products(id, name, marketplace, product_url, affiliate_url, affiliate_program_id, commission_rate, notes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'research', ?, ?)"
+    ).bind(id, name, marketplace, productUrl || null, affiliateUrl || null, affiliateProgramId || null, commission, notes || null, now, now).run();
     await record(env, "affiliate_product_created", id);
     return json({ id, status: "research", message: "Oportunidade de produto cadastrada." }, 201);
   }
