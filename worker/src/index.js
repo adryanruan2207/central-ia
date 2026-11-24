@@ -161,7 +161,7 @@ async function handle(request, env) {
     ]);
     return json({ notifications: items.results || [], unread: Number(unread?.total || 0), checked_at: new Date().toISOString() });
   }
-  const notificationReadMatch = url.pathname.match(/^\\/notifications\\/([a-f0-9-]+)\\/read$/i);
+  const notificationReadMatch = url.pathname.match(/^\/notifications\/([a-f0-9-]+)\/read$/i);
   if (notificationReadMatch && request.method === "POST") {
     const readAt = new Date().toISOString();
     const result = await env.DB.prepare("UPDATE notifications SET status = 'read', read_at = ? WHERE id = ?").bind(readAt, notificationReadMatch[1]).run();
