@@ -312,6 +312,26 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     return json(result);
   }
 
+  if (url.pathname === "/affiliates/suppliers" && request.method === "GET") {
+    const query = (url.searchParams.get("q") || "").trim().slice(0, 100);
+    if (query.length < 2) return json({ error: "Informe um produto ou categoria com pelo menos 2 caracteres." }, 400);
+    if (!env.TAVILY_API_KEY) return json({ error: "Pesquisa de fornecedores indisponível: configure a chave Tavily no Worker." }, 503);
+    try {
+      const search = await searchWebWithTavily("Encontrar fabricantes e fornecedores legítimos para " + query + ". Priorize sites oficiais de fabricantes, distribuidores e atacadistas; identifique site oficial, localização, linhas de produtos, condições públicas de atacado, pedido mínimo e canais oficiais de contato. Não inclua marketplaces de varejo como se fossem fabricantes.", env);
+      const suppliers = search.results.map(item => ({
+        name: item.title,
+        website: item.url,
+        evidence: item.content,
+        published_date: item.published_date || null,
+        verification: "não verificado — confirmar CNPJ/registro, endereço, reputação, contrato, amostras e condições diretamente com a empresa"
+      }));
+      await record(env, "affiliate_supplier_research", JSON.stringify({ query, results: suppliers.length }));
+      return json({ query, suppliers, notice: "Resultados encontrados na web, não fornecedores aprovados. A CENTRAL IA não contatou empresas nem verificou identidade, estoque, preços ou legitimidade." });
+    } catch (error) {
+      return json({ error: String(error?.message || "Falha na pesquisa de fornecedores").slice(0, 300) }, 502);
+    }
+  }
+
   if (url.pathname === "/affiliates/programs" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, region, category, signup_url, notes, status, created_at, updated_at FROM affiliate_programs ORDER BY name ASC"
