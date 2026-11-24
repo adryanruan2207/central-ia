@@ -983,22 +983,37 @@ async function loadAutomationStatus(){
    }
    if(blockers){
     blockers.replaceChildren();
+    const actions=Array.isArray(data.action_items)?data.action_items:[];
+    if(actions.length){
+     const heading=document.createElement('h4');heading.textContent='Ações que precisam de você (em ordem de prioridade)';heading.style.cssText='margin:12px 0 4px;color:#fff!important';blockers.append(heading);
+     for(const item of actions){
+      const card=document.createElement('article');card.style.cssText='padding:11px;margin:5px 0;border:1px solid #6576a8;border-left:4px solid '+(item.priority===1?'#e0a64b':'#7187c7')+';border-radius:10px;background:#202d50';
+      const title=document.createElement('b');title.textContent=(item.priority===1?'URGENTE • ':item.priority===2?'PRIORIDADE • ':'')+item.title;
+      const reason=document.createElement('p');reason.style.cssText='margin:6px 0';reason.textContent=item.reason||'';
+      const action=document.createElement('p');action.style.cssText='margin:6px 0';action.textContent='O que fazer: '+(item.action||'');
+      const where=document.createElement('small');where.textContent='Onde: '+(item.where||'');
+      card.append(title,reason,action,where);blockers.append(card);
+     }
+    }else{
+     const ok=document.createElement('p');ok.textContent='Nenhuma ação manual prioritária identificada neste momento.';blockers.append(ok);
+    }
     for(const item of (data.blockers||[])){
-     const line=document.createElement('p');line.style.cssText='margin:0;padding:8px 10px;border-left:3px solid #d6a64b;background:#242424;border-radius:5px;font-size:.82rem;color:#e8e8e8!important';line.textContent='Pendente: '+item;blockers.append(line);
+     const line=document.createElement('p');line.style.cssText='margin:4px 0;padding:7px 10px;border-left:3px solid #d6a64b;background:#242424;border-radius:5px;font-size:.8rem;color:#e8e8e8!important';line.textContent='Limitação: '+item;blockers.append(line);
     }
    }
  }catch(error){automationHealth.textContent=error.message;}
 }
-setInterval(()=>{if(sessionToken)loadAutomationStatus();
- // Atualiza os painéis sem exigir cliques do proprietário.
- let autoRefreshBusy=false;
- setInterval(async()=>{
-  if(!sessionToken||document.hidden||autoRefreshBusy)return;
-  autoRefreshBusy=true;
-  try{await Promise.allSettled([loadAutomationStatus(),loadTasks(),loadCampaignMetrics(),loadGlobalAffiliatePrograms(),loadPublications(),loadAffiliateProducts()]);}
-  finally{autoRefreshBusy=false;}
- },60000);},60000);
-if(sessionToken)loadAutomationStatus();
+// Um único ciclo de atualização evita temporizadores aninhados e chamadas duplicadas.
+let autoRefreshBusy=false;
+async function refreshAutomaticPanels(){
+ if(!sessionToken||document.hidden||autoRefreshBusy)return;
+ autoRefreshBusy=true;
+ try{
+  await Promise.allSettled([loadAutomationStatus(),loadTasks(),loadCampaignMetrics(),loadGlobalAffiliatePrograms(),loadPublications(),loadAffiliateProducts()]);
+ }finally{autoRefreshBusy=false;}
+}
+if(sessionToken)refreshAutomaticPanels();
+setInterval(refreshAutomaticPanels,60000);
 
 document.getElementById('sidebar-resources')?.addEventListener('click',loadTasks);
 document.getElementById('sidebar-resources')?.addEventListener('click',loadAutomationStatus);
