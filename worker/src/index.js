@@ -148,7 +148,8 @@ async function handle(request, env) {
       env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM affiliate_programs GROUP BY status").all(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM publication_queue GROUP BY status").all(),
-      env.DB.prepare("SELECT title, result, updated_at FROM tasks WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 3").all()
+      env.DB.prepare("SELECT title, result, updated_at FROM tasks WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 3").all(),
+      env.DB.prepare("SELECT event, details, created_at FROM activity_log WHERE event IN ('automatic_product_discovery','automatic_product_discovery_failed') ORDER BY created_at DESC LIMIT 1").first()
     ]);
     const tasks = {};
     for (const item of (counts.results || [])) tasks[item.status] = Number(item.total || 0);
@@ -175,6 +176,11 @@ async function handle(request, env) {
       },
       pipeline: {
         products_registered: Number(productCount?.total || 0),
+        automatic_discovery: discoveryEvent ? {
+          status: discoveryEvent.event === "automatic_product_discovery" ? "completed" : "failed",
+          details: String(discoveryEvent.details || "").slice(0, 400),
+          last_run: discoveryEvent.created_at
+        } : null,
         affiliate_programs: programs,
         publication_queue: publications,
         external_publication: "requires_official_account_connection",
