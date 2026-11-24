@@ -81,7 +81,7 @@ test("Worker e scripts JavaScript da interface não possuem erros de sintaxe", (
   );
   assert.ok(executable.length > 0, "Nenhum script JavaScript inline encontrado");
   for (let i = 0; i < executable.length; i++) {
-    new vm.Script(executable[i][2], { filename: \`index.html:inline-script-\${i + 1}\` });
+    new vm.Script(executable[i][2], { filename: "index.html:inline-script-" + (i + 1) });
   }
 });
 
