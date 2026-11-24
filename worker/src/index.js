@@ -794,6 +794,57 @@ export default {
       if (!env.DB) return;
       const now = new Date().toISOString();
       await record(env, "scheduled_check", "Verificação automática da fila executada.");
+
+      // Descoberta automática de candidatos em catálogo público; não cria links afiliados nem aprova produtos.
+      const lastDiscovery = await env.DB.prepare(
+        "SELECT created_at FROM activity_log WHERE event = 'automatic_product_discovery' ORDER BY created_at DESC LIMIT 1"
+      ).first();
+      const discoveryDue = !lastDiscovery?.created_at || (Date.now() - new Date(lastDiscovery.created_at).getTime()) >= 12 * 60 * 60 * 1000;
+      if (discoveryDue) {
+        const discoveryTerms = [
+          "garrafa termica", "fone bluetooth", "organizador cozinha", "luminaria led",
+          "suporte celular", "mochila", "cadeira escritorio", "acessorios pet"
+        ];
+        const daySlot = Math.floor(Date.now() / (12 * 60 * 60 * 1000)) % discoveryTerms.length;
+        const term = discoveryTerms[daySlot];
+        try {
+          const endpoint = "https://api.mercadolibre.com/sites/MLB/search?q=" + encodeURIComponent(term) + "&limit=10&sort=relevance";
+          const response = await fetch(endpoint, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(10000) });
+          if (!response.ok) throw new Error("Catálogo público respondeu HTTP " + response.status);
+          const catalog = await response.json();
+          let added = 0;
+          for (const item of (Array.isArray(catalog.results) ? catalog.results : []).slice(0, 10)) {
+            const name = String(item.title || "").trim().slice(0, 160);
+            let productUrl = "";
+            try {
+              const parsed = new URL(String(item.permalink || ""));
+              if (parsed.protocol === "https:" && /mercadolivre\.com\.br$/.test(parsed.hostname)) productUrl = parsed.toString();
+            } catch {}
+            if (!name || !productUrl) continue;
+            const exists = await env.DB.prepare(
+              "SELECT id FROM affiliate_products WHERE marketplace = 'mercado livre' AND product_url = ? LIMIT 1"
+            ).bind(productUrl).first();
+            if (exists) continue;
+            const price = Number(item.price);
+            const sold = Number(item.sold_quantity);
+            const notes = [
+              "Descoberta automática por catálogo público do Mercado Livre.",
+              "Termo pesquisado: " + term,
+              Number.isFinite(price) && price > 0 ? "Preço observado: " + price.toFixed(2) : "Preço não informado",
+              Number.isFinite(sold) && sold >= 0 ? "Vendas informadas pelo anúncio: " + sold : "Vendas não informadas",
+              "Comissão e elegibilidade de afiliado não confirmadas. Produto ainda não aprovado para divulgação."
+            ].join("\n");
+            const timestamp = new Date().toISOString();
+            await env.DB.prepare(
+              "INSERT INTO affiliate_products(id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at) VALUES (?, ?, 'mercado livre', ?, NULL, ?, 'research', ?, ?)"
+            ).bind(crypto.randomUUID(), name, productUrl, notes, timestamp, timestamp).run();
+            added++;
+          }
+          await record(env, "automatic_product_discovery", JSON.stringify({ term, received: Array.isArray(catalog.results) ? catalog.results.length : 0, added }));
+        } catch (error) {
+          await record(env, "automatic_product_discovery_failed", String(error?.message || "Falha na descoberta").slice(0, 300));
+        }
+      }
       await env.DB.prepare(
         "UPDATE tasks SET status = 'needs_review', updated_at = ? WHERE status = 'queued' AND requires_approval = 1"
       ).bind(now).run();
