@@ -926,7 +926,9 @@ async function loadAutomationStatus(){
     const p=data.pipeline||{};
     const programTotal=Object.values(p.affiliate_programs||{}).reduce((sum,n)=>sum+Number(n||0),0);
     const publicationTotal=Object.values(p.publication_queue||{}).reduce((sum,n)=>sum+Number(n||0),0);
-    pipeline.textContent='Esteira automática: '+(p.products_registered||0)+' produtos registrados • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. A IA pesquisa e prepara materiais; a publicação externa ainda depende de conexão oficial autorizada.';
+    const discovery=p.automatic_discovery;
+    const discoveryText=discovery?(discovery.status==='completed'?'Última descoberta automática: '+new Date(discovery.last_run).toLocaleString('pt-BR')+'. ':'Última descoberta automática apresentou erro. '):'Aguardando primeira descoberta automática. ';
+    pipeline.textContent=discoveryText+'Esteira: '+(p.products_registered||0)+' produtos no catálogo interno • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. Produtos descobertos entram como candidatos em pesquisa; comissão e elegibilidade precisam ser confirmadas antes de divulgar.';
    }
    if(blockers){
     blockers.replaceChildren();
