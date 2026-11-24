@@ -1591,7 +1591,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
    if(response.status===401){localStorage.removeItem(tokenKey);throw Error('Sua sessão expirou. Atualize a página e entre novamente.');}
    if(!response.ok)throw Error(data.error||('O servidor respondeu com erro HTTP '+response.status+'.'));
    if(typeof data.answer!=='string')throw Error('O servidor não retornou uma resposta. Tente novamente.');
-   drawMessage('assistant',data.answer);await saveMessage('assistant',data.answer,token);if(status)status.textContent='Resposta recebida.';
+   drawMessage('assistant',data.answer);await saveMessage('assistant',data.answer,token);if(status){const researchLabels={completed:'Pesquisa web concluída; fontes consultadas.',no_results:'Pesquisa web executada, mas não encontrou fontes úteis.',not_configured:'Pesquisa web não disponível: falta configurar a chave Tavily.',failed:'Pesquisa web falhou nesta tentativa; resposta sem confirmação de fontes.',not_requested:'Resposta gerada sem pesquisa web.'};status.textContent='Resposta recebida. '+(researchLabels[data.research_status]||'Estado da pesquisa não informado.');}
   }catch(error){if(status)status.textContent=error.message||'Falha ao enviar mensagem.';const warning=document.createElement('div');warning.textContent='Aviso: '+(error.message||'Falha ao enviar mensagem.');log?.append(warning);}
   finally{busy=false;if(send)send.disabled=false;if(log)log.scrollTop=log.scrollHeight;}
  }
