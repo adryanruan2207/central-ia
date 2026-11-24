@@ -680,6 +680,40 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     });
   }
 
+  if (url.pathname === "/integrations/affiliate" && request.method === "GET") {
+    const definitions = [
+      { id: "mercado_livre", name: "Mercado Livre", region: "Brasil", method: "Catálogo público + API de afiliados", keys: [], limitation: "A busca pública de candidatos existe; link rastreável e dados de afiliado dependem de acesso oficial." },
+      { id: "amazon", name: "Amazon Associados", region: "Brasil e outros países", method: "Product Advertising API / programa Associados", keys: ["AMAZON_PAAPI_ACCESS_KEY", "AMAZON_PAAPI_SECRET_KEY", "AMAZON_ASSOCIATES_TAG"], limitation: "Exige conta aprovada, tag e credenciais válidas da API." },
+      { id: "shopee", name: "Shopee", region: "Mercados elegíveis", method: "Open Platform / Affiliate API", keys: ["SHOPEE_PARTNER_ID", "SHOPEE_PARTNER_KEY"], limitation: "Exige parceiro aprovado e credenciais oficiais; disponibilidade varia por país." },
+      { id: "hotmart", name: "Hotmart", region: "Brasil / Global", method: "API oficial / OAuth", keys: ["HOTMART_CLIENT_ID", "HOTMART_CLIENT_SECRET"], limitation: "Exige conta e permissões de API; produtos e links dependem da aprovação do produtor." },
+      { id: "aliexpress", name: "AliExpress Portals", region: "Global", method: "Affiliate API", keys: ["ALIEXPRESS_APP_KEY", "ALIEXPRESS_APP_SECRET"], limitation: "Exige aprovação no programa e acesso às ferramentas/API de afiliado." },
+      { id: "awin", name: "Awin", region: "Global", method: "Publisher API", keys: ["AWIN_API_TOKEN", "AWIN_PUBLISHER_ID"], limitation: "Exige publisher aprovado e autorização por anunciante." },
+      { id: "cj", name: "CJ Affiliate", region: "Global", method: "Publisher API", keys: ["CJ_API_KEY", "CJ_WEBSITE_ID"], limitation: "Exige publisher aprovado e acesso às campanhas dos anunciantes." },
+      { id: "impact", name: "impact.com", region: "Global", method: "Partner API", keys: ["IMPACT_ACCOUNT_SID", "IMPACT_AUTH_TOKEN"], limitation: "Exige conta parceira e autorização de cada marca." },
+      { id: "partnerstack", name: "PartnerStack", region: "Global", method: "Partner API", keys: ["PARTNERSTACK_API_KEY"], limitation: "Exige conta aprovada e acesso à API." },
+      { id: "ebay", name: "eBay Partner Network", region: "Mercados eBay", method: "Buy API / Partner Network", keys: ["EBAY_CLIENT_ID", "EBAY_CLIENT_SECRET", "EBAY_CAMPAIGN_ID"], limitation: "Exige campanha aprovada e credenciais do programa." }
+    ];
+    const integrations = definitions.map(item => {
+      const configured = item.keys.length > 0 && item.keys.every(key => Boolean(env[key]));
+      return {
+        id: item.id, name: item.name, region: item.region, method: item.method,
+        status: item.keys.length === 0 ? "catalog_search_only" : configured ? "credentials_configured_pending_test" : "connection_required",
+        credentials_configured: configured,
+        required_secret_names: item.keys,
+        limitation: item.limitation
+      };
+    });
+    return json({
+      integrations,
+      summary: {
+        total: integrations.length,
+        credentials_configured: integrations.filter(item => item.credentials_configured).length,
+        connection_required: integrations.filter(item => item.status === "connection_required").length
+      },
+      security: "Somente o estado de configuração é exibido; valores de segredos nunca são retornados."
+    });
+  }
+
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
