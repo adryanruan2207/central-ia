@@ -25,6 +25,26 @@ jobs:
       - name: Run static safety tests
         run: node --test tests/*.test.mjs
 
+      - name: Validate Wrangler TOML configuration
+        run: |
+          python - <<'PY'
+          import pathlib, tomllib
+          config = tomllib.loads(pathlib.Path("worker/wrangler.toml").read_text())
+          assert config.get("name") == "central-ia-worker", "Worker name mismatch"
+          assert config.get("main") == "src/index.js", "Worker entrypoint mismatch"
+          assert config.get("compatibility_date") == "2026-11-19", "Compatibility date mismatch"
+          assert any(x.get("binding") == "DB" and x.get("database_name") == "central-ia-db" for x in config.get("d1_databases", [])), "D1 binding missing"
+          assert config.get("ai", {}).get("binding") == "AI", "Workers AI binding missing"
+          print("Wrangler TOML valid; required bindings present.")
+          PY
+
+      - name: Install Wrangler for validation
+        run: npm install --global wrangler
+
+      - name: Compile Worker without deployment
+        working-directory: worker
+        run: wrangler deploy --dry-run --outdir /tmp/central-ia-production-check
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
