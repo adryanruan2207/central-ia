@@ -161,3 +161,16 @@ test("deploy do Worker exige TOML válido e compilação dry-run antes da produ�
   assert.ok(!testJob.includes("CLOUDFLARE_API_TOKEN"));
   assert.ok(!testJob.includes("secrets."));
 });
+
+test("auditoria do repositório verifica autenticação e bloqueia execução dinâmica", () => {
+  const start = worker.indexOf('url.pathname === "/developer/audit" && request.method === "GET"');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 5200);
+  assert.match(section, /Validação de sessão/);
+  assert.match(section, /Bloqueio de API sem autenticação/);
+  assert.match(section, /Limite de tamanho do token/);
+  assert.match(section, /eval\(/);
+  assert.match(section, /new Function\(/);
+  assert.match(section, /mustBeAbsent\?!source\.includes\(needle\):source\.includes\(needle\)/);
+  assert.match(section, /mode:"read_only_static_checks",executed:false/);
+});
