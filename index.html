@@ -1004,7 +1004,8 @@ document.getElementById('open-resources')?.addEventListener('click',loadTasks);
 document.getElementById('open-resources')?.addEventListener('click',loadAutomationStatus);
 
 
-let latestCompetitorInsights='';\nconst campaignMetricsForm=document.getElementById('campaign-metrics-form');
+let latestCompetitorInsights='';
+const campaignMetricsForm=document.getElementById('campaign-metrics-form');
 const campaignMetricsStatus=document.getElementById('campaign-metrics-status');
 const campaignMetricsHistory=document.getElementById('campaign-metrics-history');
 const campaignMetricsKpis=document.getElementById('campaign-metrics-kpis');
@@ -1032,7 +1033,8 @@ campaignMetricsForm?.addEventListener('submit',async event=>{
  }catch(error){campaignMetricsStatus.textContent=error.message;}
  finally{submit.disabled=false;}
 });
-\nconst competitorAnalysisForm=document.getElementById('competitor-analysis-form');
+
+const competitorAnalysisForm=document.getElementById('competitor-analysis-form');
 const competitorAnalysisStatus=document.getElementById('competitor-analysis-status');
 const competitorAnalysisResult=document.getElementById('competitor-analysis-result');
 const competitorAnalysisSources=document.getElementById('competitor-analysis-sources');
