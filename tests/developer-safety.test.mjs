@@ -90,3 +90,45 @@ test("implantação do Worker depende da aprovação dos testes", async () => {
   assert.match(workflow, /node --test tests\/\*\.test\.mjs/);
   assert.match(workflow, /deploy:\n\s+needs: test/);
 });
+
+test("planejador da IA permanece somente leitura e possui limite de uso", () => {
+  const start = worker.indexOf('url.pathname === "/developer/plan" && request.method === "POST"');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 14000);
+  assert.match(section, /developer_plan_created/);
+  assert.match(section, />= 5/);
+  assert.match(section, /alterações de código não são executadas/);
+  assert.match(section, /mode:\s*"read_only_plan"/);
+  assert.doesNotMatch(section, /child_process|execSync|spawnSync|wrangler deploy/);
+});
+
+test("propostas da IA só aceitam caminhos da lista permitida", () => {
+  const start = worker.indexOf('url.pathname === "/developer/proposal" && request.method === "POST"');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 6000);
+  assert.match(section, /const allowedFiles = \[/);
+  assert.match(section, /allowedFiles\.includes\(file\.path\)/);
+  assert.match(section, /slice\(0,5\)/);
+  assert.match(section, /applied:false/);
+});
+
+test("revisão de proposta é única e não altera arquivos", () => {
+  const start = worker.indexOf('url.pathname === "/developer/proposal/review" && request.method === "POST"');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 2600);
+  assert.match(section, /approved_for_patch/);
+  assert.match(section, /rejected/);
+  assert.match(section, /já foi revisada/);
+  assert.match(section, /scope:"review_only_no_code_changes"/);
+  assert.match(section, /applied:false/);
+});
+
+test("preparação de patch exige aprovação e limita o escopo a um arquivo", () => {
+  const start = worker.indexOf('url.pathname === "/developer/patch/prepare" && request.method === "POST"');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 5200);
+  assert.match(section, /approved_for_patch/);
+  assert.match(section, /files\.length!==1/);
+  assert.match(section, /worker\/wrangler\.toml/);
+  assert.match(section, /Já existe um patch candidato/);
+});
