@@ -171,7 +171,19 @@ async function handle(request, env) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   if (url.pathname === "/health" && request.method === "GET") {
-    return json({ service: "CENTRAL IA", status: "online", database: Boolean(env.DB), time: new Date().toISOString() });
+    let database = {configured:Boolean(env.DB),ok:false};
+    if (env.DB) {
+      try { await env.DB.prepare("SELECT 1 AS ok").first(); database.ok = true; }
+      catch (error) { database.error = String(error?.message || error).slice(0,160); }
+    }
+    return json({
+      service: "CENTRAL IA",
+      status: database.ok ? "online" : "degraded",
+      database,
+      workers_ai_configured: Boolean(env.AI),
+      web_research_configured: Boolean(env.TAVILY_API_KEY),
+      time: new Date().toISOString()
+    }, database.ok ? 200 : 503);
   }
   if (url.pathname === "/auth/session" && request.method === "GET") {
     const authHeader = request.headers.get("Authorization") || "";
