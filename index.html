@@ -944,6 +944,26 @@ taskForm?.addEventListener('submit',async event=>{
 const automationHealth=document.getElementById('automation-health');
 const automationMetrics=document.getElementById('automation-metrics');
 const automationLastCheck=document.getElementById('automation-last-check');
+async function fetchJsonWithRetry(url,options={},attempts=2){
+ let lastError;
+ for(let attempt=0;attempt<attempts;attempt++){
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  try{
+   const response=await fetch(url,{...options,signal:controller.signal,cache:'no-store'});
+   const data=await response.json().catch(()=>({}));
+   if(response.status===401){throw new Error('Sessão expirada. Entre novamente na CENTRAL IA.');}
+   if(!response.ok){throw new Error(data.error||('Servidor respondeu HTTP '+response.status));}
+   return {response,data};
+  }catch(error){
+   lastError=error;
+   if(error.name==='AbortError')lastError=new Error('Tempo limite de 12 segundos excedido ao consultar a nuvem.');
+   if(attempt+1<attempts)await new Promise(resolve=>setTimeout(resolve,900*(attempt+1)));
+  }finally{clearTimeout(timeout);}
+ }
+ if(lastError instanceof TypeError)throw new Error('Falha de rede: o navegador não conseguiu alcançar o Worker. Pode ser conexão, DNS ou bloqueio CORS.');
+ throw lastError||new Error('Não foi possível consultar o serviço.');
+}
 async function testTavilyNow(){
  const button=document.getElementById('test-tavily-now');
  const status=document.getElementById('automation-tavily-status');
@@ -963,9 +983,7 @@ async function loadAutomationStatus(){
  if(!sessionToken){automationHealth.textContent='Entre para consultar o monitoramento.';return;}
  automationHealth.textContent='Consultando status da nuvem…';
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/automation/status',{headers:{'Authorization':'Bearer '+sessionToken}});
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw Error(data.error||'Não foi possível consultar a automação.');
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/automation/status',{headers:{'Authorization':'Bearer '+sessionToken}},2);
   automationHealth.textContent='Serviço: '+data.service+' • Execução programada: '+data.schedule+' • Autoverificação: '+(data.self_monitor?.status==='healthy'?'NORMAL':data.self_monitor?.status==='degraded'?'COM PENDÊNCIAS':'AGUARDANDO PRIMEIRA VERIFICAÇÃO')+' • Última análise: '+(data.self_monitor?.checked_at?new Date(data.self_monitor.checked_at).toLocaleTimeString('pt-BR'):'—');
    const tavilyLine=document.getElementById('automation-tavily-status');
    if(tavilyLine){const t=data.tavily_connection||{};tavilyLine.textContent='Pesquisa Tavily: '+(t.ok?'CONECTADA • '+(t.result_count||0)+' resultados no teste':'PENDENTE • '+(t.error||'Aguardando verificação'))+' • Último teste: '+(t.checked_at?new Date(t.checked_at).toLocaleString('pt-BR'):'ainda não realizado');}
@@ -991,9 +1009,8 @@ async function loadAutomationStatus(){
     const supplierText=supplierDiscovery?(supplierDiscovery.status==='completed'?'Pesquisa de fornecedores: '+new Date(supplierDiscovery.last_run).toLocaleString('pt-BR')+'. ':'Pesquisa de fornecedores apresentou erro. '):'Pesquisa de fornecedores aguardando primeira execução. ';
     pipeline.textContent=discoveryText+supplierText+'Esteira: '+(p.products_registered||0)+' produtos candidatos • '+(p.supplier_leads||0)+' fornecedores para validar • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. A CENTRAL IA pesquisa múltiplos caminhos de afiliação e fornecedores para venda sem estoque; leads ainda exigem diligência antes de fechar parceria.';
     try{
-     const integrationsResponse=await fetch('https://central-ia-worker.adryanru2207.workers.dev/integrations/affiliate',{headers:{'Authorization':'Bearer '+sessionToken}});
-     const integrationsData=await integrationsResponse.json().catch(()=>({}));
-     if(integrationsResponse.ok&&Array.isArray(integrationsData.integrations)){
+     const {data:integrationsData}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/integrations/affiliate',{headers:{'Authorization':'Bearer '+sessionToken}},2);
+     if(Array.isArray(integrationsData.integrations)){
       const connected=integrationsData.integrations.filter(x=>x.credentials_configured).length;
       const pending=integrationsData.integrations.filter(x=>x.status==='connection_required').length;
       pipeline.textContent+=' Conexões de plataformas: '+connected+' com credenciais configuradas • '+pending+' aguardando conexão. Configurar credenciais não significa aprovação nem integração testada.';
