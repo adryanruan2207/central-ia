@@ -343,11 +343,12 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     const duration = [15,30,45,60].includes(Number(body.duration)) ? Number(body.duration) : 30;
     const price = typeof body.price === "string" ? body.price.trim().slice(0, 80) : "";
     const affiliateUrl = typeof body.affiliate_url === "string" ? body.affiliate_url.trim().slice(0, 1000) : "";
+    const competitiveInsights = typeof body.competitive_insights === "string" ? body.competitive_insights.trim().slice(0, 5000) : "";
     const tone = ["energético","emocional","demonstrativo","educativo","humor leve"].includes(body.tone) ? body.tone : "demonstrativo";
     if (!product || product.length < 2) return json({ error: "Informe o nome do produto." }, 400);
     const prompt = `Crie um pacote de vídeo publicitário de alta qualidade para este produto: ${product}.
 Benefícios e fatos fornecidos: ${benefits || "Não informados; não invente características."}
-Público: ${audience}. Canal: ${platform}. Duração alvo: ${duration} segundos. Tom: ${tone}. Preço informado: ${price || "não informado"}.
+Público: ${audience}. Canal: ${platform}. Duração alvo: ${duration} segundos. Tom: ${tone}. Preço informado: ${price || "não informado"}.\nAprendizados da análise competitiva pública (use como contexto estratégico, não copie; diferencie observações de hipóteses): ${competitiveInsights || "Nenhuma análise competitiva conectada."}.
 Objetivo: aumentar atenção qualificada, retenção, cliques e conversões sem enganar o consumidor.
 Entregue em português brasileiro, com esta estrutura clara:
 1. ÂNGULO ESTRATÉGICO: dor/desejo do público, promessa central realista e por que o ângulo pode funcionar.
