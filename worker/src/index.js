@@ -291,6 +291,47 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     }
   }
 
+  if (url.pathname === "/marketing/competitor-analysis" && request.method === "POST") {
+    if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
+    if (!env.TAVILY_API_KEY) return json({ error: "Pesquisa competitiva indisponível: configure a chave Tavily no Worker." }, 503);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
+    const product = typeof body.product === "string" ? body.product.trim().slice(0, 180) : "";
+    const competitor = typeof body.competitor === "string" ? body.competitor.trim().slice(0, 160) : "";
+    const audience = typeof body.audience === "string" ? body.audience.trim().slice(0, 300) : "Consumidores interessados no produto";
+    const ownAd = typeof body.own_ad === "string" ? body.own_ad.trim().slice(0, 1800) : "";
+    const platform = ["tiktok","instagram","youtube","facebook","google"].includes(body.platform) ? body.platform : "instagram";
+    const referenceUrl = typeof body.reference_url === "string" ? body.reference_url.trim().slice(0, 500) : "";
+    if (!product) return json({ error: "Informe o produto ou categoria." }, 400);
+    if (referenceUrl) { try { const parsed = new URL(referenceUrl); if (parsed.protocol !== "https:") throw new Error(); } catch { return json({ error: "O link de referência precisa ser uma URL HTTPS válida." }, 400); } }
+    const searchQuery = "Anúncios publicitários públicos e campanhas de " + (competitor ? competitor + " para " : "concorrentes de ") + product + " em " + platform + ". Pesquisar criativos, biblioteca de anúncios pública, páginas de produto, ofertas, ganchos, benefícios, chamadas para ação e posicionamento. Público: " + audience + (referenceUrl ? ". Referência fornecida: " + referenceUrl : "") + ". Retorne apenas informações publicamente disponíveis.";
+    try {
+      const research = await searchWebWithTavily(searchQuery, env);
+      if (!research.results.length) return json({ error: "Não encontrei referências públicas suficientes. Tente informar o nome do concorrente ou um link público." }, 404);
+      const sourceText = research.results.map((item, index) => (index + 1) + ". " + item.title + "\nURL: " + item.url + "\nResumo da fonte: " + item.content).join("\n\n").slice(0, 6500);
+      const prompt = "Analise inteligência competitiva publicitária com base SOMENTE nas fontes abaixo. Produto/categoria: " + product + ". Concorrente: " + (competitor || "concorrentes do segmento") + ". Público: " + audience + ". Canal: " + platform + ". Nosso anúncio atual (se fornecido): " + (ownAd || "não fornecido") + ".\nFONTES PÚBLICAS:\n" + sourceText + "\n\nEntregue em português brasileiro: (1) resumo do que as fontes realmente mostram; (2) padrões de gancho, oferta, demonstração, prova e CTA observáveis; (3) pontos fortes e lacunas, distinguindo fato de hipótese; (4) oportunidades para nos diferenciarmos; (5) três conceitos originais de anúncios melhores para testar, com gancho, cenas e CTA; (6) plano de teste A/B e métricas. Se a fonte não mostrar o criativo completo, diga isso claramente. Não invente métricas, gastos, resultados, conversões ou dados privados. Não copie textos, vídeos ou identidade visual do concorrente. Não afirme que uma estratégia converte melhor sem dados.";
+      const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+        messages: [
+          { role: "system", content: "Você é analista de inteligência competitiva e estrategista de publicidade de performance. Seja rigoroso com evidências, diferencie observação de hipótese e crie alternativas originais." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 1500,
+        temperature: 0.35
+      });
+      const analysis = typeof generated?.response === "string" ? generated.response.trim() : "";
+      if (!analysis) return json({ error: "A IA não conseguiu concluir a análise agora." }, 502);
+      await record(env, "marketing_competitor_analysis", JSON.stringify({ product, competitor, platform, sources: research.results.length }));
+      return json({
+        product, competitor, platform, analysis,
+        sources: research.results.map(item => ({ title: item.title, url: item.url, published_date: item.published_date })),
+        notice: "Análise baseada em resultados públicos de pesquisa, não em acesso privilegiado às contas de anúncios. Nem todas as fontes exibem criativos completos ou métricas. Valide hipóteses com testes reais."
+      });
+    } catch (error) {
+      console.error("Competitor analysis error", error);
+      return json({ error: String(error?.message || "Falha na pesquisa competitiva").slice(0, 300) }, 502);
+    }
+  }
+
   if (url.pathname === "/marketing/video-script" && request.method === "POST") {
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
     let body;
