@@ -492,16 +492,16 @@ async function handle(request, env) {
         ["Validação de sessão", "async function validSession(token, secret)"],
         ["Bloqueio de API sem autenticação", "if (!isApiToken && !isSession)"],
         ["Limite de tamanho do token", "token.length > 2000"],
-        ["Sem execução dinâmica por eval", "eval(", true],
-        ["Sem construtor dinâmico Function", "new Function(", true]
+        ["Sem execução dinâmica por eval", ["ev","al("].join(""), true],
+        ["Sem construtor dinâmico Function", ["new ","Function("].join(""), true]
       ]},
       {path:"index.html",url:"https://raw.githubusercontent.com/adryanruan2207/central-ia/main/index.html",checks:[
         ["Requisições com retentativa", "async function fetchJsonWithRetry"],
         ["Interface da arquiteta", "developer-plan-button"],
         ["Consulta do histórico", "loadDeveloperPlanHistory"],
         ["Renderização segura de conteúdo", "textContent"],
-        ["Sem execução dinâmica por eval", "eval(", true],
-        ["Sem construtor dinâmico Function", "new Function(", true]
+        ["Sem execução dinâmica por eval", ["ev","al("].join(""), true],
+        ["Sem construtor dinâmico Function", ["new ","Function("].join(""), true]
       ]}
     ];
     const inspected = await Promise.all(files.map(async file => {
