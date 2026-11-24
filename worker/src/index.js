@@ -43,6 +43,16 @@ async function record(env, event, details = "") {
     .bind(event, details, new Date().toISOString()).run();
 }
 
+
+async function notifyOwner(env, key, title, body, severity = "warning") {
+  if (!env.DB || !key) return;
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO notifications(id, dedupe_key, title, body, severity, status, created_at) VALUES (?, ?, ?, ?, ?, 'unread', ?)"
+  ).bind(id, String(key).slice(0, 180), String(title).slice(0, 180), String(body).slice(0, 1200), ["info","success","warning","error"].includes(severity) ? severity : "warning", createdAt).run();
+}
+
 async function searchWebWithTavily(query, env) {
   if (!env.TAVILY_API_KEY) return { configured: false, results: [] };
   const response = await fetch("https://api.tavily.com/search", {
@@ -139,6 +149,23 @@ async function handle(request, env) {
     await env.DB.prepare("DELETE FROM chat_messages").run();
     await record(env, "chat_history_cleared", "Histórico da conversa apagado pelo proprietário.");
     return json({ cleared: true });
+  }
+
+
+  if (url.pathname === "/notifications" && request.method === "GET") {
+    const requested = Number(url.searchParams.get("limit") || 30);
+    const limit = Number.isFinite(requested) ? Math.max(1, Math.min(100, Math.floor(requested))) : 30;
+    const [items, unread] = await Promise.all([
+      env.DB.prepare("SELECT id, title, body, severity, status, created_at, read_at FROM notifications ORDER BY created_at DESC LIMIT ?").bind(limit).all(),
+      env.DB.prepare("SELECT COUNT(*) AS total FROM notifications WHERE status = 'unread'").first()
+    ]);
+    return json({ notifications: items.results || [], unread: Number(unread?.total || 0), checked_at: new Date().toISOString() });
+  }
+  const notificationReadMatch = url.pathname.match(/^\\/notifications\\/([a-f0-9-]+)\\/read$/i);
+  if (notificationReadMatch && request.method === "POST") {
+    const readAt = new Date().toISOString();
+    const result = await env.DB.prepare("UPDATE notifications SET status = 'read', read_at = ? WHERE id = ?").bind(readAt, notificationReadMatch[1]).run();
+    return json({ updated: Number(result.meta?.changes || 0) > 0, read_at: readAt });
   }
 
   if (url.pathname === "/automation/status" && request.method === "GET") {
@@ -916,6 +943,8 @@ export default {
       if (!env.DB) return;
       const now = new Date().toISOString();
       await record(env, "scheduled_check", "Verificação automática da fila executada.");
+      if (!env.TAVILY_API_KEY) await notifyOwner(env, "setup:tavily:v1", "Pesquisa automática aguardando autorização", "A pesquisa de mercado e fornecedores está pausada porque falta configurar TAVILY_API_KEY como secret no Cloudflare Worker. Não envie a chave pelo chat.", "warning");
+      if (!env.AI) await notifyOwner(env, "setup:workers-ai:v1", "Análise por IA indisponível", "O vínculo Workers AI não está disponível. A CENTRAL IA continuará verificando a fila, mas não conseguirá executar análises com IA até o vínculo ser corrigido.", "error");
 
       // Descoberta automática de candidatos em catálogo público; não cria links afiliados nem aprova produtos.
       const lastDiscovery = await env.DB.prepare(
@@ -997,9 +1026,12 @@ export default {
         }
       }
 
-      await env.DB.prepare(
+      const reviewUpdate = await env.DB.prepare(
         "UPDATE tasks SET status = 'needs_review', updated_at = ? WHERE status = 'queued' AND requires_approval = 1"
       ).bind(now).run();
+      if (Number(reviewUpdate.meta?.changes || 0) > 0) {
+        await notifyOwner(env, "approval:tasks:" + now.slice(0, 10), "Sua autorização é necessária", String(reviewUpdate.meta.changes) + " tarefa(s) estão aguardando sua revisão na CENTRAL IA. Abra o painel para consultar e autorizar quando estiver de acordo.", "warning");
+      }
 
       // Recupera tarefas interrompidas por queda/timeout. Pesquisas são somente leitura e podem ser repetidas com segurança.
       const staleBefore = new Date(Date.now() - 45 * 60 * 1000).toISOString();
@@ -1070,6 +1102,7 @@ export default {
               "UPDATE tasks SET status = 'needs_review', result = ?, updated_at = ? WHERE id = ? AND status = 'processing'"
             ).bind(setupMessage, new Date().toISOString(), task.id).run();
             await record(env, "research_setup_required", task.id);
+            await notifyOwner(env, "research-key-required:v1", "Pesquisa aguardando configuração", "A tarefa '" + task.title + "' não foi executada porque falta configurar a chave Tavily no Cloudflare Worker. Nenhuma pesquisa externa foi realizada.", "warning");
             return;
           }
           const search = await searchWebWithTavily(task.title, env);
@@ -1102,6 +1135,7 @@ export default {
           "UPDATE tasks SET status = 'failed', result = ?, updated_at = ? WHERE id = ? AND status = 'processing'"
         ).bind("Não foi possível concluir automaticamente: " + message, new Date().toISOString(), task.id).run();
         await record(env, "task_failed", task.id + ": " + message);
+        await notifyOwner(env, "task-failed:" + task.id, "Uma tarefa automática falhou", task.title + ": " + message, "error");
       }
     })());
   }
