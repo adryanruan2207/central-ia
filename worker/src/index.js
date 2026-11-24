@@ -291,6 +291,56 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     }
   }
 
+  if (url.pathname === "/marketing/campaign-metrics" && request.method === "GET") {
+    const rows = await env.DB.prepare("SELECT id, campaign_name, platform, impressions, clicks, spend, conversions, revenue, ctr, conversion_rate, cpa, roas, roi, ai_analysis, created_at FROM campaign_metrics ORDER BY created_at DESC LIMIT 30").all();
+    return json({ campaigns: rows.results || [] });
+  }
+
+  if (url.pathname === "/marketing/campaign-metrics" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
+    const campaignName = typeof body.campaign_name === "string" ? body.campaign_name.trim().slice(0, 120) : "";
+    const platform = ["instagram","tiktok","youtube","facebook","google","other"].includes(body.platform) ? body.platform : "other";
+    const impressions = Number(body.impressions);
+    const clicks = Number(body.clicks);
+    const spend = Number(body.spend);
+    const conversions = Number(body.conversions);
+    const revenue = Number(body.revenue);
+    if (!campaignName || !Number.isSafeInteger(impressions) || impressions < 1 ||
+        !Number.isSafeInteger(clicks) || clicks < 0 || clicks > impressions ||
+        !Number.isFinite(spend) || spend < 0 || spend > 100000000 ||
+        !Number.isSafeInteger(conversions) || conversions < 0 || conversions > clicks ||
+        !Number.isFinite(revenue) || revenue < 0 || revenue > 1000000000) {
+      return json({ error: "Confira os dados: informe campanha, impressões maiores que zero, cliques até o total de impressões, conversões até o total de cliques e valores financeiros não negativos em R$." }, 400);
+    }
+    const ctr = Math.round((clicks / impressions) * 10000) / 100;
+    const conversionRate = clicks ? Math.round((conversions / clicks) * 10000) / 100 : 0;
+    const cpa = conversions ? Math.round((spend / conversions) * 100) / 100 : null;
+    const roas = spend > 0 ? Math.round((revenue / spend) * 100) / 100 : null;
+    const roi = spend > 0 ? Math.round(((revenue - spend) / spend) * 10000) / 100 : null;
+    const metrics = { campaign_name: campaignName, platform, impressions, clicks, spend, conversions, revenue, ctr, conversion_rate: conversionRate, cpa, roas, roi, currency: "BRL" };
+    let analysis = "Dados registrados. Ainda não foi possível gerar recomendações com IA; confira CTR, conversão, custo por aquisição e retorno com o contexto da sua campanha.";
+    if (env.AI) {
+      try {
+        const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+          messages: [
+            { role: "system", content: "Você é analista sênior de marketing de performance. Interprete métricas sem inventar benchmarks universais nem atribuir causalidade. Priorize próximos testes baratos e indique quando a amostra é pequena." },
+            { role: "user", content: "Analise esta campanha em português brasileiro: " + JSON.stringify(metrics) + ". Explique o que os números permitem concluir e o que não permitem. Dê diagnóstico de CTR, taxa de conversão, CPA, ROAS e ROI; priorize até 3 ações práticas; proponha um teste A/B por vez; indique quais dados ainda faltam (margem, comissão líquida, reembolsos, janela de atribuição, período, tamanho de amostra). Se gasto for zero, explique que ROAS/ROI não se aplicam. Receita não é lucro. Não recomende aumentar orçamento sem comprovar margem e estabilidade." }
+          ],
+          max_tokens: 900,
+          temperature: 0.25
+        });
+        if (typeof generated?.response === "string" && generated.response.trim()) analysis = generated.response.trim().slice(0, 7000);
+      } catch (error) { console.error("Campaign metrics AI error", error); }
+    }
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    await env.DB.prepare("INSERT INTO campaign_metrics (id, campaign_name, platform, impressions, clicks, spend, conversions, revenue, ctr, conversion_rate, cpa, roas, roi, ai_analysis, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .bind(id, campaignName, platform, impressions, clicks, spend, conversions, revenue, ctr, conversionRate, cpa, roas, roi, analysis, createdAt).run();
+    await record(env, "marketing_campaign_metrics_saved", JSON.stringify({ id, platform, ctr, conversionRate, roas }));
+    return json({ ...metrics, id, ai_analysis: analysis, created_at: createdAt, notice: "Métricas registradas a partir dos valores informados. Receita não é lucro; ROAS e ROI não consideram automaticamente comissão líquida, taxas, impostos, devoluções ou custos indiretos." }, 201);
+  }
+
   if (url.pathname === "/marketing/competitor-analysis" && request.method === "POST") {
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
     if (!env.TAVILY_API_KEY) return json({ error: "Pesquisa competitiva indisponível: configure a chave Tavily no Worker." }, 503);
