@@ -766,15 +766,16 @@ marketSearchForm?.addEventListener('submit',async event=>{
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||'Não foi possível pesquisar produtos.');
   if(!Array.isArray(data.products)||!data.products.length){marketSearchStatus.textContent='Nenhum anúncio encontrado para esta pesquisa.';return;}
-  marketSearchStatus.textContent='Encontrados '+data.products.length+' anúncios. Total informado pela plataforma: '+(data.total||data.products.length)+'.';
+  marketSearchStatus.textContent='Encontrados '+data.products.length+' anúncios, ordenados pelas vendas informadas. Total na busca: '+(data.total||data.products.length)+'. '+(data.notice||'');
   for(const product of data.products){
    const card=document.createElement('article');card.style.cssText='display:flex;gap:12px;padding:12px;border:1px solid #454545;border-radius:12px;background:#292929;align-items:flex-start';
    if(product.thumbnail&&/^https:\/\//.test(product.thumbnail)){const img=document.createElement('img');img.src=product.thumbnail;img.alt='';img.loading='lazy';img.style.cssText='width:76px;height:76px;object-fit:contain;border-radius:8px;background:#fff';card.append(img);}
    const body=document.createElement('div');body.style.minWidth='0';body.style.flex='1';
    const title=document.createElement('b');title.textContent=product.title;body.append(title);
    const meta=document.createElement('p');meta.style.cssText='font-size:.85rem;color:#bbb!important;margin:6px 0';
-   meta.textContent=(product.price===null?'Preço indisponível':new Intl.NumberFormat('pt-BR',{style:'currency',currency:product.currency||'BRL'}).format(product.price))+(product.sold_quantity===null?'':' • '+product.sold_quantity+' vendidos')+(product.condition?' • '+(product.condition==='new'?'Novo':'Usado'):'');
+   meta.textContent=(product.price===null?'Preço indisponível':new Intl.NumberFormat('pt-BR',{style:'currency',currency:product.currency||'BRL'}).format(product.price))+(product.sold_quantity===null?'':' • '+product.sold_quantity+' vendas informadas')+(product.condition?' • '+(product.condition==='new'?'Novo':'Usado'):'')+(product.sales_rank===null?'':' • posição '+product.sales_rank+' por vendas');
    body.append(meta);
+   const signal=document.createElement('p');signal.style.cssText='font-size:.82rem;color:#b9d9ff!important;margin:4px 0 7px';signal.textContent=product.demand_signal||'Sem sinal de vendas disponível';body.append(signal);
    if(product.permalink&&/^https:\/\//.test(product.permalink)){const link=document.createElement('a');link.href=product.permalink;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Ver anúncio';body.append(link);}
    card.append(body);marketSearchResults.append(card);
   }
