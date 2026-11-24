@@ -312,12 +312,12 @@ async function handle(request, env) {
         const response = await fetch(file.url,{signal:AbortSignal.timeout(7000),headers:{"Accept":"text/plain"}});
         if (!response.ok) throw new Error("HTTP "+response.status);
         const source = (await response.text()).slice(0,180000);
-        const lines = source.split("\\n");
+        const lines = source.split("\n");
         const selected = new Set();
         for (let i=0;i<lines.length;i++) if(file.patterns.some(pattern=>pattern.test(lines[i]))) {
           for(let j=Math.max(0,i-3);j<=Math.min(lines.length-1,i+18);j++) selected.add(j);
         }
-        const excerpt = [...selected].sort((a,b)=>a-b).map(i=>(i+1)+": "+lines[i]).join("\\n").slice(0,6500);
+        const excerpt = [...selected].sort((a,b)=>a-b).map(i=>(i+1)+": "+lines[i]).join("\n").slice(0,6500);
         repositorySnapshot.push({path:file.path,ok:true,excerpt:excerpt||"Nenhum trecho correspondente encontrado."});
       } catch(error) {
         repositorySnapshot.push({path:file.path,ok:false,error:String(error?.message||"falha ao ler repositório").slice(0,180)});
