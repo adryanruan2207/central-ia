@@ -74,19 +74,19 @@ test("Worker e scripts JavaScript da interface não possuem erros de sintaxe", (
   });
   assert.equal(workerCheck.status, 0, workerCheck.stderr || workerCheck.stdout);
 
-  const scripts = [...ui.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)];
+  const scripts = [...ui.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
   const executable = scripts.filter(([, attrs]) =>
-    !/\\bsrc\\s*=/.test(attrs) &&
-    !/\\btype\\s*=\\s*["'](?:application\\/json|application\\/ld\\+json)["']/i.test(attrs)
+    !/\bsrc\s*=/.test(attrs) &&
+    !/\btype\s*=\s*["'](?:application\/json|application\/ld\+json)["']/i.test(attrs)
   );
   assert.ok(executable.length > 0, "Nenhum script JavaScript inline encontrado");
   for (let i = 0; i < executable.length; i++) {
-    new vm.Script(executable[i][2], { filename: `index.html:inline-script-${i + 1}` });
+    new vm.Script(executable[i][2], { filename: \`index.html:inline-script-\${i + 1}\` });
   }
 });
 
 test("implantação do Worker depende da aprovação dos testes", async () => {
   const workflow = await readFile(new URL("../.github/workflows/deploy-worker.yml", import.meta.url), "utf8");
-  assert.match(workflow, /node --test tests\\/\\*\\.test\\.mjs/);
-  assert.match(workflow, /deploy:\\n\\s+needs: test/);
+  assert.match(workflow, /node --test tests\/\*\.test\.mjs/);
+  assert.match(workflow, /deploy:\n\s+needs: test/);
 });
