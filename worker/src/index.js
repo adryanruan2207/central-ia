@@ -1017,7 +1017,7 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
 
   if (url.pathname === "/tasks" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT id, title, task_type, status, requires_approval, result, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT 100"
+      "SELECT id, title, task_type, status, requires_approval, attempts, result, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT 100"
     ).all();
     return json({ tasks: result.results || [] });
   }
