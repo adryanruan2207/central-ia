@@ -500,7 +500,7 @@ body.show-chat .intro{display:flex!important}
 <button id="open-resources" type="button">☰ Todos os recursos</button>
 </div>
 <section id="home-dashboard" aria-label="Painel de mercados">
- <div class="dashboard-title"><div><h1>Painel de mercados</h1><p>Visão geral de trading, criptoativos e oportunidades de mercado.</p></div><span class="live-pill">● MERCADOS</span></div>
+ <div class="dashboard-title"><div><h1>Painel de mercados</h1><p>Visão geral de trading, criptoativos e oportunidades de mercado.</p></div><button id="open-ai-chat" type="button" style="border:0;border-radius:12px;padding:12px 16px;background:linear-gradient(115deg,#765cf6,#268fe8);color:#fff;font-weight:700;white-space:nowrap">✦ Conversar com IA</button></div>
  <div class="market-kpis">
   <article class="market-kpi"><span>Resultado de trading</span><strong id="trading-profit-value">Sem operações</strong><small id="trading-profit-note">Aguardando histórico real de operações</small></article>
   <article class="market-kpi"><span>Mercado cripto</span><strong>Ao vivo*</strong><small>Dados fornecidos pelo TradingView</small></article>
@@ -1669,6 +1669,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  const setView=(view)=>{document.body.classList.toggle('show-chat',view==='chat');document.body.classList.remove('sidebar-open');if(view==='chat')document.getElementById('chat-message')?.focus();};
  home?.addEventListener('click',()=>setView('home'));
  chat?.addEventListener('click',()=>setView('chat'));
+ document.getElementById('open-ai-chat')?.addEventListener('click',()=>setView('chat'));
  document.getElementById('new-chat')?.addEventListener('click',()=>setView('chat'));
 })();
 </script>
