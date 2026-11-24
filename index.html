@@ -1113,7 +1113,19 @@ marketSearchForm?.addEventListener('submit',async event=>{
    body.append(meta);
    const signal=document.createElement('p');signal.style.cssText='font-size:.82rem;color:#b9d9ff!important;margin:4px 0 7px';signal.textContent=product.demand_signal||'Sem sinal de vendas disponível';body.append(signal);
    if(product.permalink&&/^https:\/\//.test(product.permalink)){const link=document.createElement('a');link.href=product.permalink;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Ver anúncio';body.append(link);}
-   card.append(body);marketSearchResults.append(card);
+   const shortlist=document.createElement('button');shortlist.type='button';shortlist.textContent='＋ Adicionar à seleção';shortlist.style.cssText='margin-top:10px;padding:9px 12px;border-radius:9px;border:1px solid #6478b9;background:#202d50;color:#fff;cursor:pointer';
+   shortlist.addEventListener('click',async()=>{
+    const token=localStorage.getItem('central_ia_session_v1');if(!token){marketSearchStatus.textContent='Entre novamente para salvar produtos.';return;}
+    shortlist.disabled=true;shortlist.textContent='Salvando…';
+    const notes=['Adicionado pela pesquisa pública do Mercado Livre.','Preço observado: '+(product.price===null?'não informado':product.price+' '+(product.currency||'BRL')),'Vendas informadas pelo anúncio: '+(product.sold_quantity===null?'não disponíveis':product.sold_quantity),'Sinal: '+(product.demand_signal||'sem dado') ,'Data da captura: '+new Date().toLocaleString('pt-BR')].join('\\n');
+    try{
+     const saved=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/products',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name:product.title,marketplace:'mercado livre',product_url:product.permalink||'',commission_rate:null,notes})});
+     const result=await saved.json().catch(()=>({}));if(!saved.ok)throw Error(result.error||'Não foi possível salvar.');
+     shortlist.textContent=result.duplicate?'✓ Já estava na seleção':'✓ Adicionado à seleção';shortlist.style.background='#17452d';
+     if(typeof loadAffiliateProducts==='function')await loadAffiliateProducts();
+    }catch(error){shortlist.disabled=false;shortlist.textContent='Tentar novamente';marketSearchStatus.textContent=error.message;}
+   });
+   body.append(shortlist);card.append(body);marketSearchResults.append(card);
   }
  }catch(error){marketSearchStatus.textContent=error.message;}
  finally{submit.disabled=false;}
