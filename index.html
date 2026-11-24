@@ -605,6 +605,7 @@ body.show-chat .intro{display:flex!important}
 <textarea id="developer-change-request" rows="3" maxlength="1200" placeholder="Ex.: Melhorar o tratamento de falhas de conexão sem remover as proteções existentes." style="width:100%;box-sizing:border-box"></textarea>
 <button type="button" id="developer-proposal-button" style="margin-top:8px">Preparar proposta de alteração</button>
 <button type="button" id="developer-proposals-history-button" style="margin:8px 0">Ver propostas anteriores</button>
+<button type="button" id="developer-patches-history-button" style="margin:8px 0">Ver histórico e integridade dos patches</button>
 <p id="developer-proposal-status" role="status" aria-live="polite"></p>
 <div id="developer-proposal-output" aria-live="polite"></div>
 </div>
@@ -1088,6 +1089,25 @@ async function prepareDeveloperPatch(proposalId){
   output.prepend(card);status.textContent='Patch preparado e salvo para revisão. Nenhum arquivo foi alterado.';
  }catch(error){status.textContent='Não foi possível preparar o patch: '+(error.message||'erro');}
 }
+async function loadDeveloperPatchHistory(){
+ const status=document.getElementById('developer-proposal-status'),output=document.getElementById('developer-proposal-output');
+ if(!sessionToken){status.textContent='Entre para consultar o histórico de patches.';return;}
+ status.textContent='Consultando histórico e integridade dos patches…';output.replaceChildren();
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patches?limit=20',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  if(!data.patches?.length){status.textContent='Nenhum patch candidato salvo.';return;}
+  status.textContent='Últimos '+data.count+' patches • arquivo atual '+(data.integrity_checked?'verificado por SHA-256':'não pôde ser verificado agora')+'.';
+  for(const patch of data.patches){
+   const card=document.createElement('details');card.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';
+   const summary=document.createElement('summary');summary.textContent=patch.path+' • '+new Date(patch.created_at).toLocaleString('pt-BR')+' • '+(patch.integrity_status==='original_unchanged'?'arquivo original sem mudanças':patch.integrity_status==='file_changed_since_patch'?'arquivo mudou após o patch':patch.integrity_status==='legacy_without_hash'?'patch antigo sem hash original':'integridade não verificada');
+   const meta=document.createElement('p');meta.textContent='ID: '+patch.patch_id+' • Status: '+patch.status+' • SHA-256 original: '+(patch.original_sha256||'não registrado')+' • SHA-256 candidato: '+(patch.candidate_sha256||'não registrado');
+   const pre=document.createElement('pre');pre.textContent=patch.diff;pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;font-size:12px';
+   card.append(summary,meta,pre);output.append(card);
+  }
+ }catch(error){status.textContent='Não foi possível carregar o histórico: '+(error.message||'erro');}
+}
+document.getElementById('developer-patches-history-button')?.addEventListener('click',loadDeveloperPatchHistory);
+
 async function reviewDeveloperProposal(proposalId,decision){
  const status=document.getElementById('developer-proposal-status');
  if(!sessionToken){status.textContent='Entre para revisar propostas.';return;}
