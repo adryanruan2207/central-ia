@@ -368,11 +368,16 @@ async function handle(request, env) {
     const department = departments.find(d => d.keys.some(k => lower.includes(k)))?.name || "Assistente geral";
     const wantsResearch = !image && /(pesquis|pesquise|pesquisar|atual|hoje|notícia|concorrente|concorrência|tendência|preço atual|oportunidade|fornecedor|fonte oficial|compare|comparar)/i.test(message);
     let sources = [];
-    if (wantsResearch && env.TAVILY_API_KEY) {
+    let researchStatus = "not_requested";
+    if (wantsResearch && !env.TAVILY_API_KEY) {
+      researchStatus = "not_configured";
+    } else if (wantsResearch) {
       try {
         const search = await searchWebWithTavily(message, env);
         sources = search.results;
+        researchStatus = sources.length ? "completed" : "no_results";
       } catch (error) {
+        researchStatus = "failed";
         console.error("Chat web research unavailable", error);
       }
     }
@@ -427,7 +432,7 @@ FORMATO: português brasileiro claro, direto e prático. Em problemas complexos,
     const answer = typeof result?.response === "string" ? result.response : "";
     if (!answer) return json({ error: "O modelo não retornou uma resposta válida" }, 502);
     await record(env, image ? "ai_image_analysis" : "ai_chat", JSON.stringify({ department, researched: sources.length }));
-    return json({ model, department, sources: sources.map(({ title, url, published_date }) => ({ title, url, published_date })), answer });
+    return json({ model, department, research_status: researchStatus, sources: sources.map(({ title, url, published_date }) => ({ title, url, published_date })), answer });
   }
 
   if (url.pathname === "/market/research" && request.method === "GET") {
