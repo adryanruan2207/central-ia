@@ -142,12 +142,25 @@ async function handle(request, env) {
   }
 
   if (url.pathname === "/automation/status" && request.method === "GET") {
-    const [heartbeat, counts] = await Promise.all([
+    const [heartbeat, counts, productCount, programCounts, publicationCounts, recentCompleted] = await Promise.all([
       env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
-      env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all()
+      env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all(),
+      env.DB.prepare("SELECT COUNT(*) AS total FROM affiliate_products").first(),
+      env.DB.prepare("SELECT status, COUNT(*) AS total FROM affiliate_programs GROUP BY status").all(),
+      env.DB.prepare("SELECT status, COUNT(*) AS total FROM publication_queue GROUP BY status").all(),
+      env.DB.prepare("SELECT title, result, updated_at FROM tasks WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 3").all()
     ]);
     const tasks = {};
     for (const item of (counts.results || [])) tasks[item.status] = Number(item.total || 0);
+    const programs = {};
+    for (const item of (programCounts.results || [])) programs[item.status] = Number(item.total || 0);
+    const publications = {};
+    for (const item of (publicationCounts.results || [])) publications[item.status] = Number(item.total || 0);
+    const blockers = [];
+    if (!env.TAVILY_API_KEY) blockers.push("Pesquisa web automática depende da configuração da chave Tavily.");
+    if (!env.AI) blockers.push("Workers AI não está disponível para análise e criação de conteúdo.");
+    blockers.push("Publicação externa depende de conectar e autorizar as APIs oficiais de cada canal.");
+    blockers.push("Inscrição em programas e geração de links afiliados dependem de aprovação e integração oficial.");
     return json({
       service: "CENTRAL IA",
       automation: "cloud-cron",
@@ -160,6 +173,18 @@ async function handle(request, env) {
         failed: tasks.failed || 0,
         needs_review: tasks.needs_review || 0
       },
+      pipeline: {
+        products_registered: Number(productCount?.total || 0),
+        affiliate_programs: programs,
+        publication_queue: publications,
+        external_publication: "requires_official_account_connection",
+        recent_completed: (recentCompleted.results || []).map(item => ({
+          title: item.title,
+          result_excerpt: String(item.result || "").slice(0, 260),
+          updated_at: item.updated_at
+        }))
+      },
+      blockers,
       checked_at: new Date().toISOString()
     });
   }
