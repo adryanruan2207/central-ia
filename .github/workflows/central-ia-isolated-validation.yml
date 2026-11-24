@@ -1,6 +1,9 @@
 name: CENTRAL IA Isolated Validation
 
 on:
+  push:
+    branches:
+      - "central-ia-test/**"
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -20,10 +23,28 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Run repository safety tests
+        run: node --test tests/*.test.mjs
+
+      - name: Validate Wrangler TOML configuration
+        run: |
+          python - <<'PY'
+          import pathlib, tomllib
+          config = tomllib.loads(pathlib.Path("worker/wrangler.toml").read_text())
+          assert config.get("name") == "central-ia-worker", "Worker name mismatch"
+          assert config.get("main") == "src/index.js", "Worker entrypoint mismatch"
+          assert config.get("compatibility_date") == "2026-11-19", "Compatibility date mismatch"
+          d1 = config.get("d1_databases", [])
+          assert any(x.get("binding") == "DB" and x.get("database_name") == "central-ia-db" for x in d1), "D1 binding missing"
+          ai = config.get("ai", {})
+          assert ai.get("binding") == "AI", "Workers AI binding missing"
+          print("Wrangler TOML valid; required bindings present.")
+          PY
+
       - name: Install Wrangler
         run: npm install --global wrangler
 
-      - name: Validate Worker bundle and configuration without deployment
+      - name: Validate Worker bundle without deployment
         working-directory: worker
         run: wrangler deploy --dry-run --outdir /tmp/central-ia-dry-run
 
