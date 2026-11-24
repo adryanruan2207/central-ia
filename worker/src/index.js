@@ -1194,7 +1194,7 @@ export default {
               "SELECT name, marketplace, product_url, notes FROM affiliate_products WHERE status = 'research' ORDER BY updated_at DESC LIMIT 40"
             ).all();
             const candidateList = (candidates.results || []).map(item => {
-              const match = String(item.notes || "").match(/Vendas informadas pelo anúncio:\\s*([0-9]+)/i);
+              const match = String(item.notes || "").match(/Vendas informadas pelo anúncio:\s*([0-9]+)/i);
               return { name: item.name, marketplace: item.marketplace, product_url: item.product_url, public_sales_signal: match ? Number(match[1]) : null };
             }).sort((a, b) => (b.public_sales_signal ?? -1) - (a.public_sales_signal ?? -1)).slice(0, 8);
             const plan = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
