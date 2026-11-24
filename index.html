@@ -970,7 +970,8 @@ async function checkPublicWorkerHealth(){
  if(!line)return;
  try{
   const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/health',{},2);
-  line.textContent='Servidor na nuvem: '+(data.status==='online'?'RESPONDENDO':'COM PENDÊNCIAS')+' • Banco de dados: '+(data.database?.ok?'conectado':'indisponível')+' • Workers AI: '+(data.workers_ai_configured?'configurado':'não configurado')+' • Tavily: '+(data.web_research_configured?'chave cadastrada (conexão ainda precisa de teste)':'chave não cadastrada')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
+  const schema=data.database?.schema_ready===true?'tabelas essenciais OK':data.database?.schema_ready===false?'faltam tabelas essenciais':'estrutura não verificada';
+  line.textContent='Servidor na nuvem: '+(data.status==='online'?'RESPONDENDO':'COM PENDÊNCIAS')+' • Banco: '+(data.database?.ok?'conectado':'indisponível')+' • Estrutura: '+schema+' • Workers AI: '+(data.workers_ai_configured?'configurado':'não configurado')+' • Tavily: '+(data.web_research_configured?'chave cadastrada (conexão ainda precisa de teste)':'chave não cadastrada')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
  }catch(error){line.textContent='Servidor na nuvem: '+(error.message||'não foi possível verificar');}
 }
 async function testTavilyNow(){
