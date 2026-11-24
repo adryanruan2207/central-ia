@@ -1384,6 +1384,15 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
 
 <script>
 (()=>{
+ // Fechamento independente do painel de recursos: não depende do script principal.
+ const resourcesPanel=document.getElementById('resource-panel');
+ const resourcesClose=document.getElementById('close-resources');
+ if(resourcesPanel&&resourcesClose&&!resourcesClose.dataset.centralCloseBound){
+  resourcesClose.dataset.centralCloseBound='1';
+  resourcesClose.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();resourcesPanel.classList.remove('open');resourcesPanel.setAttribute('aria-hidden','true');});
+  resourcesPanel.addEventListener('click',e=>{if(e.target===resourcesPanel){resourcesPanel.classList.remove('open');resourcesPanel.setAttribute('aria-hidden','true');}});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&resourcesPanel.classList.contains('open')){resourcesPanel.classList.remove('open');resourcesPanel.setAttribute('aria-hidden','true');}});
+ }
  const topButton=document.getElementById('top-more-button');
  const topMenu=document.getElementById('top-more-menu');
  if(topButton&&topMenu){
