@@ -3,14 +3,13 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 });
 
 function cors(request, response) {
-  const origin = request.headers.get("Origin") || "";
   const headers = new Headers(response.headers);
-  if (origin === "https://adryanruan2207.github.io") {
-    headers.set("Access-Control-Allow-Origin", origin);
-    headers.set("Vary", "Origin");
-  }
+  // A API usa token Bearer e não usa cookies; wildcard evita bloqueios
+  // CORS em navegadores móveis e em eventuais domínios de pré-visualização.
+  headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  headers.set("Access-Control-Max-Age", "86400");
   return new Response(response.body, { status: response.status, headers });
 }
 
