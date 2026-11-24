@@ -1089,6 +1089,25 @@ async function prepareDeveloperPatch(proposalId){
   output.prepend(card);status.textContent='Patch preparado e salvo para revisão. Nenhum arquivo foi alterado.';
  }catch(error){status.textContent='Não foi possível preparar o patch: '+(error.message||'erro');}
 }
+async function loadDeveloperPatchVerificationHistory(patchId,resultNode,button){
+ if(!sessionToken){resultNode.textContent='Entre para consultar o histórico.';return;}
+ button.disabled=true;resultNode.textContent='Carregando verificações anteriores…';
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patch/verification-history?patch_id='+encodeURIComponent(patchId),{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  resultNode.replaceChildren();
+  if(!data.verifications?.length){resultNode.textContent='Este patch ainda não possui verificações registradas.';return;}
+  const heading=document.createElement('strong');heading.textContent='Últimas '+data.count+' verificações';resultNode.append(heading);
+  for(const item of data.verifications){
+   const block=document.createElement('details');block.style.cssText='margin:6px 0;padding:8px;border:1px solid #52659a;border-radius:8px';
+   const summary=document.createElement('summary');summary.textContent=new Date(item.checked_at).toLocaleString('pt-BR')+' • '+(item.verified?'Aprovada':'Com pendências')+' • '+item.passed+'/'+item.total;
+   const list=document.createElement('ul');
+   for(const check of item.checks||[]){const li=document.createElement('li');li.textContent=(check.passed?'✓ ':'✗ ')+check.name+(check.informational?' (não confirmado)':'');list.append(li);}
+   block.append(summary,list);resultNode.append(block);
+  }
+ }catch(error){resultNode.textContent='Não foi possível consultar o histórico: '+(error.message||'erro');}
+ finally{button.disabled=false;button.textContent='Ver histórico de verificações';}
+}
+
 async function verifyDeveloperPatch(patchId,resultNode,button){
  if(!sessionToken){resultNode.textContent='Entre para verificar o patch.';return;}
  button.disabled=true;resultNode.textContent='Verificando hash, configurações e arquivo original…';
@@ -1118,8 +1137,10 @@ async function loadDeveloperPatchHistory(){
    const meta=document.createElement('p');meta.textContent='ID: '+patch.patch_id+' • Status: '+patch.status+' • SHA-256 original: '+(patch.original_sha256||'não registrado')+' • SHA-256 candidato: '+(patch.candidate_sha256||'não registrado');
    const pre=document.createElement('pre');pre.textContent=patch.diff;pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;font-size:12px';
    const verify=document.createElement('button');verify.type='button';verify.textContent='Verificar patch';verify.addEventListener('click',()=>verifyDeveloperPatch(patch.patch_id,result,verify));
+   const history=document.createElement('button');history.type='button';history.textContent='Ver histórico de verificações';history.style.cssText='margin:6px';
    const result=document.createElement('div');result.setAttribute('aria-live','polite');result.style.cssText='margin-top:8px';
-   card.append(summary,meta,pre,verify,result);output.append(card);
+   history.addEventListener('click',()=>loadDeveloperPatchVerificationHistory(patch.patch_id,result,history));
+   card.append(summary,meta,pre,verify,history,result);output.append(card);
   }
  }catch(error){status.textContent='Não foi possível carregar o histórico: '+(error.message||'erro');}
 }
