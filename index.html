@@ -509,6 +509,21 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <div id="campaign-metrics-history" style="display:grid;gap:8px;margin-top:9px"></div>
 <div class="notice">Use dados reais e o mesmo período de atribuição para comparar campanhas. ROAS é receita dividida pelo gasto, não lucro. Para afiliados, registre a comissão efetivamente aprovada/recebida, não o valor total do produto.</div>
 </div></div>
+<div class="resource-section" id="campaign-planner"><h3>🧠 Planejador estratégico automático</h3><div class="card">
+<p>Analisa produto, público, mercado e concorrentes em uma única etapa. A IA decide se vale testar, pesquisar mais ou não priorizar e monta um plano de campanha com ações gratuitas.</p>
+<form id="campaign-plan-form" style="display:grid;gap:10px;margin-top:14px">
+<label>Produto ou categoria<input id="campaign-plan-product" maxlength="180" required placeholder="Ex.: garrafa térmica de aço inox" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Público-alvo<input id="campaign-plan-audience" maxlength="300" placeholder="Ex.: pessoas que levam café para o trabalho" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label>Canal pretendido<select id="campaign-plan-channel" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"><option value="instagram">Instagram Reels</option><option value="tiktok">TikTok</option><option value="youtube_shorts">YouTube Shorts</option><option value="facebook">Facebook</option><option value="blog">Blog / conteúdo</option><option value="other">Outro</option></select></label>
+<label>Restrições e observações (opcional)<textarea id="campaign-plan-constraints" maxlength="800" rows="2" placeholder="Ex.: sem orçamento, apenas divulgação orgânica" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></textarea></label>
+<button id="campaign-plan-submit" type="submit">Analisar mercado e montar plano completo</button>
+</form>
+<p id="campaign-plan-status" role="status" aria-live="polite"></p>
+<pre id="campaign-plan-result" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.55;background:#202020;border:1px solid #454545;border-radius:10px;padding:13px"></pre>
+<div id="campaign-plan-sources" style="display:grid;gap:8px"></div>
+<button id="campaign-plan-to-script" type="button" class="secondary" style="display:none">Usar produto e público no estúdio de vídeos</button>
+<div class="notice">Pesquisa baseada em fontes públicas disponíveis. A IA prepara recomendações e rascunhos; não cria contas, não faz compras, não publica e não garante resultados. Comissões e regras precisam ser confirmadas no site oficial do programa.</div>
+</div></div>
 <div class="resource-section" id="competitor-intelligence"><h3>🕵️ Inteligência competitiva de anúncios</h3><div class="card">
 <p>A IA pesquisa anúncios e páginas públicas de concorrentes, identifica estratégias observáveis e propõe campanhas originais para testar. Não acessa contas privadas nem métricas internas dos concorrentes.</p>
 <form id="competitor-analysis-form" style="display:grid;gap:10px;margin-top:14px">
@@ -965,6 +980,40 @@ videoScriptForm?.addEventListener('submit',async event=>{
  finally{submit.disabled=false;}
 });
 videoScriptCopy?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(videoScriptResult.textContent);videoScriptStatus.textContent='Roteiro copiado.';}catch(error){videoScriptStatus.textContent='Não foi possível copiar automaticamente neste navegador.';}});
+const campaignPlanForm=document.getElementById('campaign-plan-form');
+const campaignPlanStatus=document.getElementById('campaign-plan-status');
+const campaignPlanResult=document.getElementById('campaign-plan-result');
+const campaignPlanSources=document.getElementById('campaign-plan-sources');
+let latestCampaignPlanProduct='';
+campaignPlanForm?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!sessionToken){campaignPlanStatus.textContent='Entre novamente para planejar campanhas.';return;}
+ const product=document.getElementById('campaign-plan-product').value.trim();
+ const audience=document.getElementById('campaign-plan-audience').value.trim();
+ const channel=document.getElementById('campaign-plan-channel').value;
+ const constraints=document.getElementById('campaign-plan-constraints').value.trim();
+ const submit=document.getElementById('campaign-plan-submit');submit.disabled=true;
+ campaignPlanStatus.textContent='Pesquisando mercado e concorrentes e avaliando a oportunidade…';
+ campaignPlanResult.style.display='none';campaignPlanSources.replaceChildren();document.getElementById('campaign-plan-to-script').style.display='none';
+ try{
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/campaign-plan',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({product,audience,channel,constraints})});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(data.error||('Falha ao montar plano (HTTP '+response.status+').'));
+  latestCampaignPlanProduct=product;
+  campaignPlanResult.textContent=data.plan+'\n\nSTATUS: '+data.status+'\n\nLIMITAÇÃO: '+data.notice;campaignPlanResult.style.display='block';
+  for(const source of (data.sources||[])){if(!source.url||!/^https:\/\//.test(source.url))continue;const link=document.createElement('a');link.href=source.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=source.title+(source.published_date?' • '+source.published_date:'');link.style.cssText='display:block;padding:9px;border:1px solid #444;border-radius:8px;overflow-wrap:anywhere';campaignPlanSources.append(link);}
+  document.getElementById('campaign-plan-to-script').style.display='inline-flex';
+  campaignPlanStatus.textContent='Plano estratégico concluído com '+(data.sources||[]).length+' fontes públicas. Revise as evidências antes de agir.';
+ }catch(error){campaignPlanStatus.textContent=error.message;}
+ finally{submit.disabled=false;}
+});
+document.getElementById('campaign-plan-to-script')?.addEventListener('click',()=>{
+ document.getElementById('video-product').value=latestCampaignPlanProduct;
+ document.getElementById('video-audience').value=document.getElementById('campaign-plan-audience').value;
+ document.getElementById('video-platform').value=document.getElementById('campaign-plan-channel').value==='youtube_shorts'?'youtube_shorts':document.getElementById('campaign-plan-channel').value==='tiktok'?'tiktok':document.getElementById('campaign-plan-channel').value==='facebook'?'facebook':'instagram';
+ document.getElementById('creative-studio').scrollIntoView({behavior:'smooth',block:'start'});
+ document.getElementById('video-benefits').focus();
+});
 const marketSearchForm=document.getElementById('market-search-form');
 const marketSearchStatus=document.getElementById('market-search-status');
 const marketSearchResults=document.getElementById('market-search-results');
