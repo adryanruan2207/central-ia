@@ -852,17 +852,28 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
       if (sales !== null && sales >= 1000 && completeness >= 66) priority = "Investigar primeiro";
       else if (sales !== null && sales >= 100 && completeness >= 66) priority = "Investigar";
       else if (sales !== null && sales > 0) priority = "Validar demanda";
+      const hasAffiliateLink = /^https:\/\//i.test(String(item.affiliate_url || ""));
+      const hasProgram = Boolean(item.affiliate_program_id);
+      const campaignStage = hasAffiliateLink && hasProgram && item.commission_rate !== null
+        ? "Preparar revisão da campanha"
+        : "Pesquisa — ainda não promover";
+      const nextSteps = [
+        "Confirmar se o produto e o vendedor continuam ativos e disponíveis",
+        "Verificar comissão, elegibilidade e regras do programa na fonte oficial",
+        "Comparar preço total com frete e concorrentes equivalentes",
+        "Calcular margem líquida incluindo taxas, devoluções e impostos",
+        "Validar características e benefícios em fontes oficiais antes de escrever anúncios"
+      ];
+      if (!hasAffiliateLink) nextSteps.unshift("Obter e validar um link rastreável pelo programa oficial; não usar link comum como se fosse afiliado");
+      if (!hasProgram) nextSteps.unshift("Vincular um programa de afiliados aprovado");
       return {
         id: item.id, name: item.name, marketplace: item.marketplace, product_url: item.product_url,
         affiliate_url: item.affiliate_url, affiliate_program_id: item.affiliate_program_id,
         commission_rate: item.commission_rate, price_observed: price, public_sales_count: sales,
         evidence, evidence_completeness: completeness, priority, flags,
-        next_steps: [
-          "Confirmar se o produto e o vendedor continuam ativos e disponíveis",
-          "Verificar comissão e regras do programa de afiliados na fonte oficial",
-          "Comparar preço, frete e concorrentes equivalentes",
-          "Calcular margem líquida considerando taxas, devoluções e impostos antes de promover"
-        ],
+        campaign_stage: campaignStage,
+        campaign_can_be_prepared: hasAffiliateLink && hasProgram && item.commission_rate !== null,
+        next_steps: nextSteps,
         updated_at: item.updated_at
       };
     });
