@@ -596,6 +596,9 @@ body.show-chat .intro{display:flex!important}
 <p id="developer-plan-status" role="status" aria-live="polite"></p>
 <pre id="developer-plan-output" style="white-space:pre-wrap;overflow-wrap:anywhere;color:#e5eaf7!important"></pre>
 <button type="button" id="developer-history-button" style="margin-top:8px">Ver planos anteriores</button>
+<button type="button" id="developer-audit-button" style="margin:8px 0">Auditar arquivos do projeto</button>
+<p id="developer-audit-status" role="status" aria-live="polite"></p>
+<div id="developer-audit-results" aria-live="polite"></div>
 <div id="developer-plan-history" aria-live="polite"></div>
 </section>
 <form id="task-form" style="display:grid;gap:10px;margin-top:14px">
@@ -1022,6 +1025,28 @@ async function loadDeveloperPlanHistory(){
  }catch(error){target.textContent='Não foi possível carregar o histórico: '+(error.message||'erro');}
 }
 document.getElementById('developer-history-button')?.addEventListener('click',loadDeveloperPlanHistory);
+
+async function runDeveloperRepositoryAudit(){
+ const button=document.getElementById('developer-audit-button');
+ const status=document.getElementById('developer-audit-status');
+ const target=document.getElementById('developer-audit-results');
+ if(!sessionToken){status.textContent='Entre para executar a auditoria.';return;}
+ button.disabled=true;status.textContent='Inspecionando arquivos públicos do repositório…';target.replaceChildren();
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/audit',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  status.textContent=(data.ok?'Auditoria concluída: ':'Auditoria encontrou pontos pendentes: ')+data.passed+'/'+data.total+' verificações aprovadas. Modo somente leitura.';
+  for(const file of (data.files||[])){
+   const section=document.createElement('section');section.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';
+   const heading=document.createElement('strong');heading.textContent=file.path+(file.ok?' • lido':' • falha na leitura');section.append(heading);
+   if(file.error){const error=document.createElement('p');error.textContent=file.error;section.append(error);}
+   for(const check of (file.checks||[])){const line=document.createElement('p');line.style.margin='5px 0';line.textContent=(check.ok?'✓ ':'⚠ ')+check.label;section.append(line);}
+   target.append(section);
+  }
+ }catch(error){status.textContent='Não foi possível auditar o repositório: '+(error.message||'erro desconhecido');}
+ finally{button.disabled=false;}
+}
+document.getElementById('developer-audit-button')?.addEventListener('click',runDeveloperRepositoryAudit);
+
 
 async function testTavilyNow(){
  const button=document.getElementById('test-tavily-now');
