@@ -1075,6 +1075,17 @@ async function createDeveloperChangeProposal(){
  }catch(error){status.textContent='Não foi possível preparar a proposta: '+(error.message||'erro');}
  finally{button.disabled=false;}
 }
+async function reviewDeveloperProposal(proposalId,decision){
+ const status=document.getElementById('developer-proposal-status');
+ if(!sessionToken){status.textContent='Entre para revisar propostas.';return;}
+ const message=decision==='approved_for_patch'?'Autorizar apenas a preparação de um patch para revisão? Nenhum código será alterado agora.':'Rejeitar esta proposta?';
+ if(!window.confirm(message))return;
+ status.textContent='Registrando decisão…';
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposal/review',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({proposal_id:proposalId,decision})},1);
+  status.textContent=data.message||'Decisão registrada.';await loadDeveloperChangeProposals();
+ }catch(error){status.textContent='Não foi possível registrar a decisão: '+(error.message||'erro');}
+}
 async function loadDeveloperChangeProposals(){
  const status=document.getElementById('developer-proposal-status'),output=document.getElementById('developer-proposal-output');
  if(!sessionToken){status.textContent='Entre para consultar propostas.';return;}
@@ -1083,7 +1094,19 @@ async function loadDeveloperChangeProposals(){
   const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposals?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
   if(!data.proposals?.length){status.textContent='Nenhuma proposta salva.';return;}
   status.textContent='Últimas '+data.proposals.length+' propostas (somente leitura).';
-  for(const item of data.proposals){const card=document.createElement('details');card.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';const summary=document.createElement('summary');summary.textContent=(item.request||'Proposta')+' • '+new Date(item.created_at).toLocaleString('pt-BR');const body=document.createElement('div');renderDeveloperProposal(body,item.proposal,'Aguardando revisão • não aplicada.');card.append(summary,body);output.append(card);}
+  for(const item of data.proposals){
+   const card=document.createElement('details');card.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';
+   const summary=document.createElement('summary');summary.textContent=(item.request||'Proposta')+' • '+new Date(item.created_at).toLocaleString('pt-BR');
+   const body=document.createElement('div');renderDeveloperProposal(body,item.proposal,'Status: '+(item.status==='approved_for_patch'?'Autorizada somente para preparar patch':item.status==='rejected'?'Rejeitada':'Aguardando revisão')+' • nenhuma alteração aplicada.');
+   card.append(summary,body);
+   if(item.status==='awaiting_review'){
+    const actions=document.createElement('div');actions.style.cssText='display:flex;gap:8px;flex-wrap:wrap;margin-top:10px';
+    const approve=document.createElement('button');approve.type='button';approve.textContent='Autorizar preparação do patch';approve.addEventListener('click',()=>reviewDeveloperProposal(item.id,'approved_for_patch'));
+    const reject=document.createElement('button');reject.type='button';reject.textContent='Rejeitar';reject.addEventListener('click',()=>reviewDeveloperProposal(item.id,'rejected'));
+    actions.append(approve,reject);card.append(actions);
+   }
+   output.append(card);
+  }
  }catch(error){status.textContent='Não foi possível carregar propostas: '+(error.message||'erro');}
 }
 document.getElementById('developer-proposal-button')?.addEventListener('click',createDeveloperChangeProposal);
