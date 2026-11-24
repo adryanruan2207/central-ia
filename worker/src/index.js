@@ -692,7 +692,7 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
 
   if (url.pathname === "/affiliates/shortlist/analyze" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT id, name, marketplace, product_url, commission_rate, notes, status, updated_at FROM affiliate_products ORDER BY updated_at DESC LIMIT 200"
+      "SELECT id, name, marketplace, product_url, affiliate_url, affiliate_program_id, commission_rate, notes, status, updated_at FROM affiliate_products ORDER BY updated_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map((item) => {
       const notes = String(item.notes || "");
@@ -717,6 +717,7 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
       else if (sales !== null && sales > 0) priority = "Validar demanda";
       return {
         id: item.id, name: item.name, marketplace: item.marketplace, product_url: item.product_url,
+        affiliate_url: item.affiliate_url, affiliate_program_id: item.affiliate_program_id,
         commission_rate: item.commission_rate, price_observed: price, public_sales_count: sales,
         evidence, evidence_completeness: completeness, priority, flags,
         next_steps: [
