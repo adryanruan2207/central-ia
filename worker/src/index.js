@@ -244,6 +244,28 @@ async function handle(request, env) {
     return json({ updated: Number(result.meta?.changes || 0) > 0, read_at: readAt });
   }
 
+  if (url.pathname === "/automation/test-tavily" && request.method === "POST") {
+    if (!env.TAVILY_API_KEY) {
+      await record(env, "manual_tavily_check", JSON.stringify({ok:false,error:"Chave Tavily não configurada.",checked_at:new Date().toISOString()}));
+      return json({configured:false,ok:false,error:"A chave TAVILY_API_KEY não está configurada no Worker. Nenhum segredo foi solicitado ou exibido."}, 409);
+    }
+    const previous = await env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'manual_tavily_check' ORDER BY created_at DESC LIMIT 1").first();
+    const previousAt = previous?.created_at ? Date.parse(previous.created_at) : 0;
+    if (previousAt && Date.now()-previousAt < 30000) return json({configured:true,ok:false,error:"Aguarde 30 segundos antes de solicitar outro teste."}, 429);
+    try {
+      const test = await searchWebWithTavily("CENTRAL IA teste manual de conectividade pesquisa web", env);
+      const result = {configured:true,ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
+      await record(env, "manual_tavily_check", JSON.stringify(result));
+      await record(env, "automatic_tavily_check", JSON.stringify(result));
+      return json(result);
+    } catch (error) {
+      const result = {configured:true,ok:false,error:String(error?.message || error).slice(0,220),checked_at:new Date().toISOString()};
+      await record(env, "manual_tavily_check", JSON.stringify(result));
+      await record(env, "automatic_tavily_check", JSON.stringify(result));
+      return json(result, 502);
+    }
+  }
+
   if (url.pathname === "/automation/status" && request.method === "GET") {
     const [heartbeat, health, counts, productCount, supplierCount, supplierEvent, programCounts, publicationCounts, recentCompleted, discoveryEvent, tavilyEvent] = await Promise.all([
       env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
