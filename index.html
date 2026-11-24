@@ -1089,6 +1089,21 @@ async function prepareDeveloperPatch(proposalId){
   output.prepend(card);status.textContent='Patch preparado e salvo para revisão. Nenhum arquivo foi alterado.';
  }catch(error){status.textContent='Não foi possível preparar o patch: '+(error.message||'erro');}
 }
+async function verifyDeveloperPatch(patchId,resultNode,button){
+ if(!sessionToken){resultNode.textContent='Entre para verificar o patch.';return;}
+ button.disabled=true;resultNode.textContent='Verificando hash, configurações e arquivo original…';
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patch/verify',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({patch_id:patchId})},1);
+  resultNode.replaceChildren();
+  const heading=document.createElement('strong');heading.textContent=data.verified?'Verificação estática aprovada':'Verificação estática com pendências';resultNode.append(heading);
+  const list=document.createElement('ul');
+  for(const check of data.checks||[]){const item=document.createElement('li');item.textContent=(check.passed?'✓ ':'✗ ')+check.name+(check.informational?' (não foi possível confirmar)':'');list.append(item);}
+  resultNode.append(list);
+  const note=document.createElement('p');note.textContent='Resultado: '+data.passed+'/'+data.total+' verificações aprovadas. '+(data.ready_for_isolated_test?'Ainda exige teste isolado.':'Não está liberado para aplicação. Nenhum código foi executado ou alterado.');resultNode.append(note);
+ }catch(error){resultNode.textContent='Falha na verificação: '+(error.message||'erro');}
+ finally{button.disabled=false;button.textContent='Verificar patch';}
+}
+
 async function loadDeveloperPatchHistory(){
  const status=document.getElementById('developer-proposal-status'),output=document.getElementById('developer-proposal-output');
  if(!sessionToken){status.textContent='Entre para consultar o histórico de patches.';return;}
@@ -1102,7 +1117,9 @@ async function loadDeveloperPatchHistory(){
    const summary=document.createElement('summary');summary.textContent=patch.path+' • '+new Date(patch.created_at).toLocaleString('pt-BR')+' • '+(patch.integrity_status==='original_unchanged'?'arquivo original sem mudanças':patch.integrity_status==='file_changed_since_patch'?'arquivo mudou após o patch':patch.integrity_status==='legacy_without_hash'?'patch antigo sem hash original':'integridade não verificada');
    const meta=document.createElement('p');meta.textContent='ID: '+patch.patch_id+' • Status: '+patch.status+' • SHA-256 original: '+(patch.original_sha256||'não registrado')+' • SHA-256 candidato: '+(patch.candidate_sha256||'não registrado');
    const pre=document.createElement('pre');pre.textContent=patch.diff;pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:360px;overflow:auto;font-size:12px';
-   card.append(summary,meta,pre);output.append(card);
+   const verify=document.createElement('button');verify.type='button';verify.textContent='Verificar patch';verify.addEventListener('click',()=>verifyDeveloperPatch(patch.patch_id,result,verify));
+   const result=document.createElement('div');result.setAttribute('aria-live','polite');result.style.cssText='margin-top:8px';
+   card.append(summary,meta,pre,verify,result);output.append(card);
   }
  }catch(error){status.textContent='Não foi possível carregar o histórico: '+(error.message||'erro');}
 }
