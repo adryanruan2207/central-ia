@@ -1075,6 +1075,19 @@ async function createDeveloperChangeProposal(){
  }catch(error){status.textContent='Não foi possível preparar a proposta: '+(error.message||'erro');}
  finally{button.disabled=false;}
 }
+async function prepareDeveloperPatch(proposalId){
+ const status=document.getElementById('developer-proposal-status'),output=document.getElementById('developer-proposal-output');
+ if(!sessionToken){status.textContent='Entre para preparar o patch.';return;}
+ if(!window.confirm('Preparar um patch de revisão? O código original não será alterado nem publicado.'))return;
+ status.textContent='Preparando patch candidato…';
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patch/prepare',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({proposal_id:proposalId})},1);
+  const card=document.createElement('section');card.style.cssText='margin-top:12px;padding:10px;border:1px solid #52659a;border-radius:10px';
+  const heading=document.createElement('strong');heading.textContent='Patch candidato • '+data.path+' • não aplicado';card.append(heading);
+  const pre=document.createElement('pre');pre.textContent=data.diff;pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;font-size:12px';card.append(pre);
+  output.prepend(card);status.textContent='Patch preparado e salvo para revisão. Nenhum arquivo foi alterado.';
+ }catch(error){status.textContent='Não foi possível preparar o patch: '+(error.message||'erro');}
+}
 async function reviewDeveloperProposal(proposalId,decision){
  const status=document.getElementById('developer-proposal-status');
  if(!sessionToken){status.textContent='Entre para revisar propostas.';return;}
@@ -1104,6 +1117,8 @@ async function loadDeveloperChangeProposals(){
     const approve=document.createElement('button');approve.type='button';approve.textContent='Autorizar preparação do patch';approve.addEventListener('click',()=>reviewDeveloperProposal(item.id,'approved_for_patch'));
     const reject=document.createElement('button');reject.type='button';reject.textContent='Rejeitar';reject.addEventListener('click',()=>reviewDeveloperProposal(item.id,'rejected'));
     actions.append(approve,reject);card.append(actions);
+   }else if(item.status==='approved_for_patch'){
+    const prepare=document.createElement('button');prepare.type='button';prepare.textContent='Gerar patch candidato (não aplicar)';prepare.addEventListener('click',()=>prepareDeveloperPatch(item.id));card.append(prepare);
    }
    output.append(card);
   }
