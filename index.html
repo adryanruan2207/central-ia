@@ -595,6 +595,8 @@ body.show-chat .intro{display:flex!important}
 <button type="button" id="developer-plan-button" style="margin-top:8px">Analisar e criar plano técnico</button>
 <p id="developer-plan-status" role="status" aria-live="polite"></p>
 <pre id="developer-plan-output" style="white-space:pre-wrap;overflow-wrap:anywhere;color:#e5eaf7!important"></pre>
+<button type="button" id="developer-history-button" style="margin-top:8px">Ver planos anteriores</button>
+<div id="developer-plan-history" aria-live="polite"></div>
 </section>
 <form id="task-form" style="display:grid;gap:10px;margin-top:14px">
 <label for="task-title">O que a CENTRAL IA deve fazer?</label>
@@ -998,6 +1000,29 @@ async function createDeveloperPlan(){
  finally{button.disabled=false;}
 }
 document.getElementById('developer-plan-button')?.addEventListener('click',createDeveloperPlan);
+async function loadDeveloperPlanHistory(){
+ const target=document.getElementById('developer-plan-history');
+ const status=document.getElementById('developer-plan-status');
+ if(!sessionToken){status.textContent='Entre para consultar o histórico.';return;}
+ target.textContent='Carregando histórico…';
+ try{
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/plans?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  target.replaceChildren();
+  if(!data.plans?.length){target.textContent='Nenhum plano salvo ainda.';return;}
+  for(const item of data.plans){
+   const card=document.createElement('details');
+   card.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';
+   const summary=document.createElement('summary');
+   summary.textContent=(item.command||'Plano sem título')+' • '+new Date(item.created_at).toLocaleString('pt-BR');
+   const pre=document.createElement('pre');
+   pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;color:#e5eaf7!important';
+   pre.textContent=item.plan||'Plano sem conteúdo';
+   card.append(summary,pre);target.append(card);
+  }
+ }catch(error){target.textContent='Não foi possível carregar o histórico: '+(error.message||'erro');}
+}
+document.getElementById('developer-history-button')?.addEventListener('click',loadDeveloperPlanHistory);
+
 async function testTavilyNow(){
  const button=document.getElementById('test-tavily-now');
  const status=document.getElementById('automation-tavily-status');
