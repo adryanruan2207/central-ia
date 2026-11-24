@@ -1263,9 +1263,22 @@ export default {
         });
         const output = typeof result?.response === "string" ? result.response.trim() : "";
         if (!output) throw new Error("O modelo não retornou um resultado.");
+        // Preserve as fontes originais no registro da tarefa, independentemente de o modelo citá-las corretamente.
+        const sourceBlock = sources.length
+          ? "\\n\\nFontes consultadas pela CENTRAL IA:\\n" + sources.slice(0, 8).map((source, index) => {
+              const title = String(source.title || "Fonte sem título").replace(/[\\r\\n]+/g, " ").slice(0, 220);
+              let sourceUrl = "";
+              try {
+                const parsed = new URL(String(source.url || ""));
+                if (parsed.protocol === "https:" || parsed.protocol === "http:") sourceUrl = parsed.toString();
+              } catch {}
+              return (index + 1) + ". " + title + (sourceUrl ? " — " + sourceUrl : "");
+            }).join("\\n")
+          : "";
+        const finalOutput = (output + sourceBlock).slice(0, 12000);
         await env.DB.prepare(
           "UPDATE tasks SET status = 'completed', result = ?, updated_at = ? WHERE id = ? AND status = 'processing'"
-        ).bind(output.slice(0, 12000), new Date().toISOString(), task.id).run();
+        ).bind(finalOutput, new Date().toISOString(), task.id).run();
         await record(env, "task_completed", task.id);
         await notifyOwner(env, "task-completed:" + task.id, "Tarefa concluída pela CENTRAL IA", task.title + " foi concluída. Abra o painel de tarefas para consultar o resultado e as fontes utilizadas.", "success");
       } catch (error) {
