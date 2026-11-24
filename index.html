@@ -581,6 +581,7 @@ body.show-chat .intro{display:flex!important}
 <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><b>📡 Monitoramento da nuvem</b><small>Atualização automática</small></div>
 <p id="automation-health" role="status" aria-live="polite" style="margin:8px 0;color:#cbd5e1!important">Consultando automação…</p>
 <p id="automation-tavily-status" role="status" aria-live="polite" style="margin:6px 0;color:#cbd5e1!important">Pesquisa Tavily: aguardando teste automático.</p>
+<button type="button" id="test-tavily-now" class="secondary" style="margin:4px 0">Testar conexão Tavily agora</button>
 <div id="automation-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:10px"></div>
 <div id="automation-pipeline" style="margin-top:12px;padding:12px;border:1px solid #46598a;border-radius:10px;background:#17213b"></div>
 <div id="automation-blockers" style="display:grid;gap:6px;margin-top:8px"></div>
@@ -943,6 +944,21 @@ taskForm?.addEventListener('submit',async event=>{
 const automationHealth=document.getElementById('automation-health');
 const automationMetrics=document.getElementById('automation-metrics');
 const automationLastCheck=document.getElementById('automation-last-check');
+async function testTavilyNow(){
+ const button=document.getElementById('test-tavily-now');
+ const status=document.getElementById('automation-tavily-status');
+ if(!sessionToken){status.textContent='Entre para testar a conexão.';return;}
+ button.disabled=true;button.textContent='Testando conexão…';status.textContent='Verificando se a chave está configurada e se a pesquisa responde…';
+ try{
+  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/automation/test-tavily',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken}});
+  const data=await response.json().catch(()=>({}));
+  if(data.ok){status.textContent='Pesquisa Tavily: CONECTADA • teste retornou '+(data.result_count||0)+' resultados • '+new Date(data.checked_at).toLocaleString('pt-BR');}
+  else{status.textContent='Pesquisa Tavily: '+(data.configured?'ERRO DE CONEXÃO':'CHAVE NÃO CONFIGURADA')+' • '+(data.error||'Não foi possível validar a conexão.');}
+  await loadAutomationStatus();
+ }catch(error){status.textContent='Falha ao testar Tavily: '+(error.message||'erro de conexão');}
+ finally{button.disabled=false;button.textContent='Testar conexão Tavily agora';}
+}
+document.getElementById('test-tavily-now')?.addEventListener('click',testTavilyNow);
 async function loadAutomationStatus(){
  if(!sessionToken){automationHealth.textContent='Entre para consultar o monitoramento.';return;}
  automationHealth.textContent='Consultando status da nuvem…';
