@@ -267,6 +267,61 @@ async function handle(request, env) {
     return json({ updated: Number(result.meta?.changes || 0) > 0, read_at: readAt });
   }
 
+  if (url.pathname === "/developer/patch/prepare" && request.method === "POST") {
+    if (!env.AI) return json({error:"Workers AI não está disponível."},503);
+    let body;
+    try { body=await request.json(); } catch { return json({error:"JSON inválido."},400); }
+    const proposalId=typeof body.proposal_id==="string"?body.proposal_id.trim():"";
+    if(!/^[0-9a-f-]{36}$/i.test(proposalId)) return json({error:"Identificador de proposta inválido."},400);
+    const [proposalRows,reviewRows,patchRows]=await Promise.all([
+      env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_change_proposal_created' ORDER BY created_at DESC LIMIT 200").all(),
+      env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_change_proposal_reviewed' ORDER BY created_at DESC LIMIT 100").all(),
+      env.DB.prepare("SELECT details FROM activity_log WHERE event = 'developer_patch_candidate_created' ORDER BY created_at DESC LIMIT 100").all()
+    ]);
+    let proposalDetails=null;
+    for(const row of proposalRows.results||[]){try{const d=JSON.parse(row.details||"{}");if(d.proposal_id===proposalId){proposalDetails=d;break;}}catch{}}
+    if(!proposalDetails) return json({error:"Proposta não encontrada."},404);
+    let approved=false;
+    for(const row of reviewRows.results||[]){try{const d=JSON.parse(row.details||"{}");if(d.proposal_id===proposalId){approved=d.decision==="approved_for_patch";break;}}catch{}}
+    if(!approved) return json({error:"A proposta precisa ser autorizada antes da preparação do patch."},403);
+    for(const row of patchRows.results||[]){try{if(JSON.parse(row.details||"{}").proposal_id===proposalId)return json({error:"Já existe um patch candidato para esta proposta."},409);}catch{}}
+    const files=Array.isArray(proposalDetails.proposal?.files)?proposalDetails.proposal.files:[];
+    if(files.length!==1 || files[0]?.path!=="worker/wrangler.toml") return json({error:"Nesta etapa, a preparação automática está limitada a uma alteração por vez no arquivo worker/wrangler.toml. Faça uma proposta específica para esse arquivo."},422);
+    const sourceUrl="https://raw.githubusercontent.com/adryanruan2207/central-ia/main/worker/wrangler.toml";
+    let original;
+    try {
+      const response=await fetch(sourceUrl,{headers:{"Accept":"text/plain"},signal:AbortSignal.timeout(7000)});
+      if(!response.ok) throw new Error("GitHub HTTP "+response.status);
+      original=await response.text();
+    } catch(error) { return json({error:"Não foi possível ler a versão atual do arquivo: "+String(error?.message||error).slice(0,120)},502); }
+    if(original.length>16000) return json({error:"O arquivo excede o limite seguro de preparação."},413);
+    const generated=await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast",{
+      messages:[
+        {role:"system",content:"Prepare uma proposta de edição APENAS para worker/wrangler.toml. Responda somente JSON válido com uma chave updated_content contendo o arquivo TOML COMPLETO atualizado. Preserve exatamente os valores obrigatórios: name = \"central-ia-worker\", main = \"src/index.js\", compatibility_date = \"2026-11-19\", binding DB, database_name central-ia-db, database_id 59f3056f-c6a2-4c95-9d1e-2ba9aad2091a, binding AI. Não adicione segredos, tokens, novos bindings, recursos pagos, deploy ou permissões. Se a solicitação não puder ser feita sem alterar esses valores, devolva o arquivo original sem mudanças. Não afirme que aplicou ou testou nada."},
+        {role:"user",content:"Solicitação aprovada apenas para preparar um patch: "+String(proposalDetails.request||"").slice(0,1000)+"\nResumo técnico: "+String(proposalDetails.proposal?.summary||"").slice(0,1000)+"\nAlteração proposta: "+String(files[0].change||"").slice(0,1000)+"\n\nConteúdo atual do arquivo:\n"+original}
+      ],
+      max_tokens:2200,
+      temperature:0.1
+    });
+    let updated;
+    try {
+      const raw=String(generated?.response||generated?.result||generated?.output_text||"").trim().replace(/^\u0060{3}(?:json)?\s*/i,"").replace(/\s*\u0060{3}$/,"");
+      const parsed=JSON.parse(raw);
+      if(typeof parsed.updated_content!=="string") throw new Error("Campo ausente");
+      updated=parsed.updated_content.replace(/\r\n/g,"\n").trimEnd()+"\n";
+    } catch { return json({error:"A IA não produziu um arquivo atualizado em formato válido. Nenhum patch foi salvo."},502); }
+    const required=["name = \"central-ia-worker\"","main = \"src/index.js\"","compatibility_date = \"2026-11-19\"","binding = \"DB\"","database_name = \"central-ia-db\"","database_id = \"59f3056f-c6a2-4c95-9d1e-2ba9aad2091a\"","binding = \"AI\""];
+    if(updated.length>16000 || required.some(line=>!updated.includes(line)) || /(?:api[_-]?key|secret|password)\s*=\s*["'][^"']{8,}/i.test(updated)) return json({error:"O conteúdo gerado não passou nas proteções do arquivo de configuração. Nenhum patch foi salvo."},422);
+    if(updated===original) return json({error:"A proposta não produziu uma alteração concreta. Nenhum patch foi salvo."},422);
+    const oldLines=original.replace(/\r\n/g,"\n").trimEnd().split("\n");
+    const newLines=updated.trimEnd().split("\n");
+    const diff=["--- a/worker/wrangler.toml","+++ b/worker/wrangler.toml","@@ -1,"+oldLines.length+" +1,"+newLines.length+" @@" ,...oldLines.map(line=>"-"+line),...newLines.map(line=>"+"+line)].join("\n");
+    const patchId=crypto.randomUUID();
+    const createdAt=new Date().toISOString();
+    await record(env,"developer_patch_candidate_created",JSON.stringify({patch_id:patchId,proposal_id:proposalId,path:"worker/wrangler.toml",original_sha256:null,diff,updated_content:updated,status:"candidate_only_not_applied",created_at:createdAt}));
+    return json({patch_id:patchId,proposal_id:proposalId,path:"worker/wrangler.toml",diff,status:"candidate_only_not_applied",applied:false,created_at:createdAt},201);
+  }
+
   if (url.pathname === "/developer/proposals" && request.method === "GET") {
     const requested = Number(url.searchParams.get("limit") || 10);
     const limit = Number.isFinite(requested) ? Math.max(1, Math.min(30, Math.floor(requested))) : 10;
