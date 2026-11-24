@@ -1144,15 +1144,27 @@ export default {
         await notifyOwner(env, "approval:tasks:" + now.slice(0, 10), "Sua autorização é necessária", String(reviewUpdate.meta.changes) + " tarefa(s) estão aguardando sua revisão na CENTRAL IA. Abra o painel para consultar e autorizar quando estiver de acordo.", "warning");
       }
 
-      // Recupera tarefas interrompidas por queda/timeout. Pesquisas são somente leitura e podem ser repetidas com segurança.
+      // Recuperação limitada: no máximo duas novas tentativas por tarefa, sem repetir indefinidamente.
       const staleBefore = new Date(Date.now() - 45 * 60 * 1000).toISOString();
-      const recovered = await env.DB.prepare(
-        "UPDATE tasks SET status = 'queued', updated_at = ? WHERE status = 'processing' AND updated_at < ? AND requires_approval = 0"
+      const retryBefore = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const staleRetry = await env.DB.prepare(
+        "UPDATE tasks SET status = 'queued', attempts = attempts + 1, updated_at = ? WHERE status = 'processing' AND updated_at < ? AND requires_approval = 0 AND attempts < 2"
       ).bind(now, staleBefore).run();
-      if (Number(recovered.meta?.changes || 0) > 0) {
-        const recoveredCount=Number(recovered.meta.changes||0);
-        await record(env, "stale_tasks_requeued", recoveredCount + " tarefa(s) recuperada(s) após interrupção.");
-        await notifyOwner(env, "self-repair:stale-tasks:" + now.slice(0,16), "Tarefa(s) recuperada(s) automaticamente", recoveredCount + " tarefa(s) que ficaram interrompidas foram recolocadas na fila. A CENTRAL IA tentará processá-las novamente no próximo ciclo.", "success");
+      const staleExhausted = await env.DB.prepare(
+        "UPDATE tasks SET status = 'failed', result = COALESCE(result || char(10), '') || 'Encerrada automaticamente: limite de tentativas após interrupções atingido.', updated_at = ? WHERE status = 'processing' AND updated_at < ? AND requires_approval = 0 AND attempts >= 2"
+      ).bind(now, staleBefore).run();
+      const failedRetry = await env.DB.prepare(
+        "UPDATE tasks SET status = 'queued', attempts = attempts + 1, updated_at = ? WHERE status = 'failed' AND updated_at < ? AND requires_approval = 0 AND attempts < 2 AND (result LIKE 'Não foi possível concluir automaticamente:%' OR result LIKE 'Encerrada automaticamente:%')"
+      ).bind(now, retryBefore).run();
+      const retryCount = Number(staleRetry.meta?.changes || 0) + Number(failedRetry.meta?.changes || 0);
+      const exhaustedCount = Number(staleExhausted.meta?.changes || 0);
+      if (retryCount > 0) {
+        await record(env, "tasks_retry_scheduled", JSON.stringify({ count: retryCount, max_retries: 2 }));
+        await notifyOwner(env, "task-retry:" + now.slice(0,16), "A CENTRAL IA está tentando recuperar tarefas", retryCount + " tarefa(s) tiveram uma nova tentativa programada. O sistema limita as repetições para evitar ciclos infinitos.", "warning");
+      }
+      if (exhaustedCount > 0) {
+        await record(env, "tasks_retry_exhausted", String(exhaustedCount));
+        await notifyOwner(env, "task-retry-exhausted:" + now.slice(0,16), "Uma tarefa precisa de verificação", exhaustedCount + " tarefa(s) atingiram o limite de tentativas automáticas e foram interrompidas para evitar repetição infinita. Consulte o resultado no painel.", "error");
       }
 
       // O planejador não fica bloqueado por itens que aguardam revisão humana.
