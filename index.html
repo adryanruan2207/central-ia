@@ -384,6 +384,35 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 #chat-log>div.assistant-message,#chat-log>div:not(.user-message){align-self:stretch!important;width:100%!important;max-width:100%!important;padding:2px 0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#ececec!important}
 #chat-log>div.assistant-message span,#chat-log>div:not(.user-message) span{color:#ececec!important}
 @media(max-width:760px){#chat-log{gap:22px!important;padding:20px 2px 26px!important}#chat-log>div{font-size:17px!important}#chat-log>div.user-message{max-width:90%!important}}
+
+/* Ajustes finais de interface conforme a referência visual enviada */
+body,html{background:#000!important;color:#f5f5f5!important}
+header.wrap{background:#000!important;border:0!important;box-shadow:none!important}
+main.wrap{background:#000!important}
+.header-actions{display:flex;align-items:center;gap:10px;position:relative}
+#top-more-button{width:42px;height:42px;padding:0;border:0!important;border-radius:50%!important;background:#303030!important;color:#fff!important;font-size:27px!important;line-height:1}
+#top-more-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:100;width:220px;padding:7px;background:#2d2d2d;border:1px solid #505050;border-radius:14px;box-shadow:0 12px 35px #000b}
+#top-more-menu[hidden]{display:none}
+#top-more-menu button{display:flex;width:100%;justify-content:flex-start;background:transparent!important;color:#f5f5f5!important;border:0!important;border-radius:9px;padding:12px;font-size:14px}
+#top-more-menu button:active{background:#444!important}
+.chat-workspace{background:#000!important;max-width:790px!important}
+.chat-heading{display:none!important}
+.chat-workspace>.card{background:#000!important;border:0!important;box-shadow:none!important;padding:8px 0!important}
+.chat-workspace>.card>p:first-child{display:none!important}
+#chat-log{display:flex!important;flex-direction:column!important;gap:24px!important;max-height:calc(100dvh - 245px)!important;overflow-y:auto!important;padding:18px 4px 24px!important}
+#chat-log>div{width:fit-content;max-width:88%;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#f5f5f5!important;font-size:17px!important;line-height:1.65!important;white-space:pre-wrap!important;overflow-wrap:anywhere}
+#chat-log>div.user-message{align-self:flex-end;max-width:88%;padding:12px 17px!important;border-radius:24px!important;background:#17176b!important;color:#fff!important}
+#chat-log>div.user-message b{color:#fff!important}
+#chat-log>div.assistant-message{align-self:stretch;max-width:100%;padding:0 4px!important;background:transparent!important;color:#f1f1f1!important}
+#chat-log>div.assistant-message b{display:block;color:#f5f5f5!important;font-weight:700!important;margin-bottom:4px}
+#chat-log>div.assistant-message span{color:#f1f1f1!important}
+#chat-log>div:not(.user-message):not(.assistant-message){color:#ffc6c6!important}
+.composer{background:#303030!important;border:1px solid #454545!important;border-radius:28px!important}
+.composer #chat-message{color:#fff!important}
+.composer #chat-message::placeholder{color:#bdbdbd!important}
+#attach-menu-button{background:#454545!important;color:#fff!important}
+#send-chat{background:#fff!important;color:#222!important}
+@media(max-width:760px){header.wrap{height:64px!important;padding:0 16px!important}.status{display:none!important}main.wrap{width:100%!important;padding:0 14px 18px!important}.chat-workspace{min-height:calc(100dvh - 85px)!important;padding:0!important;margin:0!important}#chat-log{max-height:calc(100dvh - 210px)!important;padding:16px 2px 20px!important}#chat-log>div{font-size:16px!important}#chat-log>div.user-message{max-width:88%!important}.composer{margin:8px 2px 12px!important}}
 </style>
 </head>
 <body>
@@ -436,7 +465,7 @@ header.wrap,.brand,.status{color:#f7f7f8!important}
 <header class="wrap">
 <button id="sidebar-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
 <a class="brand" href="./">CENTRAL <span>IA</span></a>
-<div class="status">● IA ONLINE</div>
+<div class="header-actions"><div class="status">● IA ONLINE</div><button id="top-more-button" type="button" aria-label="Mais opções" aria-expanded="false">⋮</button><div id="top-more-menu" hidden role="menu"><button type="button" data-top-action="new">＋ Nova conversa</button><button type="button" data-top-action="resources">▦ Todos os recursos</button><button type="button" data-top-action="logout">Sair da conta</button></div></div>
 </header>
 <main class="wrap">
 <div class="intro">
@@ -762,9 +791,17 @@ function showLogin(message='Acesso protegido.'){document.body.classList.add('aut
 function showPlatform(){document.body.classList.remove('auth-locked');loginScreen.hidden=true;chatStatus.textContent='Você está conectado neste aparelho.';}
 async function verifySavedSession(){
  if(!sessionToken){showLogin();return;}
- try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/session',{headers:{'Authorization':'Bearer '+sessionToken}});
- if(!response.ok)throw Error('Sessão inválida');const data=await response.json();if(!data.authenticated)throw Error('Sessão inválida');showPlatform();}
- catch(_){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');}
+ try{
+  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/auth/session',{headers:{'Authorization':'Bearer '+sessionToken},cache:'no-store'});
+  if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');return;}
+  if(!response.ok){showPlatform();chatStatus.textContent='Sessão salva. Não foi possível validar agora; tente novamente quando a conexão estabilizar.';return;}
+  const data=await response.json();
+  if(!data.authenticated){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');return;}
+  showPlatform();
+ }catch(_){
+  // Falha temporária de rede não apaga a sessão válida armazenada no aparelho.
+  showPlatform();chatStatus.textContent='Sessão mantida neste aparelho. A validação será repetida quando a conexão voltar.';
+ }
 }
 let loginInProgress=false;
 async function login(event){
@@ -1314,6 +1351,31 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  }
  if(send){send.addEventListener('click',submitMessage);send.dataset.centralStandaloneBound='1';}
  if(input)input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submitMessage();}});
+})();
+</script>
+
+<script>
+(()=>{
+ const topButton=document.getElementById('top-more-button');
+ const topMenu=document.getElementById('top-more-menu');
+ if(topButton&&topMenu){
+  topButton.addEventListener('click',e=>{e.stopPropagation();topMenu.hidden=!topMenu.hidden;topButton.setAttribute('aria-expanded',String(!topMenu.hidden));});
+  topMenu.addEventListener('click',e=>{e.stopPropagation();const action=e.target.closest('[data-top-action]')?.dataset.topAction;if(!action)return;topMenu.hidden=true;topButton.setAttribute('aria-expanded','false');
+   if(action==='new'){document.getElementById('chat-log')?.replaceChildren();const status=document.getElementById('chat-status');if(status)status.textContent='Nova conversa iniciada.';const input=document.getElementById('chat-message');if(input){input.value='';input.focus();}}
+   if(action==='resources'){document.getElementById('resource-panel')?.classList.add('open');}
+   if(action==='logout'){localStorage.removeItem('central_ia_session_v1');location.reload();}
+  });
+  document.addEventListener('click',e=>{if(!topMenu.contains(e.target)&&e.target!==topButton){topMenu.hidden=true;topButton.setAttribute('aria-expanded','false');}});
+ }
+ const plus=document.getElementById('attach-menu-button');
+ plus?.addEventListener('click',e=>e.stopPropagation());
+ const send=document.getElementById('send-chat'),input=document.getElementById('chat-message'),log=document.getElementById('chat-log');
+ // O emissor independente marca as mensagens com classes visuais consistentes.
+ const originalAppend=log?.append.bind(log);
+ if(log&&originalAppend){
+  const observer=new MutationObserver(()=>{for(const line of log.children){if(line.classList.contains('user-message')||line.classList.contains('assistant-message'))continue;const t=line.textContent||'';if(t.startsWith('Você: '))line.classList.add('user-message');else if(t.startsWith('CENTRAL IA: '))line.classList.add('assistant-message');}});
+  observer.observe(log,{childList:true});
+ }
 })();
 </script>
 </body></html>
