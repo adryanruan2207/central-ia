@@ -245,7 +245,7 @@ async function handle(request, env) {
   }
 
   if (url.pathname === "/automation/status" && request.method === "GET") {
-    const [heartbeat, health, counts, productCount, supplierCount, supplierEvent, programCounts, publicationCounts, recentCompleted, discoveryEvent] = await Promise.all([
+    const [heartbeat, health, counts, productCount, supplierCount, supplierEvent, programCounts, publicationCounts, recentCompleted, discoveryEvent, tavilyEvent] = await Promise.all([
       env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'scheduled_check' ORDER BY created_at DESC LIMIT 1").first(),
       env.DB.prepare("SELECT checked_at, status, details FROM system_health_checks ORDER BY checked_at DESC LIMIT 1").first(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM tasks GROUP BY status").all(),
@@ -255,7 +255,8 @@ async function handle(request, env) {
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM affiliate_programs GROUP BY status").all(),
       env.DB.prepare("SELECT status, COUNT(*) AS total FROM publication_queue GROUP BY status").all(),
       env.DB.prepare("SELECT title, result, updated_at FROM tasks WHERE status = 'completed' ORDER BY updated_at DESC LIMIT 3").all(),
-      env.DB.prepare("SELECT event, details, created_at FROM activity_log WHERE event IN ('automatic_product_discovery','automatic_product_discovery_failed') ORDER BY created_at DESC LIMIT 1").first()
+      env.DB.prepare("SELECT event, details, created_at FROM activity_log WHERE event IN ('automatic_product_discovery','automatic_product_discovery_failed') ORDER BY created_at DESC LIMIT 1").first(),
+      env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'automatic_tavily_check' ORDER BY created_at DESC LIMIT 1").first()
     ]);
     const tasks = {};
     for (const item of (counts.results || [])) tasks[item.status] = Number(item.total || 0);
@@ -298,6 +299,7 @@ async function handle(request, env) {
       schedule: "Autoverificação a cada 1 minuto; processamento automático conforme fila e limites.",
       last_check: heartbeat?.created_at || null,
       self_monitor: health ? { status: health.status, checked_at: health.checked_at, details: JSON.parse(health.details || "{}") } : null,
+      tavily_connection: tavilyEvent ? { ...JSON.parse(tavilyEvent.details || "{}"), checked_at: tavilyEvent.created_at } : { ok: false, error: env.TAVILY_API_KEY ? "Aguardando primeiro teste automático." : "Chave Tavily não configurada." },
       tasks: {
         queued: tasks.queued || 0,
         processing: tasks.processing || 0,
