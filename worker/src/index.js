@@ -239,10 +239,25 @@ async function handle(request, env) {
     const publications = {};
     for (const item of (publicationCounts.results || [])) publications[item.status] = Number(item.total || 0);
     const blockers = [];
-    if (!env.TAVILY_API_KEY) blockers.push("Pesquisa web automática depende da configuração da chave Tavily.");
-    if (!env.AI) blockers.push("Workers AI não está disponível para análise e criação de conteúdo.");
-    blockers.push("Publicação externa depende de conectar e autorizar as APIs oficiais de cada canal.");
-    blockers.push("Inscrição em programas e geração de links afiliados dependem de aprovação e integração oficial.");
+    const actionItems = [];
+    if (!env.TAVILY_API_KEY) {
+      blockers.push("Pesquisa web automática depende da configuração da chave Tavily.");
+      actionItems.push({priority:1,id:"tavily",title:"Ativar pesquisa automática na internet",reason:"A chave Tavily não está configurada no Worker.",action:"Criar/usar uma chave do plano gratuito e cadastrá-la como secret TAVILY_API_KEY no Cloudflare Worker. Nunca envie a chave pelo chat.",where:"Cloudflare Dashboard → Workers & Pages → central-ia-worker → Settings → Variables and Secrets."});
+    }
+    if (!env.AI) {
+      blockers.push("Workers AI não está disponível para análise e criação de conteúdo.");
+      actionItems.push({priority:1,id:"workers_ai",title:"Liberar o mecanismo de IA na nuvem",reason:"O binding Workers AI não está disponível para o Worker.",action:"Verificar o vínculo AI no Cloudflare Worker e a disponibilidade do Workers AI na conta.",where:"Cloudflare Dashboard → Workers & Pages → central-ia-worker → Settings → Bindings."});
+    }
+    const affiliateConnections = [
+      {id:"amazon",name:"Amazon Associados",keys:["AMAZON_PAAPI_ACCESS_KEY","AMAZON_PAAPI_SECRET_KEY","AMAZON_ASSOCIATES_TAG"]},
+      {id:"shopee",name:"Shopee",keys:["SHOPEE_PARTNER_ID","SHOPEE_PARTNER_KEY"]},
+      {id:"hotmart",name:"Hotmart",keys:["HOTMART_CLIENT_ID","HOTMART_CLIENT_SECRET"]},
+      {id:"mercado_livre",name:"Mercado Livre",keys:[]}
+    ];
+    const pendingAffiliate = affiliateConnections.filter(item=>item.keys.length && !item.keys.every(key=>Boolean(env[key])));
+    if (pendingAffiliate.length) actionItems.push({priority:2,id:"affiliate_accounts",title:"Conectar programas de afiliados",reason:pendingAffiliate.map(item=>item.name).join(", ")+" ainda não têm todas as credenciais configuradas.",action:"Primeiro confirmar cadastro/aprovação no programa escolhido; depois cadastrar as credenciais oficiais como secrets no Worker. Não compartilhar senhas ou chaves no chat.",where:"Painel oficial de cada programa e Cloudflare Worker → Settings → Variables and Secrets."});
+    actionItems.push({priority:3,id:"publishing",title:"Autorizar canais de publicação",reason:"Publicação externa não está conectada por OAuth/API nesta versão.",action:"Escolher e autorizar os canais desejados quando a integração oficial estiver disponível. Até lá, a CENTRAL IA prepara rascunhos, mas não publica fora da plataforma.",where:"Contas oficiais dos canais (YouTube, Instagram, TikTok etc.)."});
+    actionItems.push({priority:4,id:"push",title:"Ativar notificações mesmo com o site fechado",reason:"O site ainda não tem envio push remoto completo com VAPID e registro da assinatura do aparelho.",action:"Será necessário configurar chaves VAPID no servidor e vincular este dispositivo uma vez. A permissão do navegador, sozinha, não ativa push remoto.",where:"Configuração técnica do Worker e permissão de notificações do navegador."});
     return json({
       service: "CENTRAL IA",
       automation: "cloud-cron",
@@ -279,6 +294,7 @@ async function handle(request, env) {
         }))
       },
       blockers,
+      action_items: actionItems.sort((a,b)=>a.priority-b.priority),
       checked_at: new Date().toISOString()
     });
   }
