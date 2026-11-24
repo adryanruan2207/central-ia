@@ -612,6 +612,12 @@ Regras: não invente avaliações, depoimentos, números de vendas, resultados, 
     if (commission !== null && (!Number.isFinite(commission) || commission < 0 || commission > 100)) {
       return json({ error: "Comissão deve estar entre 0 e 100" }, 400);
     }
+    if (productUrl) {
+      const duplicate = await env.DB.prepare(
+        "SELECT id, status FROM affiliate_products WHERE marketplace = ? AND product_url = ? LIMIT 1"
+      ).bind(marketplace, productUrl).first();
+      if (duplicate) return json({ id: duplicate.id, status: duplicate.status, duplicate: true, message: "Este produto já está na sua seleção; não foi criado outro cadastro." });
+    }
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await env.DB.prepare(
