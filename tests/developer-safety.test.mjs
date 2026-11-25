@@ -284,10 +284,14 @@ test("kit de campanha afiliada exige link HTTPS, comissão e programa aprovado",
 
 test("painel só oferece kit para campanha pronta e envia produto ao endpoint protegido", () => {
   assert.match(ui, /item\.campaign_status==='ready_for_review'/);
-  assert.match(ui, /Gerar kits para os 3 canais/);
+  assert.match(ui, /Gerar 9 roteiros \(3 por canal\)/);
   assert.match(ui, /\{id:'tiktok',label:'TikTok'\}/);
   assert.match(ui, /\{id:'instagram',label:'Instagram Reels'\}/);
   assert.match(ui, /\{id:'youtube_shorts',label:'YouTube Shorts'\}/);
+  assert.match(ui, /\[1,2,3\]\.map\(variation/);
+  assert.match(ui, /variation_index:platform\.variation_index/);
+  assert.match(worker, /creativeAngle/);
+  assert.match(worker, /variationIndex/);
   assert.match(ui, /Os rascunhos já criados foram preservados/);
   assert.match(ui, /\/affiliates\/campaign-kit/);
   assert.match(ui, /item\.affiliate_url/);
