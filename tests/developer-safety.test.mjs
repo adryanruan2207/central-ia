@@ -226,12 +226,12 @@ test("validador TOML aceita a configuração real do Worker", () => {
 });
 
 test("validador TOML rejeita chave duplicada", () => {
-  const tampered = wrangler + '\nname = "central-ia-worker"\n';
+  const tampered = wrangler + "\nbinding = \"AI\"\n";
   assert.equal(validateWranglerCandidate(tampered).reason, "duplicate_key");
 });
 
 test("validador TOML rejeita seção não autorizada", () => {
-  const tampered = wrangler + '\n[unsafe]\ncommand = "run"\n';
+  const tampered = wrangler + "\n[unsafe]\ncommand = \"run\"\n";
   assert.equal(validateWranglerCandidate(tampered).reason, "unknown_section");
 });
 
