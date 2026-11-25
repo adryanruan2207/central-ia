@@ -191,3 +191,14 @@ test("auditoria não se acusa por conter os próprios padrões de detecção", (
   assert.doesNotMatch(section, /"eval\("/);
   assert.doesNotMatch(section, /"new Function\("/);
 });
+
+
+test("auditoria também inspeciona integridade e escopo dos patches", () => {
+  const start = worker.indexOf('url.pathname === "/developer/audit" && request.method === "GET"');
+  const end = worker.indexOf('if (url.pathname === "/developer/plans"', start);
+  const section = worker.slice(start, end);
+  assert.ok(section.includes('"Hash do patch candidato"'));
+  assert.ok(section.includes('"Comparação com o arquivo original"'));
+  assert.ok(section.includes('"Verificação não executa nem aplica patch"'));
+  assert.ok(section.includes('"Patch limitado a caminho validado"'));
+});
