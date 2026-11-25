@@ -357,7 +357,7 @@ async function handle(request, env) {
       {name:"Arquivo original ainda corresponde à versão registrada",passed:currentMatchesOriginal===true,informational:currentMatchesOriginal===null}
     ];
     const passed=checks.filter(x=>x.passed).length;
-    const verified=checks.slice(0,4).every(x=>x.passed);
+    const verified=checks.every(x=>x.passed);
     const checkedAt=new Date().toISOString();
     await record(env,"developer_patch_verified",JSON.stringify({patch_id:patchId,passed,total:checks.length,verified,checks,current_file_read:currentRead,current_file_sha256:currentHash,original_matches_current:currentMatchesOriginal,checked_at:checkedAt,mode:"static_only_no_execution"}));
     return json({patch_id:patchId,verified,passed,total:checks.length,checks,current_file_read:currentRead,current_file_sha256:currentHash,ready_for_isolated_test:false,applied:false,mode:"static_only_no_execution",checked_at:checkedAt});
