@@ -1715,6 +1715,14 @@ export default {
       // Produção autônoma de até 9 rascunhos por dia (3 por canal).
       // Cada execução cria no máximo um rascunho para distribuir carga e evitar picos de IA.
       // A fila permanece em draft: nenhuma API social é chamada nesta etapa.
+      // Aprovação interna automática: só libera produtos com programa já aprovado,
+      // links HTTPS cadastrados e comissão informada. Não aprova contas nem inventa dados.
+      const promotedProducts = await env.DB.prepare(
+        "UPDATE affiliate_products SET status = 'ready', updated_at = ? WHERE status IN ('research', 'approved') AND affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE status = 'approved') AND product_url LIKE 'https://%' AND affiliate_url LIKE 'https://%' AND commission_rate IS NOT NULL"
+      ).bind(now).run();
+      if (Number(promotedProducts?.meta?.changes || 0) > 0) {
+        await record(env, "affiliate_products_auto_ready", JSON.stringify({ count: promotedProducts.meta.changes, checked_at: now, rule: "approved_program_https_links_commission_present" }));
+      }
       const campaignDay = now.slice(0, 10);
       const campaignPrefix = "CENTRAL IA AUTO • " + campaignDay + " •";
       const campaignCountRow = await env.DB.prepare(
@@ -1724,7 +1732,7 @@ export default {
       if (campaignDraftsToday < 9 && env.AI) {
         try {
           const eligibleCountRow = await env.DB.prepare(
-            "SELECT COUNT(*) AS total FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status = 'approved' AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL"
+            "SELECT COUNT(*) AS total FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL"
           ).first();
           const eligibleCount = Number(eligibleCountRow?.total || 0);
           if (eligibleCount > 0) {
