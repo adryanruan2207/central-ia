@@ -363,3 +363,18 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
   assert.match(section, /affiliate_opportunity_selected/);
   assert.match(section, /não altera a taxa/);
 });
+
+test("integração Awin consulta comissões oficiais e gera links somente por API autenticada", () => {
+  assert.match(worker, /\\/integrations\\/awin\\/status/);
+  assert.match(worker, /\\/integrations\\/awin\\/commission-groups/);
+  assert.match(worker, /\\/integrations\\/awin\\/tracking-link/);
+  assert.match(worker, /AWIN_API_TOKEN/);
+  assert.match(worker, /AWIN_PUBLISHER_ID/);
+  assert.match(worker, /commissionGroup/);
+  assert.match(worker, /linkbuilder\\/generate/);
+  assert.match(worker, /destinationUrl/);
+  assert.match(worker, /destinationUrl.*https/i);
+  assert.match(worker, /Awin Publisher API/);
+  assert.doesNotMatch(worker, /console\\.(log|error)\\([^\\n]*AWIN_API_TOKEN/);
+});
+
