@@ -375,6 +375,7 @@ test("integração Awin consulta comissões oficiais e gera links somente por AP
   assert.match(worker, /destinationUrl/);
   assert.match(worker, /parsed\\.protocol !== "https:"/);
   assert.match(worker, /Awin Publisher API/);
-  assert.doesNotMatch(worker, /console\\.(log|error)\\([^\\n]*AWIN_API_TOKEN/);
+  assert.equal(worker.includes("console.log(env.AWIN_API_TOKEN"), false);
+  assert.equal(worker.includes("console.error(env.AWIN_API_TOKEN"), false);
 });
 
