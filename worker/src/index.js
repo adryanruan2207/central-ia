@@ -1143,7 +1143,7 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     let affiliateHost = "";
     try { affiliateHost = new URL(item.affiliate_url).hostname; } catch { return json({ error: "Link de afiliado inválido." }, 422); }
     const notes = String(item.notes || "").slice(0, 1800);
-    const prompt = `Prepare um kit de campanha de afiliado em português brasileiro para revisão humana.
+    const prompt = `Prepare um kit de campanha de afiliado em português brasileiro pronto para a rotina automática da CENTRAL IA.
 Produto: ${item.name}. Marketplace: ${item.marketplace}. Programa aprovado cadastrado: ${item.program_name}. Comissão cadastrada: ${item.commission_rate}% (não prometa recebimento).
 Página original: ${item.product_url}. Host do link rastreável cadastrado: ${affiliateHost}. Plataforma: ${platform}.
 Notas disponíveis sobre o produto: ${notes || "Nenhuma característica comprovada foi fornecida."}
@@ -1177,8 +1177,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       return json({
         kit_id: kitId, publication_draft_id: publicationId, product_id: item.id, product: item.name, platform, variation_index: variationIndex, creative_angle: creativeAngle, kit,
         affiliate_url: item.affiliate_url, created_at: createdAt,
-        status: "draft_for_human_review",
-        notice: "Kit criado e salvo automaticamente como rascunho na fila de publicações. Confirme produto, preço, estoque, alegações e regras do canal. A CENTRAL IA não publicou nada."
+        status: "draft_ready_for_automation",
+        notice: "Kit criado automaticamente e salvo como rascunho. A CENTRAL IA fará as verificações e seguirá o fluxo de publicação assim que as integrações oficiais estiverem autorizadas."
       });
     } catch (error) {
       console.error("Affiliate campaign kit error", error);
@@ -1216,7 +1216,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_url: item.product_url, affiliate_url: item.affiliate_url,
         commission_rate: item.commission_rate, affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
-        campaign_status: ready ? "ready_for_review" : "blocked",
+        campaign_status: ready ? "ready" : "blocked",
         blockers,
         disclosure_required: true,
         notice: ready ? "Dados mínimos cadastrados. Revisar regras do canal e conteúdo antes de publicar." : "Não publicar enquanto houver bloqueios."
@@ -1224,10 +1224,10 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     });
     return json({
       count: products.length,
-      ready_for_review: products.filter(item => item.campaign_status === "ready_for_review").length,
+      ready: products.filter(item => item.campaign_status === "ready").length,
       blocked: products.filter(item => item.campaign_status === "blocked").length,
       products,
-      notice: "Este é um controle de prontidão, não uma confirmação externa de que o link funciona, de que há estoque ou de que a comissão será paga."
+      notice: "Prontidão automática interna; não confirma externamente que o link funciona, que há estoque ou que a comissão será paga."
     });
   }
 
