@@ -1474,6 +1474,81 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     }
   }
 
+
+  if (url.pathname === "/integrations/awin/transactions" && request.method === "GET") {
+    if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
+    const startDate = url.searchParams.get("start_date") || "";
+    const endDate = url.searchParams.get("end_date") || "";
+    const advertiserId = url.searchParams.get("advertiser_id") || "";
+    const status = url.searchParams.get("status") || "";
+    const datePattern = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$/;
+    const startMs = Date.parse(startDate + "Z");
+    const endMs = Date.parse(endDate + "Z");
+    if (!datePattern.test(startDate) || !datePattern.test(endDate) || !Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs || endMs - startMs > 31 * 24 * 60 * 60 * 1000) {
+      return json({ error: "Informe start_date e end_date em YYYY-MM-DDTHH:mm:ss, com intervalo máximo de 31 dias." }, 400);
+    }
+    if (advertiserId && !/^\\d+$/.test(advertiserId)) return json({ error: "advertiser_id deve ser numérico." }, 400);
+    if (status && !["pending", "approved", "declined", "deleted"].includes(status)) return json({ error: "status deve ser pending, approved, declined ou deleted." }, 400);
+    try {
+      const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/transactions/");
+      endpoint.searchParams.set("startDate", startDate);
+      endpoint.searchParams.set("endDate", endDate);
+      endpoint.searchParams.set("timezone", "UTC");
+      endpoint.searchParams.set("dateType", "transaction");
+      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
+      if (advertiserId) endpoint.searchParams.set("advertiserId", advertiserId);
+      if (status) endpoint.searchParams.set("status", status);
+      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" } });
+      if (!response.ok) return json({ error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Sem permissão para consultar transações." : "Não foi possível consultar as transações Awin.", upstream_status: response.status }, 502);
+      const payload = await response.json();
+      if (!Array.isArray(payload)) return json({ error: "A resposta da Awin não veio no formato esperado; nenhum dado foi contabilizado." }, 502);
+      const totals = {};
+      const transactions = payload.map(item => {
+        const commission = item.commissionAmount && typeof item.commissionAmount === "object" ? Number(item.commissionAmount.amount) : Number(item.commissionAmount);
+        const sale = item.saleAmount && typeof item.saleAmount === "object" ? Number(item.saleAmount.amount) : Number(item.saleAmount);
+        const currency = String(item.commissionAmount?.currency || item.saleAmount?.currency || "UNKNOWN").slice(0, 8);
+        const amount = Number.isFinite(commission) ? commission : 0;
+        const saleAmount = Number.isFinite(sale) ? sale : 0;
+        if (!totals[currency]) totals[currency] = { pending_commission: 0, approved_commission: 0, declined_commission: 0, paid_commission: 0, unpaid_approved_commission: 0, sale_value: 0, transactions: 0, paid_transactions: 0 };
+        const bucket = totals[currency];
+        const state = String(item.commissionStatus || "unknown").toLowerCase();
+        bucket.transactions += 1;
+        bucket.sale_value += saleAmount;
+        if (state === "pending") bucket.pending_commission += amount;
+        else if (state === "approved") {
+          bucket.approved_commission += amount;
+          if (item.paidToPublisher === true) { bucket.paid_commission += amount; bucket.paid_transactions += 1; }
+          else bucket.unpaid_approved_commission += amount;
+        } else if (state === "declined" || state === "deleted") bucket.declined_commission += amount;
+        return {
+          id: item.id ?? null,
+          advertiser_id: item.advertiserId ?? null,
+          campaign: typeof item.campaign === "string" ? item.campaign.slice(0, 160) : null,
+          status: state,
+          commission_amount: amount,
+          sale_amount: saleAmount,
+          currency,
+          paid_to_publisher: item.paidToPublisher === true,
+          transaction_date: item.transactionDate || null,
+          validation_date: item.validationDate || null
+        };
+      });
+      for (const bucket of Object.values(totals)) for (const key of Object.keys(bucket)) if (key !== "transactions" && key !== "paid_transactions") bucket[key] = Math.round(bucket[key] * 10000) / 10000;
+      await record(env, "awin_transactions_synced", JSON.stringify({ publisher_id: String(env.AWIN_PUBLISHER_ID), start_date: startDate, end_date: endDate, advertiser_id: advertiserId || null, count: transactions.length, currencies: Object.keys(totals), synced_at: new Date().toISOString() }));
+      return json({
+        source: "Awin Publisher API",
+        publisher_id: String(env.AWIN_PUBLISHER_ID),
+        period: { start_date: startDate, end_date: endDate, timezone: "UTC" },
+        count: transactions.length,
+        totals_by_currency: totals,
+        transactions,
+        accounting_note: "Comissão pendente não é receita confirmada. Comissão aprovada só é considerada paga quando paid_to_publisher=true. Valores são apresentados na moeda informada pela Awin, sem conversão cambial."
+      });
+    } catch (error) {
+      return json({ error: "Falha de comunicação ao consultar transações Awin." }, 502);
+    }
+  }
+
   if (url.pathname === "/affiliates/products" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT id, name, marketplace, product_url, affiliate_url, affiliate_program_id, commission_rate, notes, status, created_at, updated_at FROM affiliate_products ORDER BY created_at DESC LIMIT 200"
