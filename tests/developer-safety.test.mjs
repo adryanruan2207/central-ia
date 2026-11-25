@@ -266,3 +266,27 @@ test("validador TOML aceita comentários e linhas vazias sem alterar a configura
   const withComments = "# configuração testada\n\n" + wrangler + "\n# fim\n";
   assert.deepEqual(validateWranglerCandidate(withComments), {ok:true});
 });
+
+
+test("kit de campanha afiliada exige link HTTPS, comissão e programa aprovado", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST")');
+  const end = worker.indexOf('if (url.pathname === "/affiliates/campaign-kits"', start);
+  const section = worker.slice(start, end);
+  assert.notEqual(start, -1);
+  assert.match(section, /program_status !== "approved"/);
+  assert.match(section, /commission_rate === null/);
+  assert.match(section, /https:/);
+  assert.ok(section.indexOf("if (blockers.length)") < section.indexOf("env.AI.run"));
+  assert.match(section, /affiliate_campaign_kit_created/);
+  assert.match(section, /draft_for_human_review/);
+  assert.match(section, /A CENTRAL IA não publicou nada/);
+});
+
+test("painel só oferece kit para campanha pronta e envia produto ao endpoint protegido", () => {
+  assert.match(ui, /item\.campaign_status==='ready_for_review'/);
+  assert.match(ui, /Gerar kit de campanha/);
+  assert.match(ui, /\/affiliates\/campaign-kit/);
+  assert.match(ui, /data\.affiliate_url/);
+  assert.match(ui, /Revise antes de publicar/);
+  assert.doesNotMatch(ui, /campaign-kit[^;]{0,500}method:'POST'[^;]{0,500}publish/i);
+});
