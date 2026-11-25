@@ -1147,8 +1147,8 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
 Produto: ${item.name}. Marketplace: ${item.marketplace}. Programa aprovado cadastrado: ${item.program_name}. Comissão cadastrada: ${item.commission_rate}% (não prometa recebimento).
 Página original: ${item.product_url}. Host do link rastreável cadastrado: ${affiliateHost}. Plataforma: ${platform}.
 Notas disponíveis sobre o produto: ${notes || "Nenhuma característica comprovada foi fornecida."}
-Entregue: (1) 3 ganchos curtos; (2) roteiro vertical de até 30 segundos com cenas, narração e texto na tela; (3) legenda pronta; (4) CTA; (5) duas variações A/B; (6) checklist pré-publicação.
-Regras: não invente preço, desconto, estoque, avaliações, vendas, especificações, benefícios, garantias ou resultados. Não apresente notas internas como prova. Se faltar comprovação, escreva [CONFIRMAR FATO]. Inclua na legenda identificação clara de publicidade e link comissionado. Direcione para o link de afiliado já cadastrado (ex.: link na bio); não invente URLs. Não copie anúncios de terceiros. Não diga que a campanha foi publicada ou que gerará vendas. `;
+Entregue: (1) 3 ganchos curtos; (2) roteiro vertical de até 30 segundos com cenas, narração e texto na tela; (3) legenda pronta; (4) CTA; (5) duas variações A/B; (6) 5 a 8 hashtags relevantes ao nicho, produto e intenção de busca, misturando termos específicos e amplos sem usar tags irrelevantes; (7) checklist pré-publicação.
+Regras: não invente preço, desconto, estoque, avaliações, vendas, especificações, benefícios, garantias ou resultados. Não apresente notas internas como prova. Não chame hashtags de virais nem prometa alcance: só classifique uma tendência como atual quando houver dado recente verificável. Se faltar comprovação, escreva [CONFIRMAR FATO]. Inclua na legenda identificação clara de publicidade e link comissionado. Direcione para o link de afiliado já cadastrado (ex.: link na bio); não invente URLs. Não copie anúncios de terceiros. Não diga que a campanha foi publicada ou que gerará vendas. `;
     try {
       const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
         messages: [
