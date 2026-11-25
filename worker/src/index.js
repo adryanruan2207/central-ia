@@ -335,6 +335,7 @@ async function handle(request, env) {
     let patch=null;
     for(const row of rows.results||[]){try{const item=JSON.parse(row.details||"{}");if(item.patch_id===patchId){patch=item;break;}}catch{}}
     if(!patch) return json({error:"Patch candidato não encontrado."},404);
+    if(patch.path!=="worker/wrangler.toml" || !/^[0-9a-f-]{36}$/i.test(String(patch.proposal_id||""))) return json({error:"Patch fora do escopo permitido ou sem proposta vinculada válida."},422);
     const candidate=String(patch.updated_content||"");
     const sha256=async value=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(value)))).map(b=>b.toString(16).padStart(2,"0")).join("");
     const candidateHash=candidate?await sha256(candidate):null;
