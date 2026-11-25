@@ -1731,15 +1731,44 @@ export default {
       const campaignDraftsToday = Number(campaignCountRow?.total || 0);
       if (campaignDraftsToday < 9 && env.AI) {
         try {
-          const eligibleCountRow = await env.DB.prepare(
-            "SELECT COUNT(*) AS total FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL"
-          ).first();
-          const eligibleCount = Number(eligibleCountRow?.total || 0);
+          const eligibleRows = await env.DB.prepare(
+            "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, p.updated_at, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL AND p.commission_rate BETWEEN 0 AND 100"
+          ).all();
+          const rankedProducts = (eligibleRows.results || []).map(candidate => {
+            const notes = String(candidate.notes || "");
+            const priceMatch = notes.match(/Preço observado:\s*([0-9]+(?:[.,][0-9]{1,2})?)/i);
+            const salesMatch = notes.match(/Vendas informadas pelo anúncio:\s*([0-9]+)/i);
+            const observedPrice = priceMatch ? Number(priceMatch[1].replace(",", ".")) : null;
+            const publicSales = salesMatch ? Number(salesMatch[1]) : 0;
+            const rate = Number(candidate.commission_rate);
+            const estimatedPayout = Number.isFinite(observedPrice) && observedPrice > 0
+              ? observedPrice * rate / 100
+              : 0;
+            const demandMultiplier = 1 + Math.min(0.6, Math.log10(Math.max(0, publicSales) + 1) * 0.15);
+            const score = estimatedPayout > 0 ? estimatedPayout * demandMultiplier : rate * 0.01;
+            return { ...candidate, observed_price: observedPrice, public_sales: publicSales, estimated_payout: estimatedPayout, selection_score: score };
+          }).sort((a, b) =>
+            b.selection_score - a.selection_score ||
+            Number(b.commission_rate) - Number(a.commission_rate) ||
+            String(b.updated_at || "").localeCompare(String(a.updated_at || ""))
+          );
+          const eligibleCount = rankedProducts.length;
           if (eligibleCount > 0) {
-            const offset = campaignDraftsToday % eligibleCount;
-            const product = await env.DB.prepare(
-              "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL ORDER BY p.commission_rate DESC, p.updated_at DESC LIMIT 1 OFFSET ?"
-            ).bind(offset).first();
+            // Distribui os melhores candidatos ao longo dos nove conteúdos diários.
+            // A comissão vem da regra oficial cadastrada; a IA escolhe a melhor oportunidade, não altera a taxa.
+            const selectedRank = campaignDraftsToday % eligibleCount;
+            const product = rankedProducts[selectedRank];
+            await record(env, "affiliate_opportunity_selected", JSON.stringify({
+              product_id: product.id,
+              commission_rate: Number(product.commission_rate),
+              observed_price: product.observed_price,
+              estimated_commission_per_sale: Number(product.estimated_payout.toFixed(2)),
+              public_sales_signal: product.public_sales,
+              selection_score: Number(product.selection_score.toFixed(4)),
+              ranking_position: selectedRank + 1,
+              candidates: eligibleCount,
+              rule: "estimated_payout_weighted_by_public_sales_then_commission"
+            }));
             const platforms = [
               { id: "tiktok", channel: "tiktok", label: "TikTok" },
               { id: "instagram", channel: "instagram", label: "Instagram Reels" },
