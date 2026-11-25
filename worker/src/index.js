@@ -46,6 +46,49 @@ async function record(env, event, details = "") {
 
 
 
+
+async function syncAwinTransactionSnapshot(env, nowIso) {
+  if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return { skipped: true, reason: "credentials_missing" };
+  const last = await env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'awin_auto_sync_success' ORDER BY created_at DESC LIMIT 1").first();
+  if (last?.created_at && Date.now() - new Date(last.created_at).getTime() < 6 * 60 * 60 * 1000) return { skipped: true, reason: "not_due" };
+  const end = new Date(nowIso);
+  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const fmt = value => value.toISOString().slice(0, 19);
+  const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/transactions/");
+  endpoint.searchParams.set("startDate", fmt(start));
+  endpoint.searchParams.set("endDate", fmt(end));
+  endpoint.searchParams.set("timezone", "UTC");
+  endpoint.searchParams.set("dateType", "transaction");
+  endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
+  const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error("Awin API respondeu HTTP " + response.status);
+  const payload = await response.json();
+  if (!Array.isArray(payload)) throw new Error("Formato inesperado na resposta de transações Awin");
+  const totals = {};
+  for (const item of payload) {
+    const commission = Number(item.commissionAmount?.amount ?? item.commissionAmount ?? 0);
+    const sale = Number(item.saleAmount?.amount ?? item.saleAmount ?? 0);
+    const currency = String(item.commissionAmount?.currency || item.saleAmount?.currency || "UNKNOWN").slice(0, 8);
+    const status = String(item.commissionStatus || "unknown").toLowerCase();
+    if (!totals[currency]) totals[currency] = { pending_commission: 0, approved_commission: 0, paid_commission: 0, unpaid_approved_commission: 0, declined_commission: 0, sale_value: 0, transactions: 0 };
+    const bucket = totals[currency];
+    bucket.transactions += 1;
+    if (Number.isFinite(sale)) bucket.sale_value += sale;
+    if (Number.isFinite(commission)) {
+      if (status === "pending") bucket.pending_commission += commission;
+      else if (status === "approved") {
+        bucket.approved_commission += commission;
+        if (item.paidToPublisher === true) bucket.paid_commission += commission;
+        else bucket.unpaid_approved_commission += commission;
+      } else if (status === "declined" || status === "deleted") bucket.declined_commission += commission;
+    }
+  }
+  for (const bucket of Object.values(totals)) for (const key of Object.keys(bucket)) if (key !== "transactions") bucket[key] = Math.round(bucket[key] * 10000) / 10000;
+  const snapshot = { source: "Awin Publisher API", publisher_id: String(env.AWIN_PUBLISHER_ID), period: { start_date: fmt(start), end_date: fmt(end), timezone: "UTC" }, transaction_count: payload.length, totals_by_currency: totals, synced_at: nowIso, accounting_note: "Pendentes não são receita confirmada. Aprovadas só contam como pagas quando paidToPublisher=true. Valores não são convertidos entre moedas." };
+  await record(env, "awin_auto_sync_success", JSON.stringify(snapshot));
+  return { skipped: false, transaction_count: payload.length, currencies: Object.keys(totals) };
+}
+
 async function runMinuteHealthAudit(env, checkedAt) {
  const checks = [
   ["database", () => env.DB.prepare("SELECT 1 AS ok").first()],
@@ -1475,6 +1518,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
   }
 
 
+
+  if (url.pathname === "/integrations/awin/summary" && request.method === "GET") {
+    const latest = await env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'awin_auto_sync_success' ORDER BY created_at DESC LIMIT 1").first();
+    if (!latest) return json({ configured: Boolean(env.AWIN_API_TOKEN && env.AWIN_PUBLISHER_ID), synced: false, message: "Ainda não existe sincronização real da Awin." });
+    try { return json({ configured: true, synced: true, ...JSON.parse(latest.details), log_created_at: latest.created_at }); }
+    catch { return json({ configured: true, synced: false, message: "O último resumo da Awin não pôde ser lido." }, 500); }
+  }
+
   if (url.pathname === "/integrations/awin/transactions" && request.method === "GET") {
     if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
     const startDate = url.searchParams.get("start_date") || "";
@@ -1694,6 +1745,15 @@ export default {
       const now = new Date().toISOString();
       await runMinuteHealthAudit(env, now);
       await record(env, "scheduled_check", "Verificação automática da fila executada.");
+      if (env.AWIN_API_TOKEN && env.AWIN_PUBLISHER_ID) {
+        try {
+          const awinSync = await syncAwinTransactionSnapshot(env, now);
+          if (!awinSync.skipped) await record(env, "awin_auto_sync_completed", JSON.stringify(awinSync));
+        } catch (error) {
+          await record(env, "awin_auto_sync_failed", String(error?.message || "Falha ao sincronizar transações Awin").slice(0, 240));
+          await notifyOwner(env, "awin-sync-failure:" + now.slice(0, 10), "Sincronização Awin precisa de atenção", "A consulta automática de transações falhou. Verifique as permissões e o token Awin no Cloudflare. Nenhum valor foi contabilizado como receita.", "warning");
+        }
+      }
       if (!env.TAVILY_API_KEY) await notifyOwner(env, "setup:tavily:v1", "Pesquisa automática aguardando autorização", "A pesquisa de mercado e fornecedores está pausada porque falta configurar TAVILY_API_KEY como secret no Cloudflare Worker. Não envie a chave pelo chat.", "warning");
       if (!env.AI) await notifyOwner(env, "setup:workers-ai:v1", "Análise por IA indisponível", "O vínculo Workers AI não está disponível. A CENTRAL IA continuará verificando a fila, mas não conseguirá executar análises com IA até o vínculo ser corrigido.", "error");
 
