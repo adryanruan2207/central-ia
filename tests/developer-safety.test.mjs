@@ -365,15 +365,15 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
 });
 
 test("integração Awin consulta comissões oficiais e gera links somente por API autenticada", () => {
-  assert.match(worker, /\\/integrations\\/awin\\/status/);
-  assert.match(worker, /\\/integrations\\/awin\\/commission-groups/);
-  assert.match(worker, /\\/integrations\\/awin\\/tracking-link/);
+  assert.ok(worker.includes("/integrations/awin/status"));
+  assert.ok(worker.includes("/integrations/awin/commission-groups"));
+  assert.ok(worker.includes("/integrations/awin/tracking-link"));
   assert.match(worker, /AWIN_API_TOKEN/);
   assert.match(worker, /AWIN_PUBLISHER_ID/);
   assert.match(worker, /commissionGroup/);
-  assert.match(worker, /linkbuilder\\/generate/);
+  assert.ok(worker.includes("linkbuilder/generate"));
   assert.match(worker, /destinationUrl/);
-  assert.match(worker, /destinationUrl.*https/i);
+  assert.match(worker, /parsed\\.protocol !== "https:"/);
   assert.match(worker, /Awin Publisher API/);
   assert.doesNotMatch(worker, /console\\.(log|error)\\([^\\n]*AWIN_API_TOKEN/);
 });
