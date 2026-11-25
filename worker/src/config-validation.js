@@ -14,7 +14,7 @@ function validateWranglerCandidate(source) {
       continue;
     }
     const pair = line.match(/^([a-z_]+)\s*=\s*(.+)$/);
-    if (!pair) return {ok:false,reason:"invalid_line"};
+    if (!pair) return {ok:false,reason:"invalid_line",line};
     const key = section + "." + pair[1];
     if (seen.has(key)) return {ok:false,reason:"duplicate_key"};
     seen.add(key);
