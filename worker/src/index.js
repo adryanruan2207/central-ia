@@ -1178,7 +1178,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         kit_id: kitId, publication_draft_id: publicationId, product_id: item.id, product: item.name, platform, variation_index: variationIndex, creative_angle: creativeAngle, kit,
         affiliate_url: item.affiliate_url, created_at: createdAt,
         status: "draft_ready_for_automation",
-        notice: "Kit criado automaticamente e salvo como rascunho. A CENTRAL IA fará as verificações e seguirá o fluxo de publicação assim que as integrações oficiais estiverem autorizadas."
+        notice: "Kit criado automaticamente e salvo como rascunho. A CENTRAL IA não publicou nada externamente: seguirá o fluxo automático assim que as integrações oficiais estiverem autorizadas."
       });
     } catch (error) {
       console.error("Affiliate campaign kit error", error);
