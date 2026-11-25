@@ -1158,16 +1158,24 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const kit = typeof generated?.response === "string" ? generated.response.trim() : "";
       if (!kit) return json({ error: "Não foi possível gerar o kit agora. Tente novamente." }, 502);
       const kitId = crypto.randomUUID();
+      const publicationId = crypto.randomUUID();
       const createdAt = new Date().toISOString();
+      const channel = platform === "youtube_shorts" ? "youtube" : platform;
+      const publicationTitle = ("Campanha afiliada: " + item.name).slice(0, 180);
+      const publicationContent = (kit + "\\n\\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\\nLink de afiliado cadastrado: " + item.affiliate_url).slice(0, 10000);
+      await env.DB.prepare(
+        "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 'draft', ?, ?)"
+      ).bind(publicationId, channel, publicationTitle, publicationContent, item.affiliate_url, createdAt, createdAt).run();
       await record(env, "affiliate_campaign_kit_created", JSON.stringify({
-        kit_id: kitId, product_id: item.id, product: item.name, marketplace: item.marketplace,
+        kit_id: kitId, publication_id: publicationId, product_id: item.id, product: item.name, marketplace: item.marketplace,
         platform, commission_rate: Number(item.commission_rate), created_at: createdAt, kit
       }));
+      await record(env, "publication_draft_created", JSON.stringify({ id: publicationId, channel, status: "draft", source: "affiliate_campaign_kit", product_id: item.id }));
       return json({
-        kit_id: kitId, product_id: item.id, product: item.name, platform, kit,
+        kit_id: kitId, publication_draft_id: publicationId, product_id: item.id, product: item.name, platform, kit,
         affiliate_url: item.affiliate_url, created_at: createdAt,
         status: "draft_for_human_review",
-        notice: "Kit criado como rascunho. Confirme produto, preço, estoque, alegações e regras do canal. A CENTRAL IA não publicou nada."
+        notice: "Kit criado e salvo automaticamente como rascunho na fila de publicações. Confirme produto, preço, estoque, alegações e regras do canal. A CENTRAL IA não publicou nada."
       });
     } catch (error) {
       console.error("Affiliate campaign kit error", error);
