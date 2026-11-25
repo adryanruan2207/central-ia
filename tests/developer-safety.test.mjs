@@ -368,6 +368,11 @@ test("integração Awin consulta comissões oficiais e gera links somente por AP
   assert.ok(worker.includes("/integrations/awin/status"));
   assert.ok(worker.includes("/integrations/awin/commission-groups"));
   assert.ok(worker.includes("/integrations/awin/tracking-link"));
+  assert.ok(worker.includes("/integrations/awin/transactions"));
+  assert.ok(worker.includes("paidToPublisher === true"));
+  assert.ok(worker.includes("unpaid_approved_commission"));
+  assert.ok(worker.includes("intervalo máximo de 31 dias"));
+  assert.ok(worker.includes("Awin Publisher API"));
   assert.match(worker, /AWIN_API_TOKEN/);
   assert.match(worker, /AWIN_PUBLISHER_ID/);
   assert.match(worker, /commissionGroup/);
