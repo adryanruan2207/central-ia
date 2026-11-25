@@ -1695,7 +1695,7 @@ async function checkAffiliateCampaignReadiness(){
    const details=document.createElement('p');details.style.cssText='font-size:.84rem;color:#ddd!important';details.textContent='Programa: '+(item.affiliate_program||'não vinculado')+' • Comissão: '+(item.commission_rate===null?'não confirmada':item.commission_rate+'%')+' • Aprovação: '+(item.program_status||'não informada');card.append(details);
    if(item.blockers.length){const list=document.createElement('ul');for(const issue of item.blockers){const li=document.createElement('li');li.textContent=issue;list.append(li);}card.append(list);}
    if(item.campaign_status==='ready_for_review'){
-    const kitButton=document.createElement('button');kitButton.type='button';kitButton.textContent='Gerar kit de campanha';kitButton.style.margin='8px 0';kitButton.addEventListener('click',()=>generateAffiliateCampaignKit(item.id,card));card.append(kitButton);
+    const kitButton=document.createElement('button');kitButton.type='button';kitButton.textContent='Gerar kits para os 3 canais';kitButton.style.margin='8px 0';kitButton.addEventListener('click',()=>generateAffiliateCampaignKit(item.id,card));card.append(kitButton);
    }
    if(item.product_url){const product=document.createElement('a');product.href=item.product_url;product.target='_blank';product.rel='noopener noreferrer';product.textContent='Abrir página do produto';card.append(product);}
    if(item.affiliate_url){const affiliate=document.createElement('a');affiliate.href=item.affiliate_url;affiliate.target='_blank';affiliate.rel='noopener noreferrer';affiliate.textContent='Abrir link de afiliado';affiliate.style.marginLeft='12px';card.append(affiliate);}
