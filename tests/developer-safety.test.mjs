@@ -162,6 +162,7 @@ test("deploy do Worker exige TOML válido e compilação dry-run antes da produ�
   assert.ok(testJob.includes("wrangler deploy --dry-run"));
   assert.ok(!testJob.includes("CLOUDFLARE_API_TOKEN"));
   assert.ok(!testJob.includes("secrets."));
+  assert.ok(!workflow.includes("wrangler d1 migrations apply"), "Deploy automático não deve consumir a cota D1 aplicando migrações sem necessidade");
 });
 
 test("auditoria do repositório verifica autenticação e bloqueia execução dinâmica", () => {
