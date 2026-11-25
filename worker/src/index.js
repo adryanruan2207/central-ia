@@ -1738,7 +1738,7 @@ export default {
           if (eligibleCount > 0) {
             const offset = campaignDraftsToday % eligibleCount;
             const product = await env.DB.prepare(
-              "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL ORDER BY p.updated_at DESC LIMIT 1 OFFSET ?"
+              "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL ORDER BY p.commission_rate DESC, p.updated_at DESC LIMIT 1 OFFSET ?"
             ).bind(offset).first();
             const platforms = [
               { id: "tiktok", channel: "tiktok", label: "TikTok" },
