@@ -1414,7 +1414,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" } });
       if (!response.ok) return json({ configured: true, connected: false, upstream_status: response.status, error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Token sem permissão para consultar contas Publisher." : "Awin não confirmou a conexão." }, 502);
       const payload = await response.json();
-      const accounts = Array.isArray(payload) ? payload : Array.isArray(payload.accounts) ? payload.accounts : Array.isArray(payload.publisherAccounts) ? payload.publisherAccounts : [];
+      const accounts = Array.isArray(payload) ? payload : Array.isArray(payload.accounts) ? payload.accounts : Array.isArray(payload.contas) ? payload.contas : Array.isArray(payload.publisherAccounts) ? payload.publisherAccounts : [];
       const publisherId = String(env.AWIN_PUBLISHER_ID);
       const matched = accounts.some(account => String(account.accountId ?? account.id ?? account.publisherId ?? "") === publisherId);
       await record(env, "awin_connection_checked", JSON.stringify({ ok: true, publisher_id: publisherId, account_match: matched, checked_at: new Date().toISOString() }));
