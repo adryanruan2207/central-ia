@@ -1162,7 +1162,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const createdAt = new Date().toISOString();
       const channel = platform === "youtube_shorts" ? "youtube" : platform;
       const publicationTitle = ("Campanha afiliada: " + item.name).slice(0, 180);
-      const publicationContent = (kit + "\\n\\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\\nLink de afiliado cadastrado: " + item.affiliate_url).slice(0, 10000);
+      const publicationContent = (kit + "\n\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\nLink de afiliado cadastrado: " + item.affiliate_url).slice(0, 10000);
       await env.DB.prepare(
         "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 'draft', ?, ?)"
       ).bind(publicationId, channel, publicationTitle, publicationContent, item.affiliate_url, createdAt, createdAt).run();
