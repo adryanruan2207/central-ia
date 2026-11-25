@@ -1464,7 +1464,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         body: JSON.stringify({ advertiserId: Number(advertiserId), destinationUrl })
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || typeof payload.url !== "string" || !/^https:\\/\\//i.test(payload.url)) {
+      if (!response.ok || typeof payload.url !== "string" || !/^https:\/\//i.test(payload.url)) {
         return json({ error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Sem acesso ao anunciante ou ao Link Builder." : "A Awin não gerou um link rastreável para esse destino.", upstream_status: response.status || 502 }, 502);
       }
       await record(env, "awin_tracking_link_created", JSON.stringify({ advertiser_id: advertiserId, publisher_id: String(env.AWIN_PUBLISHER_ID), destination_host: new URL(destinationUrl).hostname, created_at: new Date().toISOString() }));
