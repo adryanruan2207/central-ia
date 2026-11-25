@@ -493,6 +493,10 @@ async function handle(request, env) {
         ["Validação de sessão", "async function validSession(token, secret)"],
         ["Bloqueio de API sem autenticação", "if (!isApiToken && !isSession)"],
         ["Limite de tamanho do token", "token.length > 2000"],
+        ["Hash do patch candidato", "candidateHashOk"],
+        ["Comparação com o arquivo original", "original_matches_current===true"],
+        ["Verificação não executa nem aplica patch", "static_only_no_execution"],
+        ["Patch limitado a caminho validado", 'patch.path!=="worker/wrangler.toml"'],
         ["Sem execução dinâmica por eval", ["ev","al("].join(""), true],
         ["Sem construtor dinâmico Function", ["new ","Function("].join(""), true]
       ]},
