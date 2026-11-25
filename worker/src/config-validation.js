@@ -7,13 +7,13 @@ function validateWranglerCandidate(source) {
   for (const rawLine of source.replace(/\r\n/g,"\n").split("\n")) {
     const line = rawLine.trim();
     if (!line || line.startsWith("#")) continue;
-    const header = line.match(/^\[\[([a-z_]+)\]\]$|^\[([a-z_]+)\]$/);
+    const header = line.match(/^\[\[([a-z0-9_]+)\]\]$|^\[([a-z0-9_]+)\]$/);
     if (header) {
       section = header[1] === "d1_databases" ? "d1_databases" : header[2];
       if (!allowedSections.has(section) || section === "root") return {ok:false,reason:"unknown_section"};
       continue;
     }
-    const pair = line.match(/^([a-z_]+)\s*=\s*(.+)$/);
+    const pair = line.match(/^([a-z0-9_]+)\s*=\s*(.+)$/);
     if (!pair) return {ok:false,reason:"invalid_line",line};
     const key = section + "." + pair[1];
     if (seen.has(key)) return {ok:false,reason:"duplicate_key"};
