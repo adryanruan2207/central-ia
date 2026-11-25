@@ -346,3 +346,17 @@ test("cron libera produtos elegíveis sem clique, sem inventar aprovação exter
   assert.match(section, /affiliate_products_auto_ready/);
   assert.match(section, /Não aprova contas nem inventa dados/);
 });
+
+test("seleção automática de afiliados compara comissão com valor estimado e sinal público de demanda", () => {
+  const start = worker.indexOf('const eligibleRows = await env.DB.prepare(');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 5200);
+  assert.match(section, /commission_rate BETWEEN 0 AND 100/);
+  assert.match(section, /Preço observado/);
+  assert.match(section, /Vendas informadas pelo anúncio/);
+  assert.match(section, /estimatedPayout/);
+  assert.match(section, /demandMultiplier/);
+  assert.match(section, /estimated_commission_per_sale/);
+  assert.match(section, /affiliate_opportunity_selected/);
+  assert.match(section, /não altera a taxa/);
+});
