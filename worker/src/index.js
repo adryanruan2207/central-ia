@@ -496,7 +496,7 @@ async function handle(request, env) {
         ["Rota de saúde", 'url.pathname === "/health"'],
         ["Planejador técnico", 'url.pathname === "/developer/plan"'],
         ["Histórico de planos", 'url.pathname === "/developer/plans"'],
-        ["Leitura correta por linhas", 'source.split("\\n")'],
+        ["Leitura correta por linhas", 'source.split("\n")'],
         ["Validação de sessão", "async function validSession(token, secret)"],
         ["Bloqueio de API sem autenticação", "if (!isApiToken && !isSession)"],
         ["Limite de tamanho do token", "token.length > 2000"],
@@ -1760,7 +1760,7 @@ export default {
               if (!kit) throw new Error("A IA não retornou um roteiro utilizável.");
               const publicationId = crypto.randomUUID();
               const createdAt = new Date().toISOString();
-              const content = (kit + "\\n\\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\\nLink afiliado cadastrado: " + product.affiliate_url).slice(0, 10000);
+              const content = (kit + "\n\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\nLink afiliado cadastrado: " + product.affiliate_url).slice(0, 10000);
               await env.DB.prepare(
                 "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 'draft', ?, ?)"
               ).bind(publicationId, platform.channel, publicationTitle, content, product.affiliate_url, createdAt, createdAt).run();
