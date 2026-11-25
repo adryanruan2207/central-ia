@@ -325,7 +325,10 @@ test("cron gera até nove rascunhos afiliados por dia sem publicar externamente"
   assert.match(section, /p\.affiliate_url LIKE 'https:\/\/%'/);
   assert.match(section, /p\.commission_rate IS NOT NULL/);
   assert.match(section, /variationIndex/);
-  assert.match(section, /ORDER BY p\.commission_rate DESC, p\.updated_at DESC LIMIT 1 OFFSET/);
+  assert.match(section, /const eligibleRows = await env\.DB\.prepare\(/);
+  assert.match(section, /estimatedPayout/);
+  assert.match(section, /demandMultiplier/);
+  assert.match(section, /affiliate_opportunity_selected/);
   assert.match(section, /INSERT INTO publication_queue/);
   assert.match(section, /NULL, 'draft'/);
   assert.match(section, /SELECT id FROM publication_queue WHERE title = \?/);
