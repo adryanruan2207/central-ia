@@ -370,6 +370,10 @@ test("integração Awin consulta comissões oficiais e gera links somente por AP
   assert.ok(worker.includes("/integrations/awin/tracking-link"));
   assert.ok(worker.includes("/integrations/awin/transactions"));
   assert.ok(worker.includes("/integrations/awin/summary"));
+  assert.ok(ui.includes("awin-finance-panel"));
+  assert.ok(ui.includes("loadAwinFinanceSummary"));
+  assert.ok(ui.includes("Comissão paga"));
+  assert.ok(ui.includes("Aprovada não paga"));
   assert.ok(worker.includes("syncAwinTransactionSnapshot"));
   assert.ok(worker.includes("awin_auto_sync_success"));
   assert.ok(worker.includes("6 * 60 * 60 * 1000"));
