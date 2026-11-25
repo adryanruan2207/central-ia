@@ -290,3 +290,16 @@ test("painel só oferece kit para campanha pronta e envia produto ao endpoint pr
   assert.match(ui, /Revise antes de publicar/);
   assert.doesNotMatch(ui, /campaign-kit[^;]{0,500}method:'POST'[^;]{0,500}publish/i);
 });
+
+
+test("kit afiliado cria rascunho interno com divulgação e link rastreável, sem publicar", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST")');
+  const end = worker.indexOf('if (url.pathname === "/affiliates/campaign-kits"', start);
+  const section = worker.slice(start, end);
+  assert.match(section, /INSERT INTO publication_queue/);
+  assert.match(section, /'draft'/);
+  assert.match(section, /PUBLICIDADE \/ LINK COMISSIONADO/);
+  assert.match(section, /publication_draft_id/);
+  assert.match(section, /A CENTRAL IA não publicou nada/);
+  assert.doesNotMatch(section, /fetch\([^\n]*(instagram|tiktok|facebook|youtube)/i);
+});
