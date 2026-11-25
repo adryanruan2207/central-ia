@@ -50,6 +50,8 @@ test("verificação de patch é estática e nunca declara aplicação", () => {
   assert.ok(section.includes('patch.path!=="worker/wrangler.toml"'));
   assert.ok(section.includes("patch.proposal_id"));
   assert.match(section, /ready_for_isolated_test:false/);
+  assert.match(section, /const verified=checks\.every\(x=>x\.passed\)/);
+  assert.match(section, /original_file_matches|Arquivo original ainda corresponde/);
   assert.match(section, /applied:false/);
   assert.match(section, /static_only_no_execution/);
 });
