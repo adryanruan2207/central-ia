@@ -331,3 +331,17 @@ test("cron gera até nove rascunhos afiliados por dia sem publicar externamente"
   assert.match(section, /autonomous_affiliate_draft_created/);
   assert.doesNotMatch(section, /graph\.facebook\.com|tiktok\.com\/v2\/post|youtube\.googleapis\.com/);
 });
+
+test("cron libera produtos elegíveis sem clique, sem inventar aprovação externa", () => {
+  const start = worker.indexOf("Aprovação interna automática");
+  const end = worker.indexOf("const campaignDay", start);
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, end);
+  assert.match(section, /SET status = 'ready'/);
+  assert.match(section, /affiliate_programs WHERE status = 'approved'/);
+  assert.match(section, /product_url LIKE 'https:\/\/%'/);
+  assert.match(section, /affiliate_url LIKE 'https:\/\/%'/);
+  assert.match(section, /commission_rate IS NOT NULL/);
+  assert.match(section, /affiliate_products_auto_ready/);
+  assert.match(section, /Não aprova contas nem inventa dados/);
+});
