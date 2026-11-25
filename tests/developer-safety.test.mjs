@@ -320,12 +320,12 @@ test("cron gera até nove rascunhos afiliados por dia sem publicar externamente"
   assert.notEqual(start, -1);
   const section = worker.slice(start, end);
   assert.match(section, /campaignDraftsToday < 9/);
-  assert.match(section, /p\.status = 'approved'/);
+  assert.match(section, /p\.status IN \('ready', 'approved'\)/);
   assert.match(section, /a\.status = 'approved'/);
   assert.match(section, /p\.affiliate_url LIKE 'https:\/\/%'/);
   assert.match(section, /p\.commission_rate IS NOT NULL/);
   assert.match(section, /variationIndex/);
-  assert.match(section, /ORDER BY p\\.updated_at DESC LIMIT 1 OFFSET/);
+  assert.match(section, /ORDER BY p\.updated_at DESC LIMIT 1 OFFSET/);
   assert.match(section, /INSERT INTO publication_queue/);
   assert.match(section, /NULL, 'draft'/);
   assert.match(section, /SELECT id FROM publication_queue WHERE title = \?/);
