@@ -8,6 +8,7 @@ import { validateWranglerCandidate } from "../worker/src/config-validation.js";
 const worker = await readFile(new URL("../worker/src/index.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const wrangler = await readFile(new URL("../worker/wrangler.toml", import.meta.url), "utf8");
+const validatorSource = await readFile(new URL("../worker/src/config-validation.js", import.meta.url), "utf8");
 
 test("patches só podem ser preparados após aprovação explícita", () => {
   const start = worker.indexOf('if (url.pathname === "/developer/patch/prepare"');
@@ -206,10 +207,10 @@ test("auditoria também inspeciona integridade e escopo dos patches", () => {
 
 
 test("patches TOML rejeitam diretivas desconhecidas, duplicadas ou bindings alterados", () => {
-  assert.match(worker, /function validateWranglerCandidate\(source\)/);
-  assert.match(worker, /unknown_section/);
-  assert.match(worker, /duplicate_key/);
-  assert.match(worker, /unsupported_or_invalid_value/);
+  assert.match(validatorSource, /function validateWranglerCandidate\(source\)/);
+  assert.match(validatorSource, /unknown_section/);
+  assert.match(validatorSource, /duplicate_key/);
+  assert.match(validatorSource, /unsupported_or_invalid_value/);
   assert.match(worker, /Estrutura TOML restrita e sem chaves desconhecidas/);
   const prepareStart = worker.indexOf('if (url.pathname === "/developer/patch/prepare" && request.method === "POST")');
   const prepareSection = worker.slice(prepareStart, prepareStart + 9000);
