@@ -292,6 +292,8 @@ test("painel só oferece kit para campanha pronta e envia produto ao endpoint pr
   assert.match(ui, /variation_index:platform\.variation_index/);
   assert.match(worker, /creativeAngle/);
   assert.match(worker, /variationIndex/);
+  assert.match(worker, /5 a 8 hashtags relevantes/);
+  assert.match(worker, /Não chame hashtags de virais/);
   assert.match(ui, /Os rascunhos já criados foram preservados/);
   assert.match(ui, /\/affiliates\/campaign-kit/);
   assert.match(ui, /item\.affiliate_url/);
