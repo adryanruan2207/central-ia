@@ -202,3 +202,18 @@ test("auditoria também inspeciona integridade e escopo dos patches", () => {
   assert.ok(section.includes('"Verificação não executa nem aplica patch"'));
   assert.ok(section.includes('"Patch limitado a caminho validado"'));
 });
+
+
+test("patches TOML rejeitam diretivas desconhecidas, duplicadas ou bindings alterados", () => {
+  assert.match(worker, /function validateWranglerCandidate\(source\)/);
+  assert.match(worker, /unknown_section/);
+  assert.match(worker, /duplicate_key/);
+  assert.match(worker, /unsupported_or_invalid_value/);
+  assert.match(worker, /Estrutura TOML restrita e sem chaves desconhecidas/);
+  const prepareStart = worker.indexOf('if (url.pathname === "/developer/patch/prepare" && request.method === "POST")');
+  const prepareSection = worker.slice(prepareStart, prepareStart + 9000);
+  assert.match(prepareSection, /validateWranglerCandidate\(updated\)/);
+  const verifyStart = worker.indexOf('if (url.pathname === "/developer/patch/verify" && request.method === "POST")');
+  const verifySection = worker.slice(verifyStart, verifyStart + 7000);
+  assert.match(verifySection, /validateWranglerCandidate\(candidate\)/);
+});
