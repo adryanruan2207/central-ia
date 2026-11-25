@@ -313,3 +313,21 @@ test("kit afiliado cria rascunho interno com divulgação e link rastreável, se
   assert.match(section, /A CENTRAL IA não publicou nada/);
   assert.doesNotMatch(section, /fetch\([^\n]*(instagram|tiktok|facebook|youtube)/i);
 });
+
+test("cron gera até nove rascunhos afiliados por dia sem publicar externamente", () => {
+  const start = worker.indexOf("Produção autônoma de até 9 rascunhos por dia");
+  const end = worker.indexOf("Processa no máximo uma tarefa segura por ciclo", start);
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, end);
+  assert.match(section, /campaignDraftsToday < 9/);
+  assert.match(section, /p\.status = 'approved'/);
+  assert.match(section, /a\.status = 'approved'/);
+  assert.match(section, /p\.affiliate_url LIKE 'https:\/\/%'/);
+  assert.match(section, /p\.commission_rate IS NOT NULL/);
+  assert.match(section, /variationIndex/);
+  assert.match(section, /INSERT INTO publication_queue/);
+  assert.match(section, /NULL, 'draft'/);
+  assert.match(section, /SELECT id FROM publication_queue WHERE title = \?/);
+  assert.match(section, /autonomous_affiliate_draft_created/);
+  assert.doesNotMatch(section, /graph\.facebook\.com|tiktok\.com\/v2\/post|youtube\.googleapis\.com/);
+});
