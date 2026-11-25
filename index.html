@@ -1709,20 +1709,42 @@ async function checkAffiliateCampaignReadiness(){
 async function generateAffiliateCampaignKit(productId,card){
  const token=localStorage.getItem('central_ia_session_v1');
  const status=document.getElementById('affiliate-shortlist-status');
- const button=[...card.querySelectorAll('button')].find(el=>el.textContent==='Gerar kit de campanha');
- if(!token){status.textContent='Entre novamente para gerar o kit.';return;}
- if(button){button.disabled=true;button.textContent='Criando rascunho…';}
+ const button=[...card.querySelectorAll('button')].find(el=>el.textContent.includes('Gerar kits'));
+ if(!token){status.textContent='Entre novamente para gerar os kits.';return;}
+ const platforms=[
+  {id:'tiktok',label:'TikTok'},
+  {id:'instagram',label:'Instagram Reels'},
+  {id:'youtube_shorts',label:'YouTube Shorts'}
+ ];
+ if(button){button.disabled=true;button.textContent='Preparando 3 canais…';}
+ const output=document.createElement('section');
+ output.style.cssText='margin-top:12px;padding:12px;border:1px solid #64748b;border-radius:10px;background:#202d35';
+ const heading=document.createElement('b');heading.textContent='Campanhas multicanal • rascunhos para revisão';output.append(heading);
+ card.append(output);
+ let created=0, failed=0;
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/campaign-kit',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({product_id:productId,platform:'instagram'})});
-  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível gerar o kit.');
-  const output=document.createElement('section');output.style.cssText='margin-top:12px;padding:12px;border:1px solid #64748b;border-radius:10px;background:#202d35';
-  const heading=document.createElement('b');heading.textContent='Rascunho de campanha criado • '+data.product;output.append(heading);
-  const content=document.createElement('pre');content.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.88rem;color:#f3f4f6!important;margin:10px 0';content.textContent=data.kit;output.append(content);
-  const affiliate=document.createElement('a');affiliate.href=data.affiliate_url;affiliate.target='_blank';affiliate.rel='noopener noreferrer';affiliate.textContent='Abrir link de afiliado cadastrado';output.append(affiliate);
-  const note=document.createElement('p');note.style.cssText='font-size:.78rem;color:#f2c98b!important;margin-top:8px';note.textContent=data.notice;output.append(note);
-  card.append(output);status.textContent='Kit gerado e salvo no histórico. Revise antes de publicar.';
- }catch(error){status.textContent=error.message;}
- finally{if(button){button.disabled=false;button.textContent='Gerar kit de campanha';}}
+  for(const platform of platforms){
+   status.textContent='Gerando material para '+platform.label+' ('+(created+failed+1)+'/3)…';
+   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/campaign-kit',{
+    method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({product_id:productId,platform:platform.id})
+   });
+   const data=await response.json().catch(()=>({}));
+   const section=document.createElement('div');section.style.cssText='border-top:1px solid #53616b;margin-top:12px;padding-top:10px';
+   const title=document.createElement('b');title.textContent=platform.label+' • '+(response.ok?'rascunho salvo':'não concluído');section.append(title);
+   if(response.ok){
+    created++;
+    const content=document.createElement('pre');content.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:.88rem;color:#f3f4f6!important;margin:10px 0';content.textContent=data.kit||'Kit sem conteúdo retornado.';section.append(content);
+    const note=document.createElement('p');note.style.cssText='font-size:.78rem;color:#f2c98b!important;margin-top:8px';note.textContent=data.notice||'Rascunho salvo para revisão; não publicado.';section.append(note);
+   }else{
+    failed++;
+    const error=document.createElement('p');error.textContent=data.error||'Falha ao gerar este canal.';section.append(error);
+   }
+   output.append(section);
+  }
+  status.textContent=created+' de 3 rascunhos criados'+(failed?' • '+failed+' falha(s).':' • todos aguardam revisão.');
+ }catch(error){status.textContent='Processo interrompido: '+error.message+'. Os rascunhos já criados foram preservados.';}
+ finally{if(button){button.disabled=false;button.textContent='Gerar kits para os 3 canais';}}
 }
 
 document.getElementById('affiliate-analyze-shortlist')?.addEventListener('click',analyzeAffiliateShortlist);
