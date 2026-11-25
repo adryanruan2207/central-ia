@@ -1125,6 +1125,9 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
     const productId = typeof body.product_id === "string" ? body.product_id.trim().slice(0, 100) : "";
     const platform = ["tiktok", "instagram", "youtube_shorts", "facebook"].includes(body.platform) ? body.platform : "instagram";
+    const variationIndex = Number.isInteger(body.variation_index) && body.variation_index >= 1 && body.variation_index <= 3 ? body.variation_index : 1;
+    const creativeAngles = ["demonstração prática", "problema e solução", "comparação e objeções"];
+    const creativeAngle = creativeAngles[variationIndex - 1];
     if (!productId) return json({ error: "Produto não informado." }, 400);
     const item = await env.DB.prepare(
       "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ?"
@@ -1161,18 +1164,18 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const publicationId = crypto.randomUUID();
       const createdAt = new Date().toISOString();
       const channel = platform === "youtube_shorts" ? "youtube" : platform;
-      const publicationTitle = ("Campanha afiliada: " + item.name).slice(0, 180);
+      const publicationTitle = ("Campanha afiliada: " + item.name + " • vídeo " + variationIndex + "/3").slice(0, 180);
       const publicationContent = (kit + "\n\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\nLink de afiliado cadastrado: " + item.affiliate_url).slice(0, 10000);
       await env.DB.prepare(
         "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 'draft', ?, ?)"
       ).bind(publicationId, channel, publicationTitle, publicationContent, item.affiliate_url, createdAt, createdAt).run();
       await record(env, "affiliate_campaign_kit_created", JSON.stringify({
         kit_id: kitId, publication_id: publicationId, product_id: item.id, product: item.name, marketplace: item.marketplace,
-        platform, commission_rate: Number(item.commission_rate), created_at: createdAt, kit
+        platform, variation_index: variationIndex, creative_angle: creativeAngle, commission_rate: Number(item.commission_rate), created_at: createdAt, kit
       }));
       await record(env, "publication_draft_created", JSON.stringify({ id: publicationId, channel, status: "draft", source: "affiliate_campaign_kit", product_id: item.id }));
       return json({
-        kit_id: kitId, publication_draft_id: publicationId, product_id: item.id, product: item.name, platform, kit,
+        kit_id: kitId, publication_draft_id: publicationId, product_id: item.id, product: item.name, platform, variation_index: variationIndex, creative_angle: creativeAngle, kit,
         affiliate_url: item.affiliate_url, created_at: createdAt,
         status: "draft_for_human_review",
         notice: "Kit criado e salvo automaticamente como rascunho na fila de publicações. Confirme produto, preço, estoque, alegações e regras do canal. A CENTRAL IA não publicou nada."
