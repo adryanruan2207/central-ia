@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import vm from "node:vm";
+import { validateWranglerCandidate } from "../worker/src/config-validation.js";
 
 const worker = await readFile(new URL("../worker/src/index.js", import.meta.url), "utf8");
 const ui = await readFile(new URL("../index.html", import.meta.url), "utf8");
@@ -216,4 +217,31 @@ test("patches TOML rejeitam diretivas desconhecidas, duplicadas ou bindings alte
   const verifyStart = worker.indexOf('if (url.pathname === "/developer/patch/verify" && request.method === "POST")');
   const verifySection = worker.slice(verifyStart, verifyStart + 7000);
   assert.match(verifySection, /validateWranglerCandidate\(candidate\)/);
+});
+
+
+test("validador TOML aceita a configuração real do Worker", () => {
+  assert.deepEqual(validateWranglerCandidate(wrangler), {ok:true});
+});
+
+test("validador TOML rejeita chave duplicada", () => {
+  const tampered = wrangler + '\nname = "central-ia-worker"\n';
+  assert.equal(validateWranglerCandidate(tampered).reason, "duplicate_key");
+});
+
+test("validador TOML rejeita seção não autorizada", () => {
+  const tampered = wrangler + '\n[unsafe]\ncommand = "run"\n';
+  assert.equal(validateWranglerCandidate(tampered).reason, "unknown_section");
+});
+
+test("validador TOML rejeita alteração de binding ou identificador D1", () => {
+  const changedBinding = wrangler.replace('binding = "AI"', 'binding = "OTHER"');
+  const changedDatabase = wrangler.replace('database_id = "59f3056f-c6a2-4c95-9d1e-2ba9aad2091a"', 'database_id = "00000000-0000-0000-0000-000000000000"');
+  assert.equal(validateWranglerCandidate(changedBinding).reason, "unsupported_or_invalid_value");
+  assert.equal(validateWranglerCandidate(changedDatabase).reason, "unsupported_or_invalid_value");
+});
+
+test("validador TOML rejeita chaves ausentes e arquivos grandes", () => {
+  assert.equal(validateWranglerCandidate('name = "central-ia-worker"').reason, "missing_required_keys");
+  assert.equal(validateWranglerCandidate("x".repeat(16001)).reason, "invalid_size");
 });
