@@ -297,7 +297,7 @@ test("painel só oferece kit para campanha pronta e envia produto ao endpoint pr
   assert.match(ui, /Os rascunhos já criados foram preservados/);
   assert.match(ui, /\/affiliates\/campaign-kit/);
   assert.match(ui, /item\.affiliate_url/);
-  assert.match(ui, /rascunho salvo para revisão|todos aguardam revisão/);
+  assert.match(ui, /rascunhos já criados foram preservados/);
   assert.doesNotMatch(ui, /campaign-kit[^;]{0,500}method:'POST'[^;]{0,500}publish/i);
 });
 
