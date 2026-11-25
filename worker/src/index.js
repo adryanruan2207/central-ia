@@ -1120,6 +1120,74 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     return json(result);
   }
 
+  if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
+    const productId = typeof body.product_id === "string" ? body.product_id.trim().slice(0, 100) : "";
+    const platform = ["tiktok", "instagram", "youtube_shorts", "facebook"].includes(body.platform) ? body.platform : "instagram";
+    if (!productId) return json({ error: "Produto não informado." }, 400);
+    const item = await env.DB.prepare(
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ?"
+    ).bind(productId).first();
+    if (!item) return json({ error: "Produto não encontrado." }, 404);
+    const blockers = [];
+    if (!item.product_url || !/^https:\/\//i.test(String(item.product_url))) blockers.push("link original HTTPS ausente");
+    if (!item.affiliate_url || !/^https:\/\//i.test(String(item.affiliate_url))) blockers.push("link de afiliado HTTPS ausente");
+    if (!item.affiliate_program_id || item.program_status !== "approved") blockers.push("programa de afiliados não aprovado");
+    if (item.commission_rate === null || !Number.isFinite(Number(item.commission_rate))) blockers.push("comissão não confirmada");
+    if (blockers.length) return json({ error: "Campanha bloqueada: " + blockers.join("; ") + ". Corrija os requisitos antes de gerar material promocional.", blockers }, 409);
+    if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
+    let affiliateHost = "";
+    try { affiliateHost = new URL(item.affiliate_url).hostname; } catch { return json({ error: "Link de afiliado inválido." }, 422); }
+    const notes = String(item.notes || "").slice(0, 1800);
+    const prompt = `Prepare um kit de campanha de afiliado em português brasileiro para revisão humana.
+Produto: ${item.name}. Marketplace: ${item.marketplace}. Programa aprovado cadastrado: ${item.program_name}. Comissão cadastrada: ${item.commission_rate}% (não prometa recebimento).
+Página original: ${item.product_url}. Host do link rastreável cadastrado: ${affiliateHost}. Plataforma: ${platform}.
+Notas disponíveis sobre o produto: ${notes || "Nenhuma característica comprovada foi fornecida."}
+Entregue: (1) 3 ganchos curtos; (2) roteiro vertical de até 30 segundos com cenas, narração e texto na tela; (3) legenda pronta; (4) CTA; (5) duas variações A/B; (6) checklist pré-publicação.
+Regras: não invente preço, desconto, estoque, avaliações, vendas, especificações, benefícios, garantias ou resultados. Não apresente notas internas como prova. Se faltar comprovação, escreva [CONFIRMAR FATO]. Inclua na legenda identificação clara de publicidade e link comissionado. Direcione para o link de afiliado já cadastrado (ex.: link na bio); não invente URLs. Não copie anúncios de terceiros. Não diga que a campanha foi publicada ou que gerará vendas. `;
+    try {
+      const generated = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+        messages: [
+          { role: "system", content: "Você é estrategista de marketing de afiliados. Seja persuasivo, original, verificável e transparente. Nunca invente fatos comerciais." },
+          { role: "user", content: prompt }
+        ],
+        max_tokens: 1400,
+        temperature: 0.55
+      });
+      const kit = typeof generated?.response === "string" ? generated.response.trim() : "";
+      if (!kit) return json({ error: "Não foi possível gerar o kit agora. Tente novamente." }, 502);
+      const kitId = crypto.randomUUID();
+      const createdAt = new Date().toISOString();
+      await record(env, "affiliate_campaign_kit_created", JSON.stringify({
+        kit_id: kitId, product_id: item.id, product: item.name, marketplace: item.marketplace,
+        platform, commission_rate: Number(item.commission_rate), created_at: createdAt, kit
+      }));
+      return json({
+        kit_id: kitId, product_id: item.id, product: item.name, platform, kit,
+        affiliate_url: item.affiliate_url, created_at: createdAt,
+        status: "draft_for_human_review",
+        notice: "Kit criado como rascunho. Confirme produto, preço, estoque, alegações e regras do canal. A CENTRAL IA não publicou nada."
+      });
+    } catch (error) {
+      console.error("Affiliate campaign kit error", error);
+      return json({ error: "Falha ao gerar o kit da campanha. Tente novamente." }, 502);
+    }
+  }
+
+  if (url.pathname === "/affiliates/campaign-kits" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT details, created_at FROM activity_log WHERE event = 'affiliate_campaign_kit_created' ORDER BY created_at DESC LIMIT 30"
+    ).all();
+    const kits = (result.results || []).flatMap(row => {
+      try {
+        const item = JSON.parse(row.details || "{}");
+        return [{ kit_id: item.kit_id, product_id: item.product_id, product: item.product, marketplace: item.marketplace, platform: item.platform, commission_rate: item.commission_rate, created_at: item.created_at || row.created_at, kit: item.kit }];
+      } catch { return []; }
+    });
+    return json({ count: kits.length, kits, notice: "Histórico de rascunhos; nenhum material foi publicado automaticamente." });
+  }
+
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.status, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
