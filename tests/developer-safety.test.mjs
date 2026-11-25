@@ -47,6 +47,8 @@ test("verificação de patch é estática e nunca declara aplicação", () => {
   assert.notEqual(start, -1);
   const section = worker.slice(start, start + 7000);
   assert.match(section, /crypto\.subtle\.digest\("SHA-256"/);
+  assert.match(section, /patch\.path!=="worker\\/wrangler\\.toml"/);
+  assert.match(section, /patch\.proposal_id/);
   assert.match(section, /ready_for_isolated_test:false/);
   assert.match(section, /applied:false/);
   assert.match(section, /static_only_no_execution/);
