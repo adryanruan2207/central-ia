@@ -128,6 +128,43 @@ async function notifyOwner(env, key, title, body, severity = "warning") {
   ).bind(id, String(key).slice(0, 180), String(title).slice(0, 180), String(body).slice(0, 1200), ["info","success","warning","error"].includes(severity) ? severity : "warning", createdAt).run();
 }
 
+function validateWranglerCandidate(source) {
+  if (typeof source !== "string" || source.length > 16000) return {ok:false,reason:"invalid_size"};
+  const allowedSections = new Set(["root","observability","d1_databases","triggers","ai"]);
+  const seen = new Set();
+  let section = "root";
+  const required = new Set(["root.name","root.main","root.compatibility_date","observability.enabled","d1_databases.binding","d1_databases.database_name","d1_databases.database_id","triggers.crons","ai.binding"]);
+  for (const rawLine of source.replace(/\r\n/g,"\n").split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const header = line.match(/^\[\[([a-z_]+)\]\]$|^\[([a-z_]+)\]$/);
+    if (header) {
+      section = header[1] === "d1_databases" ? "d1_databases" : header[2];
+      if (!allowedSections.has(section) || section === "root") return {ok:false,reason:"unknown_section"};
+      continue;
+    }
+    const pair = line.match(/^([a-z_]+)\s*=\s*(.+)$/);
+    if (!pair) return {ok:false,reason:"invalid_line"};
+    const key = section + "." + pair[1];
+    if (seen.has(key)) return {ok:false,reason:"duplicate_key"};
+    seen.add(key);
+    const value = pair[2];
+    const valid =
+      (key === "root.name" && value === '"central-ia-worker"') ||
+      (key === "root.main" && value === '"src/index.js"') ||
+      (key === "root.compatibility_date" && /^"\d{4}-\d{2}-\d{2}"$/.test(value) && value === '"2026-11-19"') ||
+      (key === "observability.enabled" && /^(true|false)$/.test(value)) ||
+      (key === "d1_databases.binding" && value === '"DB"') ||
+      (key === "d1_databases.database_name" && value === '"central-ia-db"') ||
+      (key === "d1_databases.database_id" && value === '"59f3056f-c6a2-4c95-9d1e-2ba9aad2091a"') ||
+      (key === "triggers.crons" && (() => { try { const list=JSON.parse(value); return Array.isArray(list) && list.length>=1 && list.length<=10 && list.every(x=>typeof x==="string" && x.length<=80); } catch { return false; } })()) ||
+      (key === "ai.binding" && value === '"AI"');
+    if (!valid) return {ok:false,reason:"unsupported_or_invalid_value",key};
+  }
+  const missing=[...required].filter(key=>!seen.has(key));
+  return missing.length ? {ok:false,reason:"missing_required_keys",missing} : {ok:true};
+}
+
 async function searchWebWithTavily(query, env) {
   if (!env.TAVILY_API_KEY) return { configured: false, results: [] };
   const response = await fetch("https://api.tavily.com/search", {
@@ -311,6 +348,8 @@ async function handle(request, env) {
       updated=parsed.updated_content.replace(/\r\n/g,"\n").trimEnd()+"\n";
     } catch { return json({error:"A IA não produziu um arquivo atualizado em formato válido. Nenhum patch foi salvo."},502); }
     const required=["name = \"central-ia-worker\"","main = \"src/index.js\"","compatibility_date = \"2026-11-19\"","binding = \"DB\"","database_name = \"central-ia-db\"","database_id = \"59f3056f-c6a2-4c95-9d1e-2ba9aad2091a\"","binding = \"AI\""];
+    const configValidation=validateWranglerCandidate(updated);
+    if(!configValidation.ok) return json({error:"A configuração candidata não passou na validação estrutural restrita ("+configValidation.reason+"). Nenhum patch foi salvo."},422);
     if(updated.length>16000 || required.some(line=>!updated.includes(line)) || /(?:api[_-]?key|secret|password)\s*=\s*["'][^"']{8,}/i.test(updated)) return json({error:"O conteúdo gerado não passou nas proteções do arquivo de configuração. Nenhum patch foi salvo."},422);
     if(updated===original) return json({error:"A proposta não produziu uma alteração concreta. Nenhum patch foi salvo."},422);
     const oldLines=original.replace(/\r\n/g,"\n").trimEnd().split("\n");
@@ -342,6 +381,8 @@ async function handle(request, env) {
     const candidateHashOk=!!candidateHash&&!!patch.candidate_sha256&&candidateHash===patch.candidate_sha256;
     const required=["name = \"central-ia-worker\"","main = \"src/index.js\"","compatibility_date = \"2026-11-19\"","binding = \"DB\"","database_name = \"central-ia-db\"","database_id = \"59f3056f-c6a2-4c95-9d1e-2ba9aad2091a\"","binding = \"AI\""];
     const requiredOk=!!candidate&&required.every(line=>candidate.includes(line));
+    const configStructure=validateWranglerCandidate(candidate);
+    const configStructureOk=configStructure.ok===true;
     const noSecretLikeValues=!!candidate&&!/(?:api[_-]?key|secret|password)\s*=\s*["'][^"']{8,}/i.test(candidate);
     const sizeOk=candidate.length>0&&candidate.length<=16000;
     let currentHash=null,currentMatchesOriginal=null,currentRead=false;
@@ -352,6 +393,7 @@ async function handle(request, env) {
     const checks=[
       {name:"Hash do patch candidato",passed:candidateHashOk},
       {name:"Configurações obrigatórias preservadas",passed:requiredOk},
+      {name:"Estrutura TOML restrita e sem chaves desconhecidas",passed:configStructureOk},
       {name:"Nenhum valor com aparência de segredo",passed:noSecretLikeValues},
       {name:"Tamanho dentro do limite",passed:sizeOk},
       {name:"Arquivo original ainda corresponde à versão registrada",passed:currentMatchesOriginal===true,informational:currentMatchesOriginal===null}
