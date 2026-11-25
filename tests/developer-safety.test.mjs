@@ -246,3 +246,23 @@ test("validador TOML rejeita chaves ausentes e arquivos grandes", () => {
   assert.equal(validateWranglerCandidate('name = "central-ia-worker"').reason, "missing_required_keys");
   assert.equal(validateWranglerCandidate("x".repeat(16001)).reason, "invalid_size");
 });
+
+
+test("validador TOML rejeita diretivas raiz não autorizadas e sintaxe malformada", () => {
+  const unknownRoot = wrangler + "\nextra_setting = true\n";
+  const malformed = wrangler + "\nthis is not valid TOML\n";
+  assert.equal(validateWranglerCandidate(unknownRoot).reason, "unsupported_or_invalid_value");
+  assert.equal(validateWranglerCandidate(malformed).reason, "invalid_line");
+});
+
+test("validador TOML rejeita cron inválido e data de compatibilidade alterada", () => {
+  const badCron = wrangler.replace('crons = ["* * * * *"]', 'crons = "not-an-array"');
+  const badDate = wrangler.replace('compatibility_date = "2026-11-19"', 'compatibility_date = "2027-01-01"');
+  assert.equal(validateWranglerCandidate(badCron).reason, "unsupported_or_invalid_value");
+  assert.equal(validateWranglerCandidate(badDate).reason, "unsupported_or_invalid_value");
+});
+
+test("validador TOML aceita comentários e linhas vazias sem alterar a configuração", () => {
+  const withComments = "# configuração testada\n\n" + wrangler + "\n# fim\n";
+  assert.deepEqual(validateWranglerCandidate(withComments), {ok:true});
+});
