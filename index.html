@@ -476,6 +476,7 @@ body.show-chat .intro{display:flex!important}
    if(!response.ok)throw new Error(data.error||('Falha no acesso (HTTP '+response.status+').'));
    if(typeof data.token!=='string'||!data.token)throw new Error('Servidor não retornou uma sessão válida.');
    localStorage.setItem('central_ia_session_v1',data.token);
+   window.dispatchEvent(new CustomEvent('central-ia-session-updated',{detail:{token:data.token}}));
    document.body.classList.remove('auth-locked');
    document.getElementById('login-screen').hidden=true;
    status.textContent='3/3 — Acesso confirmado.';
@@ -864,6 +865,7 @@ if(legacyImageHandler){
 document.getElementById('remove-chat-image').addEventListener('click',()=>{selectedImageData='';chatImage.value='';cameraImage.value='';generalFile.value='';chatImagePreview.removeAttribute('src');imagePreview.hidden=true;imagePreviewStatus.textContent='Imagem removida. Você pode anexar outra.';});
 const chatLog=document.getElementById('chat-log'),chatStatus=document.getElementById('chat-status'),sendChat=document.getElementById('send-chat'),logoutChat=document.getElementById('logout-chat');
 const SESSION_KEY='central_ia_session_v1';let sessionToken=localStorage.getItem(SESSION_KEY)||'';
+window.addEventListener('central-ia-session-updated',event=>{if(typeof event.detail?.token==='string'){sessionToken=event.detail.token;showPlatform();}});
 function showLogin(message='Acesso protegido.'){document.body.classList.add('auth-locked');loginScreen.hidden=false;loginStatus.textContent=message;}
 function showPlatform(){document.body.classList.remove('auth-locked');loginScreen.hidden=true;chatStatus.textContent='Você está conectado neste aparelho.';}
 async function verifySavedSession(){
@@ -915,7 +917,7 @@ function addChatLine(who,text){
 async function sendChatMessage(){
  const message=chatMessage.value.trim();
  const image=selectedImageData;
- if(!sessionToken){chatStatus.textContent='Entre com sua senha para conversar.';chatToken.focus();return;}
+ if(!sessionToken){chatStatus.textContent='Entre com sua senha para conversar.';loginPassword.focus();return;}
  if(!message&&!image){chatStatus.textContent='Digite uma mensagem ou anexe uma imagem.';chatMessage.focus();return;}
  sendChat.disabled=true;chatStatus.textContent=image?'A CENTRAL IA está analisando a imagem…':'A CENTRAL IA está pensando…';
  addChatLine('Você',message||(image?'[Imagem enviada para análise]':''));
