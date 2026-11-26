@@ -233,12 +233,22 @@ async function handle(request, env) {
       }
     }
     const schemaReady = database.ok && database.schema_ready !== false;
+    const components = {
+      database: schemaReady,
+      workers_ai: Boolean(env.AI),
+      web_research: Boolean(env.TAVILY_API_KEY)
+    };
+    const missingComponents = Object.entries(components).filter(([,ready]) => !ready).map(([name]) => name);
+    const operational = missingComponents.length === 0;
     return json({
       service: "CENTRAL IA",
-      status: schemaReady ? "online" : "degraded",
+      status: operational ? "online" : "degraded",
+      operational,
+      components,
+      missing_components: missingComponents,
       database,
-      workers_ai_configured: Boolean(env.AI),
-      web_research_configured: Boolean(env.TAVILY_API_KEY),
+      workers_ai_configured: components.workers_ai,
+      web_research_configured: components.web_research,
       time: new Date().toISOString()
     }, database.ok ? 200 : 503);
   }
