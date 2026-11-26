@@ -274,7 +274,7 @@ test("kit de campanha afiliada exige link HTTPS, comissão e programa aprovado",
   const section = worker.slice(start, end);
   assert.notEqual(start, -1);
   assert.match(section, /program_status !== "approved"/);
-  assert.match(section, /commission_rate === null/);
+  assert.match(section, /commissionRate > 0 && commissionRate <= 100/);
   assert.match(section, /https:/);
   assert.ok(section.indexOf("if (blockers.length)") < section.indexOf("env.AI.run"));
   assert.match(section, /affiliate_campaign_kit_created/);
@@ -392,6 +392,18 @@ test("painel de afiliados separa comissão estimada de lucro líquido e valor re
   assert.match(section, /estimativa_bruta_apenas/);
   assert.match(section, /Comissão estimada não significa comissão aprovada, paga ou recebida/);
   assert.match(section, /commissionRate > 0 && commissionRate <= 100/);
+});
+
+test("prontidão de campanha exige URLs HTTPS, comissão válida e programa aprovado", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
+  const end = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', start);
+  const section = worker.slice(start, end);
+  assert.notEqual(start, -1);
+  assert.match(section, /productUrlValid/);
+  assert.match(section, /affiliateUrlValid/);
+  assert.match(section, /commissionRate > 0 && commissionRate <= 100/);
+  assert.match(section, /program_status !== "approved"/);
+  assert.match(section, /campaign_status: ready \? "ready" : "blocked"/);
 });
 
 test("integração Awin consulta comissões oficiais e gera links somente por API autenticada", () => {
