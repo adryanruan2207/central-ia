@@ -543,6 +543,16 @@ test("comissões afiliadas exigem referência HTTPS de fonte oficial antes de li
 });
 
 
+test("sincronização Awin notifica apenas aumento de comissão marcada como paga", () => {
+  const start = worker.indexOf("async function syncAwinTransactionSnapshot");
+  const end = worker.indexOf("async function runMinuteHealthAudit", start);
+  const sync = worker.slice(start, end);
+  assert.match(sync, /previousSnapshotRow/);
+  assert.match(sync, /currentPaid > priorPaid/);
+  assert.match(sync, /Comissão marcada como paga pela Awin/);
+  assert.match(sync, /não comprova sozinho o crédito ou saque na sua conta bancária/);
+});
+
 test("referência de comissão é explicitamente tratada como não verificada", () => {
   const readinessStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
   const readinessEnd = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', readinessStart);
