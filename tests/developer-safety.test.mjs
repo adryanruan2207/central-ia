@@ -367,6 +367,17 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
   assert.match(section, /não altera a taxa/);
 });
 
+test("publicações idênticas reutilizam registro existente e evitam duplicação", () => {
+  const start = worker.indexOf('if (url.pathname === "/publications" && request.method === "POST")');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 5000);
+  assert.match(section, /SELECT id, status FROM publication_queue WHERE channel = \? AND title = \? AND content = \? AND affiliate_url IS \? AND scheduled_at IS \?/);
+  assert.match(section, /status <> 'failed'/);
+  assert.match(section, /if \(existing\)/);
+  assert.match(section, /duplicate: true/);
+  assert.match(section, /evitar duplicação/);
+});
+
 test("painel de afiliados separa comissão estimada de lucro líquido e valor recebido", () => {
   const start = worker.indexOf('if (url.pathname === "/affiliates/shortlist/analyze"');
   assert.notEqual(start, -1);
