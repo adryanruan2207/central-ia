@@ -487,3 +487,28 @@ test("login sincroniza a sessão com os módulos da aplicação", async () => {
   assert.match(html, /sessionToken=event\.detail\.token/);
   assert.doesNotMatch(html, /chatToken\.focus\(\)/);
 });
+
+
+test("comissões afiliadas exigem referência HTTPS de fonte oficial antes de liberar campanhas", () => {
+  const readinessStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
+  const readinessEnd = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', readinessStart);
+  const readiness = worker.slice(readinessStart, readinessEnd);
+  assert.match(readiness, /commission_source_url/);
+  assert.match(readiness, /commissionSourceValid/);
+  assert.match(readiness, /URL da fonte oficial da comissão/);
+  const kitStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST")');
+  const kitEnd = worker.indexOf('if (url.pathname === "/affiliates/campaign-kits"', kitStart);
+  const kit = worker.slice(kitStart, kitEnd);
+  assert.match(kit, /commission_source_url/);
+  assert.match(kit, /fonte oficial da comissão/);
+  const cronStart = worker.indexOf("Produção autônoma de até 9 rascunhos por dia");
+  const cronEnd = worker.indexOf("Processa no máximo uma tarefa segura por ciclo", cronStart);
+  const cron = worker.slice(cronStart, cronEnd);
+  assert.match(cron, /commission_source_url LIKE 'https:\/\/%'/);
+  assert.match(cron, /commission_source_url/);
+  const linkStart = worker.indexOf('url.pathname.startsWith("/affiliates/products/")');
+  const linkEnd = worker.indexOf('if (url.pathname === "/affiliates/suppliers"', linkStart);
+  const link = worker.slice(linkStart, linkEnd);
+  assert.match(link, /commission_source_url/);
+  assert.match(link, /Informe a URL HTTPS da fonte oficial/);
+});
