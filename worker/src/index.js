@@ -1480,28 +1480,28 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     if (!env.AWIN_API_TOKEN || !env.AWIN_PUBLISHER_ID) {
       return json({ configured: false, connected: false, missing: [!env.AWIN_API_TOKEN ? "AWIN_API_TOKEN" : null, !env.AWIN_PUBLISHER_ID ? "AWIN_PUBLISHER_ID" : null].filter(Boolean) });
     }
-    if (!/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID))) return json({ configured: true, connected: false, error: "AWIN_PUBLISHER_ID inválido." }, 503);
+    if (!/^\d+$/.test(String(env.AWIN_PUBLISHER_ID))) return json({ configured: true, connected: false, error: "AWIN_PUBLISHER_ID inválido." }, 503);
     try {
       const endpoint = new URL("https://api.awin.com/accounts");
       endpoint.searchParams.set("type", "publisher");
       endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
-      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" } });
+      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(12000) });
       if (!response.ok) return json({ configured: true, connected: false, upstream_status: response.status, error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Token sem permissão para consultar contas Publisher." : "Awin não confirmou a conexão." }, 502);
       const payload = await response.json();
       const accounts = Array.isArray(payload) ? payload : Array.isArray(payload.accounts) ? payload.accounts : Array.isArray(payload.contas) ? payload.contas : Array.isArray(payload.publisherAccounts) ? payload.publisherAccounts : [];
       const publisherId = String(env.AWIN_PUBLISHER_ID);
       const matched = accounts.some(account => String(account.accountId ?? account.id ?? account.publisherId ?? "") === publisherId);
       await record(env, "awin_connection_checked", JSON.stringify({ ok: true, publisher_id: publisherId, account_match: matched, checked_at: new Date().toISOString() }));
-      return json({ configured: true, connected: true, publisher_id: publisherId, account_match: matched, account_count: accounts.length, notice: matched ? "Conta Publisher localizada." : "Token válido; confirme se o ID Publisher configurado pertence à conta." });
+      return json({ configured: true, connected: matched, token_valid: true, publisher_id: publisherId, account_match: matched, account_count: accounts.length, notice: matched ? "Token válido e conta Publisher localizada." : "Token válido, mas o ID Publisher configurado não foi localizado na resposta da Awin. Confira o ID antes de operar." });
     } catch (error) {
       return json({ configured: true, connected: false, error: "Falha de comunicação com a API Awin." }, 502);
     }
   }
 
   if (url.pathname === "/integrations/awin/commission-groups" && request.method === "GET") {
-    if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
+    if (!env.AWIN_API_TOKEN || !/^\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
     const advertiserId = url.searchParams.get("advertiser_id") || "";
-    if (!/^\\d+$/.test(advertiserId)) return json({ error: "advertiser_id numérico é obrigatório." }, 400);
+    if (!/^\d+$/.test(advertiserId)) return json({ error: "advertiser_id numérico é obrigatório." }, 400);
     try {
       const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/commissiongroups");
       endpoint.searchParams.set("advertiserId", advertiserId);
@@ -1521,12 +1521,12 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
   }
 
   if (url.pathname === "/integrations/awin/tracking-link" && request.method === "POST") {
-    if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
+    if (!env.AWIN_API_TOKEN || !/^\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
     let body;
     try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
     const advertiserId = String(body.advertiser_id || "");
     const destinationUrl = typeof body.destination_url === "string" ? body.destination_url.trim() : "";
-    if (!/^\\d+$/.test(advertiserId)) return json({ error: "advertiser_id numérico é obrigatório." }, 400);
+    if (!/^\d+$/.test(advertiserId)) return json({ error: "advertiser_id numérico é obrigatório." }, 400);
     try { const parsed = new URL(destinationUrl); if (parsed.protocol !== "https:") throw new Error("HTTPS obrigatório"); }
     catch { return json({ error: "destination_url deve ser uma URL HTTPS válida." }, 400); }
     try {
@@ -1558,18 +1558,18 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
   }
 
   if (url.pathname === "/integrations/awin/transactions" && request.method === "GET") {
-    if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
+    if (!env.AWIN_API_TOKEN || !/^\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
     const startDate = url.searchParams.get("start_date") || "";
     const endDate = url.searchParams.get("end_date") || "";
     const advertiserId = url.searchParams.get("advertiser_id") || "";
     const status = url.searchParams.get("status") || "";
-    const datePattern = /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$/;
+    const datePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
     const startMs = Date.parse(startDate + "Z");
     const endMs = Date.parse(endDate + "Z");
     if (!datePattern.test(startDate) || !datePattern.test(endDate) || !Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs || endMs - startMs > 31 * 24 * 60 * 60 * 1000) {
       return json({ error: "Informe start_date e end_date em YYYY-MM-DDTHH:mm:ss, com intervalo máximo de 31 dias." }, 400);
     }
-    if (advertiserId && !/^\\d+$/.test(advertiserId)) return json({ error: "advertiser_id deve ser numérico." }, 400);
+    if (advertiserId && !/^\d+$/.test(advertiserId)) return json({ error: "advertiser_id deve ser numérico." }, 400);
     if (status && !["pending", "approved", "declined", "deleted"].includes(status)) return json({ error: "status deve ser pending, approved, declined ou deleted." }, 400);
     try {
       const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/transactions/");
@@ -1580,7 +1580,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
       if (advertiserId) endpoint.searchParams.set("advertiserId", advertiserId);
       if (status) endpoint.searchParams.set("status", status);
-      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" } });
+      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(15000) });
       if (!response.ok) return json({ error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Sem permissão para consultar transações." : "Não foi possível consultar as transações Awin.", upstream_status: response.status }, 502);
       const payload = await response.json();
       if (!Array.isArray(payload)) return json({ error: "A resposta da Awin não veio no formato esperado; nenhum dado foi contabilizado." }, 502);
