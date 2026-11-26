@@ -360,6 +360,8 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
   assert.match(section, /estimatedPayout/);
   assert.match(section, /demandMultiplier/);
   assert.match(section, /estimated_commission_per_sale/);
+  assert.match(section, /shortlistCount = Math.min\(3, eligibleCount\)/);
+  assert.match(section, /rotate_only_within_top_3_ranked_by_estimated_payout_and_public_sales/);
   assert.match(section, /affiliate_opportunity_selected/);
   assert.match(section, /não altera a taxa/);
 });
