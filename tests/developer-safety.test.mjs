@@ -425,6 +425,9 @@ test("validações Awin aceitam IDs numéricos e confirmam o Publisher correto",
   const transactions = worker.slice(transactionsStart, transactionsEnd);
   assert.ok(transactions.includes("/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$/"), "datas devem validar formato ISO");
   assert.ok(transactions.includes("/^\\d+$/"), "filtro de anunciante deve aceitar somente dígitos");
+  assert.match(transactions, /startDateIsReal/);
+  assert.match(transactions, /endDateIsReal/);
+  assert.match(transactions, /toISOString\(\)\.slice\(0, 19\) === startDate/);
   assert.match(transactions, /AbortSignal\.timeout\(15000\)/);
 });
 
