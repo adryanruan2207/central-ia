@@ -48,7 +48,7 @@ async function record(env, event, details = "") {
 
 
 async function syncAwinTransactionSnapshot(env, nowIso) {
-  if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return { skipped: true, reason: "credentials_missing" };
+  if (!env.AWIN_API_TOKEN || !/^[0-9]+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return { skipped: true, reason: "credentials_missing" };
   const last = await env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'awin_auto_sync_success' ORDER BY created_at DESC LIMIT 1").first();
   if (last?.created_at && Date.now() - new Date(last.created_at).getTime() < 6 * 60 * 60 * 1000) return { skipped: true, reason: "not_due" };
   const end = new Date(nowIso);
