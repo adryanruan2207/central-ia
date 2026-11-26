@@ -2047,13 +2047,20 @@ export default {
               const publicationId = crypto.randomUUID();
               const createdAt = new Date().toISOString();
               const content = (kit + "\n\nPUBLICIDADE / LINK COMISSIONADO: este conteúdo pode gerar comissão.\nLink afiliado cadastrado: " + product.affiliate_url).slice(0, 10000);
-              await env.DB.prepare(
-                "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, 'draft', ?, ?)"
-              ).bind(publicationId, platform.channel, publicationTitle, content, product.affiliate_url, createdAt, createdAt).run();
-              await record(env, "autonomous_affiliate_draft_created", JSON.stringify({
-                id: publicationId, product_id: product.id, platform: platform.id, variation_index: variationIndex,
-                creative_angle: angle, day: campaignDay, daily_sequence: campaignDraftsToday + 1, status: "draft"
-              }));
+              const insertedDraft = await env.DB.prepare(
+                "INSERT INTO publication_queue(id, channel, title, content, affiliate_url, scheduled_at, status, created_at, updated_at) SELECT ?, ?, ?, ?, ?, NULL, 'draft', ?, ? WHERE (SELECT COUNT(*) FROM publication_queue WHERE title LIKE ?) < 9 AND NOT EXISTS (SELECT 1 FROM publication_queue WHERE title = ?)"
+              ).bind(publicationId, platform.channel, publicationTitle, content, product.affiliate_url, createdAt, createdAt, campaignPrefix + "%", publicationTitle).run();
+              if (Number(insertedDraft?.meta?.changes || 0) === 1) {
+                await record(env, "autonomous_affiliate_draft_created", JSON.stringify({
+                  id: publicationId, product_id: product.id, platform: platform.id, variation_index: variationIndex,
+                  creative_angle: angle, day: campaignDay, daily_sequence: campaignDraftsToday + 1, status: "draft"
+                }));
+              } else {
+                await record(env, "autonomous_affiliate_draft_skipped", JSON.stringify({
+                  reason: "daily_limit_or_duplicate_claimed_by_another_cron",
+                  day: campaignDay, title: publicationTitle
+                }));
+              }
             }
           } else {
             await notifyOwner(env, "affiliate-auto:no-eligible-product:" + campaignDay, "Campanhas automáticas aguardando produto aprovado", "A CENTRAL IA está pronta para gerar até 9 roteiros por dia, mas ainda não encontrou produto com link afiliado HTTPS, programa aprovado e comissão cadastrada. Nenhum conteúdo promocional foi criado.", "warning");
