@@ -1910,7 +1910,9 @@ export default {
         "SELECT created_at FROM activity_log WHERE event = 'autonomous_plan_created' ORDER BY created_at DESC LIMIT 1"
       ).first();
       const planIsDue = !lastPlan?.created_at || (Date.now() - new Date(lastPlan.created_at).getTime()) >= 6 * 60 * 60 * 1000;
-      if (Number(active?.total || 0) === 0 && planIsDue) {
+      // Não enfileira pesquisas que certamente ficarão bloqueadas quando a chave Tavily estiver ausente.
+      // A auditoria de saúde já notifica a configuração pendente; evitar tarefas repetidas em needs_review.
+      if (Number(active?.total || 0) === 0 && planIsDue && env.TAVILY_API_KEY) {
         let autonomousTitle = "Pesquise oportunidades atuais para afiliados no Brasil, identificando produtos específicos, procura, concorrência, preços, programas e comissões oficiais. Informe fontes e links verificáveis.";
         try {
           if (env.AI) {
