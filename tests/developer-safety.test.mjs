@@ -513,3 +513,17 @@ test("comissões afiliadas exigem referência HTTPS de fonte oficial antes de li
   assert.match(link, /commission_source_url/);
   assert.match(link, /Informe a URL HTTPS da fonte oficial/);
 });
+
+
+test("referência de comissão é explicitamente tratada como não verificada", () => {
+  const readinessStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
+  const readinessEnd = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', readinessStart);
+  const readiness = worker.slice(readinessStart, readinessEnd);
+  assert.match(readiness, /commission_source_verification: commissionSourceValid \? "provided_not_verified" : "missing"/);
+  assert.match(readiness, /não foi verificada automaticamente/);
+  assert.match(readiness, /URLs e taxas informadas não são prova verificada/);
+  const kitStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST")');
+  const kitEnd = worker.indexOf('if (url.pathname === "/affiliates/campaign-kits"', kitStart);
+  const kit = worker.slice(kitStart, kitEnd);
+  assert.match(kit, /Essa URL foi apenas cadastrada, não foi lida nem validada como evidência/);
+});
