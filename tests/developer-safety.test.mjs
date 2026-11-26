@@ -343,11 +343,11 @@ test("cron gera até nove rascunhos afiliados por dia sem publicar externamente"
   assert.match(section, /demandMultiplier/);
   assert.match(section, /affiliate_opportunity_selected/);
   assert.match(section, /INSERT INTO publication_queue/);
-  assert.match(section, /SELECT \\?, \\?, \\?, \\?, \\?, NULL, 'draft', \\?, \\?/);
-  assert.match(section, /SELECT COUNT\\(\\*\\) FROM publication_queue WHERE title LIKE \\?/);
-  assert.match(section, /NOT EXISTS \\(SELECT 1 FROM publication_queue WHERE title = \\?\\)/);
-  assert.match(section, /insertedDraft\\?\\.meta\\?\\.changes/);
-  assert.match(section, /autonomous_affiliate_draft_skipped/);
+  assert.ok(section.includes("SELECT ?, ?, ?, ?, ?, NULL, 'draft', ?, ?"));
+  assert.ok(section.includes("SELECT COUNT(*) FROM publication_queue WHERE title LIKE ?"));
+  assert.ok(section.includes("NOT EXISTS (SELECT 1 FROM publication_queue WHERE title = ?)"));
+  assert.ok(section.includes("insertedDraft?.meta?.changes"));
+  assert.ok(section.includes("autonomous_affiliate_draft_skipped"));
   assert.match(section, /SELECT id FROM publication_queue WHERE title = \?/);
   assert.match(section, /autonomous_affiliate_draft_created/);
   assert.doesNotMatch(section, /graph\.facebook\.com|tiktok\.com\/v2\/post|youtube\.googleapis\.com/);
