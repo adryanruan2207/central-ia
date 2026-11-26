@@ -449,3 +449,11 @@ test("integração Awin consulta comissões oficiais e gera links somente por AP
   assert.equal(worker.includes("console.error(env.AWIN_API_TOKEN"), false);
 });
 
+
+test("planejador autônomo não cria tarefas de pesquisa bloqueadas sem Tavily", () => {
+  const start = worker.indexOf("const planIsDue =");
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 1200);
+  assert.match(section, /planIsDue && env\.TAVILY_API_KEY/);
+  assert.match(section, /evitar tarefas repetidas em needs_review/);
+});
