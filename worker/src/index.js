@@ -1634,7 +1634,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     if (productUrl) {
       try {
         const parsed = new URL(productUrl);
-        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("protocolo inválido");
+        if (parsed.protocol !== "https:") throw new Error("HTTPS obrigatório");
       } catch { return json({ error: "Informe um link de produto válido (http ou https)" }, 400); }
     }
     if (affiliateUrl) {
@@ -1682,7 +1682,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       try {
         const parsed = new URL(affiliateUrl);
         if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("protocolo inválido");
-      } catch { return json({ error: "Link de afiliado inválido. Use http ou https." }, 400); }
+      } catch { return json({ error: "Link de afiliado inválido. Use HTTPS." }, 400); }
     }
     let normalizedSchedule = null;
     if (scheduledAt) {
