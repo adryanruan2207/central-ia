@@ -1963,7 +1963,8 @@ export default {
           if (eligibleCount > 0) {
             // Distribui os melhores candidatos ao longo dos nove conteúdos diários.
             // A comissão vem da regra oficial cadastrada; a IA escolhe a melhor oportunidade, não altera a taxa.
-            const selectedRank = campaignDraftsToday % eligibleCount;
+            const shortlistCount = Math.min(3, eligibleCount);
+            const selectedRank = campaignDraftsToday % shortlistCount;
             const product = rankedProducts[selectedRank];
             await record(env, "affiliate_opportunity_selected", JSON.stringify({
               product_id: product.id,
@@ -1973,8 +1974,9 @@ export default {
               public_sales_signal: product.public_sales,
               selection_score: Number(product.selection_score.toFixed(4)),
               ranking_position: selectedRank + 1,
+              shortlist_size: shortlistCount,
               candidates: eligibleCount,
-              rule: "estimated_payout_weighted_by_public_sales_then_commission"
+              rule: "rotate_only_within_top_3_ranked_by_estimated_payout_and_public_sales"
             }));
             const platforms = [
               { id: "tiktok", channel: "tiktok", label: "TikTok" },
