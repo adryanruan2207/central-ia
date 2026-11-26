@@ -1690,6 +1690,17 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       if (!Number.isFinite(date.getTime())) return json({ error: "Data e horário inválidos." }, 400);
       normalizedSchedule = date.toISOString();
     }
+    const existing = await env.DB.prepare(
+      "SELECT id, status FROM publication_queue WHERE channel = ? AND title = ? AND content = ? AND affiliate_url IS ? AND scheduled_at IS ? AND status <> 'failed' ORDER BY created_at DESC LIMIT 1"
+    ).bind(channel, title, content, affiliateUrl || null, normalizedSchedule).first();
+    if (existing) {
+      return json({
+        id: existing.id,
+        status: existing.status,
+        duplicate: true,
+        message: "Conteúdo idêntico já existe na fila. A CENTRAL IA manteve o registro existente para evitar duplicação."
+      }, 200);
+    }
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     const status = normalizedSchedule ? "queued" : "draft";
