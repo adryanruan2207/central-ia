@@ -461,7 +461,7 @@ test("integração Awin consulta comissões oficiais e gera links somente por AP
   assert.ok(ui.includes("awin-finance-panel"));
   assert.ok(ui.includes("loadAwinFinanceSummary"));
   assert.ok(ui.includes("Marcada como paga pela Awin"));
-  assert.ok(ui.includes("Aprovada não paga"));
+  assert.ok(ui.includes("Aprovada, ainda não paga"));
   assert.ok(worker.includes("syncAwinTransactionSnapshot"));
   assert.ok(worker.includes("!/^[0-9]+$/.test(String(env.AWIN_PUBLISHER_ID || \"\"))"), "ID do Publisher deve aceitar apenas dígitos");
   assert.ok(worker.includes("awin_auto_sync_success"));
