@@ -527,3 +527,11 @@ test("referência de comissão é explicitamente tratada como não verificada", 
   const kit = worker.slice(kitStart, kitEnd);
   assert.match(kit, /Essa URL foi apenas cadastrada, não foi lida nem validada como evidência/);
 });
+
+
+test("painel de afiliados exibe estado real de prontidão e da fonte da comissão", () => {
+  assert.match(ui, /item\.campaign_status==='ready'\?'Requisitos mínimos atendidos: apto para revisão final'/);
+  assert.match(ui, /commission_source_verification==='provided_not_verified'\?'informada, não verificada'/);
+  assert.match(ui, /if\(item\.campaign_status==='ready'\)/);
+  assert.doesNotMatch(ui, /item\.campaign_status==='ready_for_review'/);
+});
