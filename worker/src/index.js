@@ -1691,7 +1691,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       normalizedSchedule = date.toISOString();
     }
     const existing = await env.DB.prepare(
-      "SELECT id, status FROM publication_queue WHERE channel = ? AND title = ? AND content = ? AND affiliate_url IS ? AND scheduled_at IS ? AND status <> 'failed' ORDER BY created_at DESC LIMIT 1"
+      "SELECT id, status FROM publication_queue WHERE channel = ? AND title = ? AND content = ? AND affiliate_url IS ? AND scheduled_at IS ? AND status IN ('draft', 'queued', 'paused', 'needs_connection') ORDER BY created_at DESC LIMIT 1"
     ).bind(channel, title, content, affiliateUrl || null, normalizedSchedule).first();
     if (existing) {
       return json({
