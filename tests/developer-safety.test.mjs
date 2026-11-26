@@ -460,7 +460,7 @@ test("integração Awin consulta comissões oficiais e gera links somente por AP
   assert.ok(worker.includes("/integrations/awin/summary"));
   assert.ok(ui.includes("awin-finance-panel"));
   assert.ok(ui.includes("loadAwinFinanceSummary"));
-  assert.ok(ui.includes("Comissão paga"));
+  assert.ok(ui.includes("Marcada como paga pela Awin"));
   assert.ok(ui.includes("Aprovada não paga"));
   assert.ok(worker.includes("syncAwinTransactionSnapshot"));
   assert.ok(worker.includes("!/^[0-9]+$/.test(String(env.AWIN_PUBLISHER_ID || \"\"))"), "ID do Publisher deve aceitar apenas dígitos");
@@ -548,7 +548,9 @@ test("sincronização Awin notifica apenas aumento de comissão marcada como pag
   const end = worker.indexOf("async function runMinuteHealthAudit", start);
   const sync = worker.slice(start, end);
   assert.match(sync, /previousSnapshotRow/);
-  assert.match(sync, /currentPaid > priorPaid/);
+  assert.match(sync, /transaction_states/);
+  assert.match(sync, /previous\.paid_to_publisher !== true && paid/);
+  assert.match(sync, /awin-paid-transaction:/);
   assert.match(sync, /Comissão marcada como paga pela Awin/);
   assert.match(sync, /não comprova sozinho o crédito ou saque na sua conta bancária/);
 });
