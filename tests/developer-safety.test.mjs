@@ -372,7 +372,7 @@ test("publicações idênticas reutilizam registro existente e evitam duplicaç�
   assert.notEqual(start, -1);
   const section = worker.slice(start, start + 5000);
   assert.match(section, /SELECT id, status FROM publication_queue WHERE channel = \? AND title = \? AND content = \? AND affiliate_url IS \? AND scheduled_at IS \?/);
-  assert.match(section, /status <> 'failed'/);
+  assert.match(section, /status IN \('draft', 'queued', 'paused', 'needs_connection'\)/);
   assert.match(section, /if \(existing\)/);
   assert.match(section, /duplicate: true/);
   assert.match(section, /evitar duplicação/);
