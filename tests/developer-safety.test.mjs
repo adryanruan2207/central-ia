@@ -345,7 +345,7 @@ test("cron libera produtos elegíveis sem clique, sem inventar aprovação exter
   assert.match(section, /affiliate_programs WHERE status = 'approved'/);
   assert.match(section, /product_url LIKE 'https:\/\/%'/);
   assert.match(section, /affiliate_url LIKE 'https:\/\/%'/);
-  assert.match(section, /commission_rate IS NOT NULL/);
+  assert.match(section, /commission_rate > 0 AND commission_rate <= 100/);
   assert.match(section, /affiliate_products_auto_ready/);
   assert.match(section, /Não aprova contas nem inventa dados/);
 });
