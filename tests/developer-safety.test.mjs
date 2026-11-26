@@ -476,3 +476,10 @@ test("painel informa quais componentes impedem a operação completa", () => {
   assert.match(ui, /data\.missing_components/);
   assert.match(ui, /RESPONDENDO COM PENDÊNCIAS/);
 });
+
+test("login sincroniza a sessão com os módulos da aplicação", async () => {
+  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  assert.match(html, /central-ia-session-updated/);
+  assert.match(html, /sessionToken=event\.detail\.token/);
+  assert.doesNotMatch(html, /chatToken\.focus\(\)/);
+});
