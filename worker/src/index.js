@@ -251,7 +251,7 @@ async function handle(request, env) {
       try {
         await env.DB.prepare("SELECT 1 AS ok").first();
         database.ok = true;
-        const requiredTables = ["tasks","activity_log","affiliate_products","supplier_leads","affiliate_programs","publication_queue","chat_messages","notifications","system_health_checks"];
+        const requiredTables = ["tasks","activity_log","affiliate_products","supplier_leads","affiliate_programs","publication_queue","chat_messages","notifications","system_health_checks","commerce_accounts"];
         const checks = await Promise.all(requiredTables.map(async table => {
           try { await env.DB.prepare("SELECT 1 FROM " + table + " LIMIT 1").first(); return [table,true]; }
           catch { return [table,false]; }
@@ -1378,6 +1378,58 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       suppliers: result.results || [],
       notice: "Leads encontrados em fontes públicas. Não são fornecedores aprovados: valide identidade empresarial, amostras, qualidade, estoque, prazo, devoluções, integração, contrato e custos antes de vender."
     });
+  }
+
+  if (url.pathname === "/commerce/accounts" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT id, platform_id, platform_name, business_model, region, account_label, connection_status, approval_status, capabilities_json, notes, created_at, updated_at FROM commerce_accounts ORDER BY business_model, platform_name, region LIMIT 300"
+    ).all();
+    const accounts = (result.results || []).map(item => ({
+      ...item,
+      capabilities: (() => { try { const value = JSON.parse(item.capabilities_json || "[]"); return Array.isArray(value) ? value : []; } catch { return []; } })()
+    }));
+    const summary = {
+      total: accounts.length,
+      affiliate: accounts.filter(item => item.business_model === "affiliate").length,
+      seller: accounts.filter(item => item.business_model === "seller").length,
+      dropshipping: accounts.filter(item => item.business_model === "dropshipping").length,
+      connected: accounts.filter(item => item.connection_status === "connected").length,
+      approved: accounts.filter(item => item.approval_status === "approved").length
+    };
+    return json({ accounts, summary, security: "Nenhuma senha, token ou chave de API é armazenada ou exibida por este cadastro." });
+  }
+
+  if (url.pathname === "/commerce/accounts" && request.method === "POST") {
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
+    const platformId = String(body.platform_id || "").trim().toLowerCase();
+    const platformName = String(body.platform_name || "").trim().slice(0, 100);
+    const model = String(body.business_model || "");
+    const region = String(body.region || "").trim().slice(0, 80);
+    const accountLabel = String(body.account_label || "").trim().slice(0, 100);
+    const connectionStatus = String(body.connection_status || "not_started");
+    const approvalStatus = String(body.approval_status || "unknown");
+    const allowedModels = ["affiliate", "seller", "dropshipping"];
+    const allowedConnection = ["not_started", "needs_authorization", "connected", "error", "paused"];
+    const allowedApproval = ["unknown", "pending", "approved", "rejected"];
+    const allowedCapabilities = ["product_research", "link_tracking", "order_sync", "inventory_sync", "fulfillment", "content_publishing", "commission_reporting"];
+    const capabilities = Array.isArray(body.capabilities) ? [...new Set(body.capabilities.filter(value => allowedCapabilities.includes(value)))] : [];
+    const notes = String(body.notes || "").trim().slice(0, 500);
+    if (!/^[a-z0-9][a-z0-9-]{1,59}$/.test(platformId) || !platformName || !region || !allowedModels.includes(model) || !allowedConnection.includes(connectionStatus) || !allowedApproval.includes(approvalStatus)) {
+      return json({ error: "Informe plataforma, região e modelo válidos. Conta de afiliado, vendedor ou dropshipping são cadastros separados." }, 400);
+    }
+    const now = new Date().toISOString();
+    const existing = await env.DB.prepare("SELECT id FROM commerce_accounts WHERE platform_id = ? AND business_model = ? AND region = ?").bind(platformId, model, region).first();
+    const id = existing?.id || crypto.randomUUID();
+    if (existing) {
+      await env.DB.prepare("UPDATE commerce_accounts SET platform_name = ?, account_label = ?, connection_status = ?, approval_status = ?, capabilities_json = ?, notes = ?, updated_at = ? WHERE id = ?")
+        .bind(platformName, accountLabel || null, connectionStatus, approvalStatus, JSON.stringify(capabilities), notes || null, now, id).run();
+    } else {
+      await env.DB.prepare("INSERT INTO commerce_accounts (id, platform_id, platform_name, business_model, region, account_label, connection_status, approval_status, capabilities_json, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, platformId, platformName, model, region, accountLabel || null, connectionStatus, approvalStatus, JSON.stringify(capabilities), notes || null, now, now).run();
+    }
+    await record(env, "commerce_account_registry_updated", JSON.stringify({ id, platform_id: platformId, business_model: model, region, connection_status: connectionStatus, approval_status: approvalStatus }));
+    return json({ id, saved: true, business_model: model, connection_status: connectionStatus, approval_status: approvalStatus, message: "Cadastro salvo. Conexão e aprovação só são reais após autorização e confirmação na plataforma externa; este registro não cria nem conecta contas." }, existing ? 200 : 201);
   }
 
   if (url.pathname === "/affiliates/programs" && request.method === "GET") {
