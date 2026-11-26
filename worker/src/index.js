@@ -1952,7 +1952,7 @@ export default {
       // Aprovação interna automática: só libera produtos com programa já aprovado,
       // links HTTPS cadastrados e comissão informada. Não aprova contas nem inventa dados.
       const promotedProducts = await env.DB.prepare(
-        "UPDATE affiliate_products SET status = 'ready', updated_at = ? WHERE status IN ('research', 'approved') AND affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE status = 'approved') AND product_url LIKE 'https://%' AND affiliate_url LIKE 'https://%' AND commission_rate IS NOT NULL"
+        "UPDATE affiliate_products SET status = 'ready', updated_at = ? WHERE status IN ('research', 'approved') AND affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE status = 'approved') AND product_url LIKE 'https://%' AND affiliate_url LIKE 'https://%' AND commission_rate > 0 AND commission_rate <= 100"
       ).bind(now).run();
       if (Number(promotedProducts?.meta?.changes || 0) > 0) {
         await record(env, "affiliate_products_auto_ready", JSON.stringify({ count: promotedProducts.meta.changes, checked_at: now, rule: "approved_program_https_links_commission_present" }));
