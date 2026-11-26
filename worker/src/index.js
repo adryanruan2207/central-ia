@@ -1506,7 +1506,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/commissiongroups");
       endpoint.searchParams.set("advertiserId", advertiserId);
       endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
-      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" } });
+      const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(15000) });
       if (!response.ok) return json({ error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "A conta não tem relação ativa ou permissão para esse anunciante." : "Não foi possível consultar as comissões oficiais na Awin.", upstream_status: response.status }, 502);
       const payload = await response.json();
       const groups = Array.isArray(payload.commissionGroup) ? payload.commissionGroup : [];
@@ -1535,7 +1535,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const response = await fetch(endpoint.toString(), {
         method: "POST",
         headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ advertiserId: Number(advertiserId), destinationUrl })
+        body: JSON.stringify({ advertiserId: Number(advertiserId), destinationUrl }),
+        signal: AbortSignal.timeout(15000)
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || typeof payload.url !== "string" || !/^https:\/\//i.test(payload.url)) {
@@ -1566,7 +1567,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     const datePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
     const startMs = Date.parse(startDate + "Z");
     const endMs = Date.parse(endDate + "Z");
-    if (!datePattern.test(startDate) || !datePattern.test(endDate) || !Number.isFinite(startMs) || !Number.isFinite(endMs) || startMs > endMs || endMs - startMs > 31 * 24 * 60 * 60 * 1000) {
+    const startDateIsReal = Number.isFinite(startMs) && new Date(startMs).toISOString().slice(0, 19) === startDate;
+    const endDateIsReal = Number.isFinite(endMs) && new Date(endMs).toISOString().slice(0, 19) === endDate;
+    if (!datePattern.test(startDate) || !datePattern.test(endDate) || !startDateIsReal || !endDateIsReal || startMs > endMs || endMs - startMs > 31 * 24 * 60 * 60 * 1000) {
       return json({ error: "Informe start_date e end_date em YYYY-MM-DDTHH:mm:ss, com intervalo máximo de 31 dias." }, 400);
     }
     if (advertiserId && !/^\d+$/.test(advertiserId)) return json({ error: "advertiser_id deve ser numérico." }, 400);
