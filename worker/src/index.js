@@ -1681,7 +1681,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     if (affiliateUrl) {
       try {
         const parsed = new URL(affiliateUrl);
-        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error("protocolo inválido");
+        if (parsed.protocol !== "https:") throw new Error("HTTPS obrigatório");
       } catch { return json({ error: "Link de afiliado inválido. Use HTTPS." }, 400); }
     }
     let normalizedSchedule = null;
