@@ -1288,7 +1288,7 @@ async function loadAwinFinanceSummary(){
    return;
   }
   status.textContent='Última sincronização: '+new Date(data.synced_at).toLocaleString('pt-BR')+' • '+data.transaction_count+' transações consultadas.';
-  const labels=[['Comissão paga','paid_commission'],['Aprovada não paga','unpaid_approved_commission'],['Pendente','pending_commission'],['Recusada','declined_commission'],['Vendas registradas','sale_value']];
+  const labels=[['Marcada como paga pela Awin*','paid_commission'],['Aprovada, ainda não paga','unpaid_approved_commission'],['Pendente','pending_commission'],['Recusada','declined_commission'],['Vendas registradas','sale_value']];
   const money=(value,currency)=>Number(value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+currency;
   for(const [currency,values] of Object.entries(data.totals_by_currency||{})){
    for(const [label,key] of labels){
@@ -1298,7 +1298,7 @@ async function loadAwinFinanceSummary(){
     tile.append(caption,amount);totals.append(tile);
    }
   }
-  period.textContent='Período: '+data.period.start_date+' até '+data.period.end_date+' UTC. '+data.accounting_note;
+  period.textContent='Período: '+data.period.start_date+' até '+data.period.end_date+' UTC. *“Marcada como paga” é o status informado pela Awin e não comprova crédito bancário ou saque. A CENTRAL IA ainda não tem confirmação bancária. '+data.accounting_note;
  }catch(error){status.textContent='Não foi possível consultar o resumo Awin agora.';}
 }
 async function refreshAutomaticPanels(){
