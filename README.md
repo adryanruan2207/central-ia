@@ -14,6 +14,19 @@ A aplicação possui uma interface web e um backend Cloudflare Worker com banco 
 - Preparação automática de até nove rascunhos diários distribuídos entre TikTok, Instagram Reels e YouTube Shorts, quando existem produtos elegíveis e Workers AI disponível.
 - Histórico de campanhas e fila interna de publicações.
 
+### Contas comerciais multi plataforma
+
+O backend mantém um registro unificado, mas separa os modelos de negócio para evitar misturar permissões e obrigações:
+- `affiliate`: divulgar produtos de terceiros e acompanhar links e comissões.
+- `seller`: vender produtos em marketplace como responsável pela oferta, pedidos e atendimento.
+- `dropshipping`: vender sem estoque próprio, dependendo de fornecedor, integração, prazo, devoluções e regras do canal.
+
+Uma mesma plataforma pode aparecer em mais de um modelo somente quando as regras oficiais permitirem. O registro é único por plataforma, modelo e região. Endpoints autenticados:
+- `GET /commerce/accounts`: lista contas registradas e resumo por modelo.
+- `POST /commerce/accounts`: registra ou atualiza plataforma, região, estado de conexão, aprovação e capacidades.
+
+O registro não cria contas, não comprova aprovação e não armazena senhas ou tokens. A conexão real exige autorização segura na plataforma externa. Capacidades possíveis incluem pesquisa de produtos, rastreamento de links, sincronização de pedidos/estoque, fulfillment, publicação e relatório de comissões.
+
 ## Limites importantes
 
 - **Rascunho não é publicação.** As integrações OAuth/APIs das redes sociais ainda precisam ser configuradas e autorizadas; o sistema não publica automaticamente nas contas neste estado.
