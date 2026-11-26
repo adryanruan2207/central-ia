@@ -1385,7 +1385,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       else if (sales !== null && sales > 0) priority = "Validar demanda";
       const hasAffiliateLink = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const hasProgram = Boolean(item.affiliate_program_id);
-      const campaignStage = hasAffiliateLink && hasProgram && item.commission_rate !== null
+      const campaignStage = hasAffiliateLink && hasProgram && commissionValid && estimatedCommissionPerSale !== null
         ? "Preparar revisão da campanha"
         : "Pesquisa — ainda não promover";
       const nextSteps = [
