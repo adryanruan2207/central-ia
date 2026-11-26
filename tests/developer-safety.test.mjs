@@ -257,10 +257,19 @@ test("validador TOML rejeita diretivas raiz não autorizadas e sintaxe malformad
 });
 
 test("validador TOML rejeita cron inválido e data de compatibilidade alterada", () => {
-  const badCron = wrangler.replace('crons = ["* * * * *"]', 'crons = "not-an-array"');
+  const badCron = wrangler.replace('crons = ["*/5 * * * *"]', 'crons = "not-an-array"');
   const badDate = wrangler.replace('compatibility_date = "2026-11-19"', 'compatibility_date = "2027-01-01"');
   assert.equal(validateWranglerCandidate(badCron).reason, "unsupported_or_invalid_value");
   assert.equal(validateWranglerCandidate(badDate).reason, "unsupported_or_invalid_value");
+});
+
+test("cron reduz consultas D1 e mantém auditoria completa periódica", () => {
+  assert.ok(wrangler.includes('crons = ["*/5 * * * *"]'));
+  const scheduledStart = worker.indexOf("async scheduled(event, env, ctx)");
+  const scheduled = worker.slice(scheduledStart);
+  assert.match(scheduled, /utcMinute % 15 === 0/);
+  assert.match(scheduled, /runMinuteHealthAudit\(env, now\)/);
+  assert.match(scheduled, /Verificação automática da fila executada/);
 });
 
 test("validador TOML aceita comentários e linhas vazias sem alterar a configuração", () => {
