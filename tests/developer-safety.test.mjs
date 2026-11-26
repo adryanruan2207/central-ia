@@ -376,6 +376,8 @@ test("publicações idênticas reutilizam registro existente e evitam duplicaç�
   assert.match(section, /if \(existing\)/);
   assert.match(section, /duplicate: true/);
   assert.match(section, /evitar duplicação/);
+  assert.match(section, /parsed\.protocol !== "https:"/);
+  assert.match(section, /Link de afiliado inválido\. Use HTTPS/);
 });
 
 test("painel de afiliados separa comissão estimada de lucro líquido e valor recebido", () => {
