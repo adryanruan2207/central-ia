@@ -1180,7 +1180,9 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     if (!item.product_url || !/^https:\/\//i.test(String(item.product_url))) blockers.push("link original HTTPS ausente");
     if (!item.affiliate_url || !/^https:\/\//i.test(String(item.affiliate_url))) blockers.push("link de afiliado HTTPS ausente");
     if (!item.affiliate_program_id || item.program_status !== "approved") blockers.push("programa de afiliados não aprovado");
-    if (item.commission_rate === null || !Number.isFinite(Number(item.commission_rate))) blockers.push("comissão não confirmada");
+    const commissionRate = Number(item.commission_rate);
+    const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
+    if (!commissionValid) blockers.push("comissão positiva entre 0 e 100 não confirmada");
     if (blockers.length) return json({ error: "Campanha bloqueada: " + blockers.join("; ") + ". Corrija os requisitos antes de gerar material promocional.", blockers }, 409);
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
     let affiliateHost = "";
@@ -1248,9 +1250,13 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
-      if (!item.product_url) blockers.push("Link original do produto ausente");
-      if (!item.affiliate_url) blockers.push("Link rastreável de afiliado ainda não cadastrado");
-      if (item.commission_rate === null) blockers.push("Comissão não confirmada em fonte oficial");
+      const productUrlValid = /^https:\/\//i.test(String(item.product_url || ""));
+      const affiliateUrlValid = /^https:\/\//i.test(String(item.affiliate_url || ""));
+      const commissionRate = Number(item.commission_rate);
+      const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
+      if (!productUrlValid) blockers.push("Link original HTTPS ausente ou inválido");
+      if (!affiliateUrlValid) blockers.push("Link rastreável HTTPS de afiliado ausente ou inválido");
+      if (!commissionValid) blockers.push("Comissão positiva entre 0 e 100 não confirmada em fonte oficial");
       if (!item.affiliate_program_id) blockers.push("Programa de afiliados não vinculado");
       else if (item.program_status !== "approved") blockers.push("Programa ainda não está marcado como aprovado");
       const ready = blockers.length === 0;
