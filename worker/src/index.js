@@ -85,7 +85,27 @@ async function syncAwinTransactionSnapshot(env, nowIso) {
   }
   for (const bucket of Object.values(totals)) for (const key of Object.keys(bucket)) if (key !== "transactions") bucket[key] = Math.round(bucket[key] * 10000) / 10000;
   const snapshot = { source: "Awin Publisher API", publisher_id: String(env.AWIN_PUBLISHER_ID), period: { start_date: fmt(start), end_date: fmt(end), timezone: "UTC" }, transaction_count: payload.length, totals_by_currency: totals, synced_at: nowIso, accounting_note: "Pendentes não são receita confirmada. Aprovadas só contam como pagas quando paidToPublisher=true. Valores não são convertidos entre moedas." };
+  // Compara com a última fotografia para avisar apenas quando a Awin marcar comissão como paga.
+  // Isso não equivale a confirmar saque bancário; a notificação deixa essa distinção explícita.
+  const previousSnapshotRow = await env.DB.prepare("SELECT details FROM activity_log WHERE event = 'awin_auto_sync_success' ORDER BY created_at DESC LIMIT 1").first();
+  let previousPaid = {};
+  try { previousPaid = JSON.parse(previousSnapshotRow?.details || "{}").totals_by_currency || {}; } catch {}
+  const newlyPaid = [];
+  for (const [currency, bucket] of Object.entries(totals)) {
+    const currentPaid = Number(bucket.paid_commission || 0);
+    const priorPaid = Number(previousPaid[currency]?.paid_commission || 0);
+    if (Number.isFinite(currentPaid) && currentPaid > priorPaid) {
+      newlyPaid.push({ currency, amount: Math.round((currentPaid - priorPaid) * 10000) / 10000 });
+    }
+  }
   await record(env, "awin_auto_sync_success", JSON.stringify(snapshot));
+  for (const item of newlyPaid) {
+    const amountKey = item.amount.toFixed(4).replace(/\\./g, "_");
+    await notifyOwner(env, "awin-paid:" + item.currency + ":" + amountKey + ":" + nowIso.slice(0,10),
+      "Comissão marcada como paga pela Awin",
+      "A Awin informou um aumento de " + item.amount.toFixed(2) + " " + item.currency + " em comissões pagas ao Publisher. Isso confirma o status de pagamento na Awin, mas não comprova sozinho o crédito ou saque na sua conta bancária.",
+      "success");
+  }
   return { skipped: false, transaction_count: payload.length, currencies: Object.keys(totals) };
 }
 
