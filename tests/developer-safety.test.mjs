@@ -66,6 +66,21 @@ test("histórico e verificação possuem rotas e controles na interface", () => 
   assert.ok(ui.includes("loadDeveloperPatchVerificationHistory"));
 });
 
+test("registro comercial separa afiliados, vendedores e dropshipping", async () => {
+  const migration = await readFile(new URL("../worker/migrations/0013_commerce_accounts.sql", import.meta.url), "utf8");
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS commerce_accounts/);
+  assert.match(migration, /business_model IN \('affiliate','seller','dropshipping'\)/);
+  assert.match(migration, /UNIQUE\(platform_id, business_model, region\)/);
+  assert.match(worker, /url\.pathname === "\/commerce\/accounts" && request\.method === "GET"/);
+  assert.match(worker, /url\.pathname === "\/commerce\/accounts" && request\.method === "POST"/);
+  assert.match(worker, /Nenhuma senha, token ou chave de API é armazenada/);
+  assert.match(worker, /connection_status/);
+  assert.match(worker, /approval_status/);
+  assert.match(worker, /allowedCapabilities/);
+  assert.match(worker, /não cria nem conecta contas/);
+  assert.match(worker, /"commerce_accounts"/);
+});
+
 test("configuração do Worker mantém os bindings essenciais", () => {
   assert.match(wrangler, /^name = "central-ia-worker"$/m);
   assert.match(wrangler, /^main = "src\/index.js"$/m);
