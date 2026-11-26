@@ -1000,7 +1000,9 @@ async function checkPublicWorkerHealth(){
  try{
   const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/health',{},2);
   const schema=data.database?.schema_ready===true?'tabelas essenciais OK':data.database?.schema_ready===false?'faltam tabelas essenciais':'estrutura não verificada';
-  line.textContent='Servidor na nuvem: '+(data.status==='online'?'RESPONDENDO':'COM PENDÊNCIAS')+' • Banco: '+(data.database?.ok?'conectado':'indisponível')+' • Estrutura: '+schema+' • Workers AI: '+(data.workers_ai_configured?'configurado':'não configurado')+' • Tavily: '+(data.web_research_configured?'chave cadastrada (conexão ainda precisa de teste)':'chave não cadastrada')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
+  const componentNames={database:'Banco/estrutura D1',workers_ai:'Workers AI',web_research:'pesquisa Tavily'};
+  const missing=(Array.isArray(data.missing_components)?data.missing_components:[]).map(name=>componentNames[name]||name);
+  line.textContent='Servidor na nuvem: '+(data.status==='online'?'OPERACIONAL':'RESPONDENDO COM PENDÊNCIAS')+' • Banco: '+(data.database?.ok?'conectado':'indisponível')+' • Estrutura: '+schema+' • Workers AI: '+(data.workers_ai_configured?'configurado':'não configurado')+' • Tavily: '+(data.web_research_configured?'chave cadastrada (conexão ainda precisa de teste)':'chave não cadastrada')+(missing.length?' • Falta: '+missing.join(', '):' • Componentes essenciais configurados')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
  }catch(error){line.textContent='Servidor na nuvem: '+(error.message||'não foi possível verificar');}
 }
 async function createDeveloperPlan(){
