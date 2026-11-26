@@ -1183,7 +1183,7 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     const creativeAngle = creativeAngles[variationIndex - 1];
     if (!productId) return json({ error: "Produto não informado." }, 400);
     const item = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ?"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ?"
     ).bind(productId).first();
     if (!item) return json({ error: "Produto não encontrado." }, 404);
     const blockers = [];
@@ -1192,7 +1192,8 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     if (!item.affiliate_program_id || item.program_status !== "approved") blockers.push("programa de afiliados não aprovado");
     const commissionRate = Number(item.commission_rate);
     const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
-    if (!commissionValid) blockers.push("comissão positiva entre 0 e 100 não confirmada");
+    if (!commissionValid) blockers.push("comissão positiva entre 0 e 100 não cadastrada");
+    if (!/^https:\/\//i.test(String(item.commission_source_url || ""))) blockers.push("URL da fonte oficial da comissão ausente ou inválida");
     if (blockers.length) return json({ error: "Campanha bloqueada: " + blockers.join("; ") + ". Corrija os requisitos antes de gerar material promocional.", blockers }, 409);
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
     let affiliateHost = "";
@@ -1256,7 +1257,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.status, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
@@ -1264,16 +1265,18 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const affiliateUrlValid = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
+      const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
       if (!productUrlValid) blockers.push("Link original HTTPS ausente ou inválido");
       if (!affiliateUrlValid) blockers.push("Link rastreável HTTPS de afiliado ausente ou inválido");
-      if (!commissionValid) blockers.push("Comissão positiva entre 0 e 100 não confirmada em fonte oficial");
+      if (!commissionValid) blockers.push("Comissão positiva entre 0 e 100 não cadastrada");
+      if (!commissionSourceValid) blockers.push("URL da fonte oficial da comissão ausente ou inválida");
       if (!item.affiliate_program_id) blockers.push("Programa de afiliados não vinculado");
       else if (item.program_status !== "approved") blockers.push("Programa ainda não está marcado como aprovado");
       const ready = blockers.length === 0;
       return {
         id: item.id, name: item.name, marketplace: item.marketplace,
         product_url: item.product_url, affiliate_url: item.affiliate_url,
-        commission_rate: item.commission_rate, affiliate_program: item.program_name || null,
+        commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
         campaign_status: ready ? "ready" : "blocked",
         blockers,
@@ -1296,12 +1299,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     let body;
     try { body = await request.json(); } catch { return json({ error: "JSON inválido" }, 400); }
     const affiliateUrl = typeof body.affiliate_url === "string" ? body.affiliate_url.trim().slice(0, 1000) : "";
+    const commissionSourceUrl = typeof body.commission_source_url === "string" ? body.commission_source_url.trim().slice(0, 1000) : "";
     const commission = body.commission_rate === null || body.commission_rate === undefined || body.commission_rate === "" ? null : Number(body.commission_rate);
     const programId = typeof body.affiliate_program_id === "string" ? body.affiliate_program_id.trim().slice(0, 100) : "";
     if (!id || !affiliateUrl) return json({ error: "Informe o identificador do produto e o link de afiliado." }, 400);
     try { const parsed = new URL(affiliateUrl); if (parsed.protocol !== "https:") throw new Error("HTTPS obrigatório"); }
     catch { return json({ error: "O link de afiliado deve usar HTTPS." }, 400); }
-    if (commission !== null && (!Number.isFinite(commission) || commission < 0 || commission > 100)) return json({ error: "Comissão inválida." }, 400);
+    if (commission !== null && (!Number.isFinite(commission) || commission <= 0 || commission > 100)) return json({ error: "Comissão inválida." }, 400);
+    if (commission !== null) { try { const source = new URL(commissionSourceUrl); if (source.protocol !== "https:") throw new Error("HTTPS obrigatório"); } catch { return json({ error: "Informe a URL HTTPS da fonte oficial que comprova a comissão." }, 400); } }
     if (programId) {
       const program = await env.DB.prepare("SELECT id FROM affiliate_programs WHERE id = ?").bind(programId).first();
       if (!program) return json({ error: "Programa de afiliados não encontrado." }, 404);
@@ -1309,8 +1314,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     const existing = await env.DB.prepare("SELECT id FROM affiliate_products WHERE id = ?").bind(id).first();
     if (!existing) return json({ error: "Produto não encontrado." }, 404);
     const now = new Date().toISOString();
-    await env.DB.prepare("UPDATE affiliate_products SET affiliate_url = ?, affiliate_program_id = ?, commission_rate = COALESCE(?, commission_rate), updated_at = ? WHERE id = ?")
-      .bind(affiliateUrl, programId || null, commission, now, id).run();
+    await env.DB.prepare("UPDATE affiliate_products SET affiliate_url = ?, affiliate_program_id = ?, commission_rate = COALESCE(?, commission_rate), commission_source_url = COALESCE(?, commission_source_url), updated_at = ? WHERE id = ?")
+      .bind(affiliateUrl, programId || null, commission, commissionSourceUrl || null, now, id).run();
     await record(env, "affiliate_tracking_link_saved", JSON.stringify({ id, programId: programId || null, commissionProvided: commission !== null }));
     return json({ id, saved: true, message: "Link rastreável registrado. A validade externa e a aprovação do programa ainda precisam ser confirmadas." });
   }
@@ -1964,7 +1969,7 @@ export default {
       // Aprovação interna automática: só libera produtos com programa já aprovado,
       // links HTTPS cadastrados e comissão informada. Não aprova contas nem inventa dados.
       const promotedProducts = await env.DB.prepare(
-        "UPDATE affiliate_products SET status = 'ready', updated_at = ? WHERE status IN ('research', 'approved') AND affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE status = 'approved') AND product_url LIKE 'https://%' AND affiliate_url LIKE 'https://%' AND commission_rate > 0 AND commission_rate <= 100"
+        "UPDATE affiliate_products SET status = 'ready', updated_at = ? WHERE status IN ('research', 'approved') AND affiliate_program_id IN (SELECT id FROM affiliate_programs WHERE status = 'approved') AND product_url LIKE 'https://%' AND affiliate_url LIKE 'https://%' AND commission_rate > 0 AND commission_rate <= 100 AND commission_source_url LIKE 'https://%'"
       ).bind(now).run();
       if (Number(promotedProducts?.meta?.changes || 0) > 0) {
         await record(env, "affiliate_products_auto_ready", JSON.stringify({ count: promotedProducts.meta.changes, checked_at: now, rule: "approved_program_https_links_commission_present" }));
@@ -1978,7 +1983,7 @@ export default {
       if (campaignDraftsToday < 9 && env.AI) {
         try {
           const eligibleRows = await env.DB.prepare(
-            "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, p.updated_at, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL AND p.commission_rate > 0 AND p.commission_rate <= 100"
+            "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.commission_source_url, p.notes, p.updated_at, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL AND p.commission_rate > 0 AND p.commission_rate <= 100 AND p.commission_source_url LIKE 'https://%'"
           ).all();
           const rankedProducts = (eligibleRows.results || []).map(candidate => {
             const notes = String(candidate.notes || "");
