@@ -412,6 +412,22 @@ test("painel de afiliados separa comissão estimada de lucro líquido e valor re
   assert.match(section, /commissionRate > 0 && commissionRate <= 100/);
 });
 
+test("validações Awin aceitam IDs numéricos e confirmam o Publisher correto", () => {
+  const statusStart = worker.indexOf('if (url.pathname === "/integrations/awin/status"');
+  const statusEnd = worker.indexOf('if (url.pathname === "/integrations/awin/commission-groups"', statusStart);
+  const status = worker.slice(statusStart, statusEnd);
+  assert.ok(status.includes("/^\\d+$/"), "ID Publisher deve usar dígitos reais, não barra invertida literal");
+  assert.match(status, /connected: matched/);
+  assert.match(status, /token_valid: true/);
+  assert.match(status, /AbortSignal\.timeout\(12000\)/);
+  const transactionsStart = worker.indexOf('if (url.pathname === "/integrations/awin/transactions"');
+  const transactionsEnd = worker.indexOf('if (url.pathname === "/affiliates/products"', transactionsStart);
+  const transactions = worker.slice(transactionsStart, transactionsEnd);
+  assert.ok(transactions.includes("/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}$/"), "datas devem validar formato ISO");
+  assert.ok(transactions.includes("/^\\d+$/"), "filtro de anunciante deve aceitar somente dígitos");
+  assert.match(transactions, /AbortSignal\.timeout\(15000\)/);
+});
+
 test("prontidão de campanha exige URLs HTTPS, comissão válida e programa aprovado", () => {
   const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
   const end = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', start);
