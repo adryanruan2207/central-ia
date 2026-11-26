@@ -1939,7 +1939,7 @@ export default {
       if (campaignDraftsToday < 9 && env.AI) {
         try {
           const eligibleRows = await env.DB.prepare(
-            "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, p.updated_at, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL AND p.commission_rate BETWEEN 0 AND 100"
+            "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.commission_rate, p.notes, p.updated_at, a.name AS program_name FROM affiliate_products p JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.status IN ('ready', 'approved') AND a.status = 'approved' AND p.affiliate_url LIKE 'https://%' AND p.product_url LIKE 'https://%' AND p.commission_rate IS NOT NULL AND p.commission_rate > 0 AND p.commission_rate <= 100"
           ).all();
           const rankedProducts = (eligibleRows.results || []).map(candidate => {
             const notes = String(candidate.notes || "");
@@ -1952,9 +1952,10 @@ export default {
               ? observedPrice * rate / 100
               : 0;
             const demandMultiplier = 1 + Math.min(0.6, Math.log10(Math.max(0, publicSales) + 1) * 0.15);
-            const score = estimatedPayout > 0 ? estimatedPayout * demandMultiplier : rate * 0.01;
+            const score = estimatedPayout > 0 ? estimatedPayout * demandMultiplier : 0;
             return { ...candidate, observed_price: observedPrice, public_sales: publicSales, estimated_payout: estimatedPayout, selection_score: score };
-          }).sort((a, b) =>
+          }).filter(candidate => Number.isFinite(candidate.observed_price) && candidate.observed_price > 0 && candidate.estimated_payout > 0)
+          .sort((a, b) =>
             b.selection_score - a.selection_score ||
             Number(b.commission_rate) - Number(a.commission_rate) ||
             String(b.updated_at || "").localeCompare(String(a.updated_at || ""))
