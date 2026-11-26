@@ -367,6 +367,19 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
   assert.match(section, /não altera a taxa/);
 });
 
+test("painel de afiliados separa comissão estimada de lucro líquido e valor recebido", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/shortlist/analyze"');
+  assert.notEqual(start, -1);
+  const section = worker.slice(start, start + 6500);
+  assert.match(section, /estimatedCommissionPerSale/);
+  assert.match(section, /estimated_commission_per_sale: estimatedCommissionPerSale/);
+  assert.match(section, /actual_commission_received: null/);
+  assert.match(section, /net_profit: null/);
+  assert.match(section, /estimativa_bruta_apenas/);
+  assert.match(section, /Comissão estimada não significa comissão aprovada, paga ou recebida/);
+  assert.match(section, /commissionRate > 0 && commissionRate <= 100/);
+});
+
 test("integração Awin consulta comissões oficiais e gera links somente por API autenticada", () => {
   assert.ok(worker.includes("/integrations/awin/status"));
   assert.ok(worker.includes("/integrations/awin/commission-groups"));
