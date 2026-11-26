@@ -375,6 +375,7 @@ test("painel de afiliados separa comissão estimada de lucro líquido e valor re
   assert.match(section, /estimated_commission_per_sale: estimatedCommissionPerSale/);
   assert.match(section, /actual_commission_received: null/);
   assert.match(section, /net_profit: null/);
+  assert.match(section, /const campaignStage = hasAffiliateLink && hasProgram && commissionValid && estimatedCommissionPerSale !== null/);
   assert.match(section, /estimativa_bruta_apenas/);
   assert.match(section, /Comissão estimada não significa comissão aprovada, paga ou recebida/);
   assert.match(section, /commissionRate > 0 && commissionRate <= 100/);
