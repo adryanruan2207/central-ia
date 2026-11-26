@@ -469,3 +469,10 @@ test("health diferencia banco disponível de operação completa", () => {
   assert.match(section, /missing_components: missingComponents/);
   assert.match(section, /status: operational \? "online" : "degraded"/);
 });
+
+
+test("painel informa quais componentes impedem a operação completa", () => {
+  assert.match(ui, /const componentNames=\{database:'Banco\/estrutura D1',workers_ai:'Workers AI',web_research:'pesquisa Tavily'\}/);
+  assert.match(ui, /data\.missing_components/);
+  assert.match(ui, /RESPONDENDO COM PENDÊNCIAS/);
+});
