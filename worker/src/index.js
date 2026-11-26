@@ -1368,11 +1368,17 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_link: /^https:\/\//i.test(String(item.product_url || ""))
       };
       const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
+      const commissionRate = Number(item.commission_rate);
+      const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
+      const estimatedCommissionPerSale = Number.isFinite(price) && price > 0 && commissionValid
+        ? Number((price * commissionRate / 100).toFixed(2))
+        : null;
       const flags = [];
-      if (price === null) flags.push("Preço atual não confirmado");
+      if (price === null || !Number.isFinite(price) || price <= 0) flags.push("Preço atual não confirmado");
       if (sales === null) flags.push("Volume de vendas não disponível");
-      if (item.commission_rate === null) flags.push("Comissão não confirmada");
-      flags.push("Concorrência, margem líquida, estoque e elegibilidade do programa ainda não verificados");
+      if (!commissionValid) flags.push("Comissão positiva ainda não confirmada");
+      flags.push("Lucro líquido não calculado: faltam custos, impostos, devoluções e dados de conversão");
+      flags.push("Comissão estimada não significa comissão aprovada, paga ou recebida");
       let priority = "Coletar mais dados";
       if (sales !== null && sales >= 1000 && completeness >= 66) priority = "Investigar primeiro";
       else if (sales !== null && sales >= 100 && completeness >= 66) priority = "Investigar";
@@ -1395,9 +1401,13 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         id: item.id, name: item.name, marketplace: item.marketplace, product_url: item.product_url,
         affiliate_url: item.affiliate_url, affiliate_program_id: item.affiliate_program_id,
         commission_rate: item.commission_rate, price_observed: price, public_sales_count: sales,
+        estimated_commission_per_sale: estimatedCommissionPerSale,
+        actual_commission_received: null,
+        net_profit: null,
+        financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
         evidence, evidence_completeness: completeness, priority, flags,
         campaign_stage: campaignStage,
-        campaign_can_be_prepared: hasAffiliateLink && hasProgram && item.commission_rate !== null,
+        campaign_can_be_prepared: hasAffiliateLink && hasProgram && commissionValid && estimatedCommissionPerSale !== null,
         next_steps: nextSteps,
         updated_at: item.updated_at
       };
