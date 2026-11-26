@@ -370,7 +370,7 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
 test("publicações idênticas reutilizam registro existente e evitam duplicação", () => {
   const start = worker.indexOf('if (url.pathname === "/publications" && request.method === "POST")');
   assert.notEqual(start, -1);
-  const section = worker.slice(start, start + 5000);
+  const section = worker.slice(start, start + 8000);
   assert.match(section, /SELECT id, status FROM publication_queue WHERE channel = \? AND title = \? AND content = \? AND affiliate_url IS \? AND scheduled_at IS \?/);
   assert.match(section, /status IN \('draft', 'queued', 'paused', 'needs_connection'\)/);
   assert.match(section, /if \(existing\)/);
