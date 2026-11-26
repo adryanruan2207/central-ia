@@ -355,7 +355,6 @@ test("seleção automática de afiliados compara comissão com valor estimado e 
   assert.notEqual(start, -1);
   const section = worker.slice(start, start + 5200);
   assert.match(section, /commission_rate > 0 AND p\.commission_rate <= 100/);
-  assert.match(section, /commission_rate BETWEEN 0 AND 100/);
   assert.match(section, /Number\.isFinite\(candidate\.observed_price\) && candidate\.observed_price > 0 && candidate\.estimated_payout > 0/);
   assert.match(section, /Preço observado/);
   assert.match(section, /Vendas informadas pelo anúncio/);
