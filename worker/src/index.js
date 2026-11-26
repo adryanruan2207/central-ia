@@ -1788,8 +1788,13 @@ export default {
     ctx.waitUntil((async () => {
       if (!env.DB) return;
       const now = new Date().toISOString();
-      await runMinuteHealthAudit(env, now);
-      await record(env, "scheduled_check", "Verificação automática da fila executada.");
+      // O cron roda a cada 5 minutos para reduzir consumo D1; a auditoria completa,
+      // que faz leituras agregadas e grava histórico, roda a cada 15 minutos.
+      const utcMinute = new Date(now).getUTCMinutes();
+      if (utcMinute % 15 === 0) {
+        await runMinuteHealthAudit(env, now);
+        await record(env, "scheduled_check", "Verificação automática da fila executada.");
+      }
       if (env.AWIN_API_TOKEN && env.AWIN_PUBLISHER_ID) {
         try {
           const awinSync = await syncAwinTransactionSnapshot(env, now);
