@@ -2129,10 +2129,16 @@ export default {
       }
 
       // Pesquisa recorrente de fornecedores para modelos sem estoque (dropshipping/fulfillment).
-      const lastSupplierScan = await env.DB.prepare(
-        "SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery' ORDER BY created_at DESC LIMIT 1"
-      ).first();
-      const supplierScanDue = !lastSupplierScan?.created_at || (Date.now() - new Date(lastSupplierScan.created_at).getTime()) >= 24 * 60 * 60 * 1000;
+      const [lastSupplierScan, lastSupplierFailure] = await Promise.all([
+        env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery' ORDER BY created_at DESC LIMIT 1").first(),
+        env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery_failed' ORDER BY created_at DESC LIMIT 1").first()
+      ]);
+      const lastSupplierScanMs = Date.parse(lastSupplierScan?.created_at || "");
+      const lastSupplierFailureMs = Date.parse(lastSupplierFailure?.created_at || "");
+      const supplierRetryMs = 60 * 60 * 1000;
+      const supplierScanDue =
+        (!Number.isFinite(lastSupplierScanMs) || Date.now() - lastSupplierScanMs >= 24 * 60 * 60 * 1000) &&
+        (!Number.isFinite(lastSupplierFailureMs) || lastSupplierScanMs > lastSupplierFailureMs || Date.now() - lastSupplierFailureMs >= supplierRetryMs);
       if (supplierScanDue && env.TAVILY_API_KEY) {
         const supplierCategories = ["utilidades domésticas", "acessórios para celular", "produtos pet", "organização e decoração", "beleza e cuidados pessoais", "moda e acessórios"];
         const category = supplierCategories[Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % supplierCategories.length];
@@ -2141,6 +2147,8 @@ export default {
             "Fornecedores e fabricantes oficiais no Brasil que aceitam dropshipping, envio direto ao consumidor ou fulfillment para a categoria " + category + ". Priorize sites oficiais de fabricantes, distribuidores e atacadistas. Procure condições públicas de pedido mínimo, integração, envio, devolução e cadastro de lojista. Não confunda marketplace varejista com fornecedor.",
             env
           );
+          if (!research.configured) throw new Error("A chave Tavily não está configurada.");
+          if (!research.results.length) throw new Error("A pesquisa não retornou fontes HTTPS utilizáveis para fornecedores.");
           let saved = 0;
           for (const item of research.results) {
             let website = "";
