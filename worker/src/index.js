@@ -1462,7 +1462,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/shortlist/analyze" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.updated_at, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map((item) => {
       const notes = String(item.notes || "");
@@ -1487,7 +1487,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const flags = [];
       if (price === null || !Number.isFinite(price) || price <= 0) flags.push("Preço atual não confirmado");
       if (sales === null) flags.push("Volume de vendas não disponível");
-      if (dataIsStale) flags.push("Dados do produto desatualizados ou sem data confiável; atualizar antes de avançar");
+      if (recordIsOld) flags.push("Cadastro antigo ou sem data confiável; atualizar a pesquisa antes de avançar");
       if (!commissionValid) flags.push("Taxa de comissão não confirmada");
       const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
       if (!commissionSourceValid) flags.push("Fonte oficial da comissão ausente");
@@ -1502,7 +1502,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const hasAffiliateLink = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const hasProgram = Boolean(item.affiliate_program_id);
       const programApproved = item.program_status === "approved";
-      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null && !dataIsStale;
+      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null && !recordIsOld;
       const campaignStage = campaignCanBePrepared
         ? "Preparar revisão da campanha — não publicar sem validar a fonte"
         : "Pesquisa — ainda não promover";
@@ -1528,14 +1528,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
         evidence, evidence_completeness: completeness, record_age_days: recordAgeDays,
         record_freshness: recordIsOld ? "old_or_unknown" : "created_within_7_days",
-        priority: dataIsStale ? "Atualizar dados antes de avaliar" : priority, flags,
+        priority: recordIsOld ? "Atualizar pesquisa antes de avaliar" : priority, flags,
         campaign_stage: campaignStage,
         campaign_can_be_prepared: campaignCanBePrepared,
         campaign_can_be_published: false,
         research_only: true,
         publication_gate: "manual_source_confirmation_and_official_platform_authorization_required",
         next_steps: nextSteps,
-        updated_at: item.updated_at
+        created_at: item.created_at
       };
     });
     products.sort((a, b) => (b.public_sales_count ?? -1) - (a.public_sales_count ?? -1) || b.evidence_completeness - a.evidence_completeness);
