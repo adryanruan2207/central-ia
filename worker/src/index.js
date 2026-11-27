@@ -96,7 +96,7 @@ async function syncAwinTransactionSnapshot(env, nowIso) {
   const newlyPaid = [];
   for (const item of payload) {
     const id = String(item.id ?? "");
-    if (!/^\\d+$/.test(id)) continue;
+    if (!/^\d+$/.test(id)) continue;
     const status = String(item.commissionStatus || "unknown").toLowerCase();
     const paid = item.paidToPublisher === true;
     const commission = Number(item.commissionAmount?.amount ?? item.commissionAmount ?? 0);
