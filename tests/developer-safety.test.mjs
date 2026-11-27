@@ -600,3 +600,15 @@ test("IDs numéricos das transações Awin são reconhecidos para comparação d
   assert.ok(sync.includes("if (!/^\\d+$/.test(id)) continue;"), "IDs numéricos válidos devem entrar no snapshot");
   assert.ok(!sync.includes("if (!/^\\\\d+$/.test(id)) continue;"), "Não aceitar regex que procura barra invertida literal");
 });
+
+
+test("painel comercial usa sessão autenticada e não solicita credenciais externas", () => {
+  assert.match(ui, /id="commerce-accounts-panel"/);
+  assert.match(ui, /\/commerce\/accounts/);
+  assert.match(ui, /Authorization:'Bearer '\+token\(\)/);
+  assert.match(ui, /connection_status:'not_started'/);
+  assert.match(ui, /approval_status:'unknown'/);
+  assert.match(ui, /não cria contas nem concede acesso automaticamente/);
+  assert.match(ui, /Nunca informe credenciais neste painel ou no chat/);
+  assert.doesNotMatch(ui, /id="commerce-(?:password|token|api-key)"/i);
+});
