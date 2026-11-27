@@ -1021,7 +1021,7 @@ async function checkPublicWorkerHealth(){
   const schema=data.database?.schema_ready===true?'tabelas essenciais OK':data.database?.schema_ready===false?'faltam tabelas essenciais':'estrutura não verificada';
   const componentNames={database:'Banco/estrutura D1',workers_ai:'Workers AI',web_research:'pesquisa Tavily'};
   const missing=(Array.isArray(data.missing_components)?data.missing_components:[]).map(name=>componentNames[name]||name);
-  const componentState=(name,configured)=>data.components?.[name]?'verificado':configured?'configurado • aguardando teste':'não configurado';
+  const componentState=(name,configured)=>data.health_audit_fresh&&data.components?.[name]?'verificado':configured?'configurado • aguardando verificação':'não configurado';
   const auditLabel=data.health_audit_fresh?'auditoria recente':'auditoria ausente ou desatualizada';
   line.textContent='Servidor na nuvem: '+(data.status==='online'?'OPERACIONAL':'RESPONDENDO COM PENDÊNCIAS')+' • Banco: '+(data.database?.ok?'conectado':'indisponível')+' • Estrutura: '+schema+' • Workers AI: '+componentState('workers_ai',data.workers_ai_configured)+' • Tavily: '+componentState('web_research',data.web_research_configured)+' • '+auditLabel+(data.health_checked_at?' ('+new Date(data.health_checked_at).toLocaleTimeString('pt-BR')+')':'')+(missing.length?' • Pendências: '+missing.join(', '):' • Componentes essenciais verificados')+' • '+new Date(data.time).toLocaleTimeString('pt-BR');
  }catch(error){line.textContent='Servidor na nuvem: '+(error.message||'não foi possível verificar');}
