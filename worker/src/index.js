@@ -303,11 +303,23 @@ async function handle(request, env) {
       }
     }
     const schemaReady = database.ok && database.schema_ready !== false;
+    let latestAudit = null;
+    if (env.DB && schemaReady) {
+      try {
+        const row = await env.DB.prepare("SELECT checked_at, status, details FROM system_health_checks ORDER BY checked_at DESC LIMIT 1").first();
+        if (row) latestAudit = {checked_at:row.checked_at,status:row.status,details:JSON.parse(row.details || "{}")};
+      } catch {}
+    }
+    const auditAgeMs = latestAudit?.checked_at ? Date.now() - Date.parse(latestAudit.checked_at) : Infinity;
+    const auditFresh = Number.isFinite(auditAgeMs) && auditAgeMs >= 0 && auditAgeMs <= 15 * 60 * 1000;
+    const auditedChecks = Array.isArray(latestAudit?.details?.checks) ? latestAudit.details.checks : [];
+    const auditedOK = name => auditFresh && auditedChecks.some(item => item.name === name && item.ok === true);
     const components = {
       database: schemaReady,
-      workers_ai: Boolean(env.AI),
-      web_research: Boolean(env.TAVILY_API_KEY)
+      workers_ai: Boolean(env.AI) && auditedOK("workers_ai"),
+      web_research: Boolean(env.TAVILY_API_KEY) && auditedOK("web_research")
     };
+    const configured = {workers_ai:Boolean(env.AI),web_research:Boolean(env.TAVILY_API_KEY)};
     const missingComponents = Object.entries(components).filter(([,ready]) => !ready).map(([name]) => name);
     const operational = missingComponents.length === 0;
     return json({
@@ -315,10 +327,13 @@ async function handle(request, env) {
       status: operational ? "online" : "degraded",
       operational,
       components,
+      configured,
       missing_components: missingComponents,
       database,
-      workers_ai_configured: components.workers_ai,
-      web_research_configured: components.web_research,
+      workers_ai_configured: configured.workers_ai,
+      web_research_configured: configured.web_research,
+      health_checked_at: latestAudit?.checked_at || null,
+      health_audit_fresh: auditFresh,
       time: new Date().toISOString()
     }, database.ok ? 200 : 503);
   }
