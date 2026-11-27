@@ -742,3 +742,13 @@ test("pesquisa oficial é associada ao produto pelo identificador do programa", 
   assert.match(ui, /não comprovam que este produto participa, nem validam taxa ou aprovação/i);
   assert.match(ui, /sourceLink\.rel='noopener noreferrer'/);
 });
+
+
+test("autoverificação completa acompanha cada execução do cron de cinco minutos", () => {
+  const scheduledStart = worker.indexOf("async scheduled(event, env, ctx)");
+  assert.notEqual(scheduledStart, -1);
+  const scheduledSection = worker.slice(scheduledStart, scheduledStart + 1800);
+  assert.match(scheduledSection, /await runMinuteHealthAudit\(env, now\)/);
+  assert.match(scheduledSection, /await record\(env, "scheduled_check"/);
+  assert.doesNotMatch(scheduledSection, /utcMinute % 15/);
+});
