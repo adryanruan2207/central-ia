@@ -1450,12 +1450,12 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         "mercadolivre.com.br", "amazon.com.br", "shopee.com.br", "aliexpress.com",
         "ebay.com", "magazineluiza.com.br", "americanas.com.br"
       ]);
-      const supplierEvidencePattern = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment|atacad\\w*|distribuidor\\w*|fabricante\\w*|pedido m[ií]nimo|lojista\\w*|revend\\w*/i;
+      const supplierEvidencePattern = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment|atacad\w*|distribuidor\w*|fabricante\w*|pedido m[ií]nimo|lojista\w*|revend\w*/i;
       let rejected = 0;
       const suppliers = search.results.flatMap(item => {
         let parsed;
         try { parsed = new URL(item.url); } catch { rejected++; return []; }
-        const host = parsed.hostname.toLowerCase().replace(/^www\\./, "");
+        const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
         const isMarketplace = [...marketplaceHosts].some(domain => host === domain || host.endsWith("." + domain));
         const evidenceText = String(item.title || "") + " " + String(item.content || "");
         if (parsed.protocol !== "https:" || !item.title || isMarketplace || !supplierEvidencePattern.test(evidenceText)) {

@@ -13,6 +13,8 @@ test("pesquisa direta de fornecedores filtra varejistas e exige evidência públ
   assert.match(route, /const marketplaceHosts = new Set/);
   assert.ok(route.includes("amazon.com.br"));
   assert.ok(route.includes("mercadolivre.com.br"));
+  assert.ok(route.includes(String.raw`atacad\w*`), "padrão deve reconhecer palavras de atacado");
+  assert.ok(route.includes(String.raw`/^www\./`), "normalização de www deve usar escape correto");
   assert.match(route, /parsed\.protocol !== "https:"/);
   assert.match(route, /supplierEvidencePattern\.test\(evidenceText\)/);
   assert.match(route, /verification_status: "unverified"/);
