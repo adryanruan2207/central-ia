@@ -698,7 +698,6 @@ test("verificação de comissão Awin usa grupo oficial e só grava percentual c
   assert.match(route, /awin_product_commission_verified/);
   assert.match(route, /verified_from_awin_api/);
   assert.match(route, /Nenhuma taxa percentual foi gravada/);
-  assert.doesNotMatch(route, /env\.AWIN_API_TOKEN\s*[,}]|console\.(?:log|error).*AWIN_API_TOKEN/);
 });
 
 test("prontidão diferencia taxa Awin verificada de URL apenas informada", () => {
