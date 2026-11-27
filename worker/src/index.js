@@ -2226,8 +2226,9 @@ export default {
       const lastProgramResearchMs = Date.parse(lastProgramResearch?.created_at || "");
       const lastProgramFailureMs = Date.parse(lastProgramFailure?.created_at || "");
       const programResearchRetryMs = 60 * 60 * 1000;
+      const programResearchIntervalMs = 6 * 60 * 60 * 1000;
       const programResearchDue =
-        (!Number.isFinite(lastProgramResearchMs) || Date.now() - lastProgramResearchMs >= 24 * 60 * 60 * 1000) &&
+        (!Number.isFinite(lastProgramResearchMs) || Date.now() - lastProgramResearchMs >= programResearchIntervalMs) &&
         (!Number.isFinite(lastProgramFailureMs) || lastProgramResearchMs > lastProgramFailureMs || Date.now() - lastProgramFailureMs >= programResearchRetryMs);
       if (programResearchDue && env.TAVILY_API_KEY) {
         const programs = [
@@ -2239,9 +2240,14 @@ export default {
           { id: "ebay", name: "eBay Partner Network", domains: ["ebay.com"] },
           { id: "aliexpress", name: "AliExpress Portals", domains: ["aliexpress.com"] },
           { id: "hotmart", name: "Hotmart", domains: ["hotmart.com"] },
-          { id: "amazon", name: "Amazon Associates Brasil", domains: ["associados.amazon.com.br", "affiliate-program.amazon.com.br"] }
+          { id: "amazon-associates", name: "Amazon Associados Brasil", domains: ["associados.amazon.com.br", "affiliate-program.amazon.com.br"] },
+          { id: "clickbank", name: "ClickBank", domains: ["clickbank.com"] },
+          { id: "digistore24", name: "Digistore24", domains: ["digistore24.com"] },
+          { id: "tradedoubler", name: "Tradedoubler", domains: ["tradedoubler.com"] },
+          { id: "webgains", name: "Webgains", domains: ["webgains.com"] },
+          { id: "partnerize", name: "Partnerize", domains: ["partnerize.com"] }
         ];
-        const program = programs[Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % programs.length];
+        const program = programs[Math.floor(Date.now() / programResearchIntervalMs) % programs.length];
         try {
           const research = await searchWebWithTavily(
             "Documentação oficial de " + program.name + " para afiliados: tabela de comissões, categorias, atribuição, cookies, requisitos de aprovação, restrições de divulgação e termos vigentes. Pesquise apenas páginas do próprio programa e priorize páginas de ajuda e termos oficiais. Não infira percentuais a partir de resultados secundários.",
@@ -2274,68 +2280,8 @@ export default {
         }
       }
 
-      // Pesquisa recorrente de fornecedores para modelos sem estoque (dropshipping/fulfillment).
-      const [lastSupplierScan, lastSupplierFailure] = await Promise.all([
-        env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery' ORDER BY created_at DESC LIMIT 1").first(),
-        env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery_failed' ORDER BY created_at DESC LIMIT 1").first()
-      ]);
-      const lastSupplierScanMs = Date.parse(lastSupplierScan?.created_at || "");
-      const lastSupplierFailureMs = Date.parse(lastSupplierFailure?.created_at || "");
-      const supplierRetryMs = 60 * 60 * 1000;
-      const supplierScanDue =
-        (!Number.isFinite(lastSupplierScanMs) || Date.now() - lastSupplierScanMs >= 24 * 60 * 60 * 1000) &&
-        (!Number.isFinite(lastSupplierFailureMs) || lastSupplierScanMs > lastSupplierFailureMs || Date.now() - lastSupplierFailureMs >= supplierRetryMs);
-      if (supplierScanDue && env.TAVILY_API_KEY) {
-        const supplierCategories = ["utilidades domésticas", "acessórios para celular", "produtos pet", "organização e decoração", "beleza e cuidados pessoais", "moda e acessórios"];
-        const category = supplierCategories[Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % supplierCategories.length];
-        try {
-          const research = await searchWebWithTavily(
-            "Fornecedores e fabricantes oficiais no Brasil que aceitam dropshipping, envio direto ao consumidor ou fulfillment para a categoria " + category + ". Priorize sites oficiais de fabricantes, distribuidores e atacadistas. Procure condições públicas de pedido mínimo, integração, envio, devolução e cadastro de lojista. Não confunda marketplace varejista com fornecedor.",
-            env
-          );
-          if (!research.configured) throw new Error("A chave Tavily não está configurada.");
-          if (!research.results.length) throw new Error("A pesquisa não retornou fontes HTTPS utilizáveis para fornecedores.");
-          let saved = 0;
-          let rejected = 0;
-          const marketplaceHosts = new Set([
-            "mercadolivre.com.br", "amazon.com.br", "shopee.com.br", "aliexpress.com",
-            "ebay.com", "magazineluiza.com.br", "americanas.com.br"
-          ]);
-          const supplierEvidencePattern = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment|atacad\w*|distribuidor\w*|fabricante\w*|pedido m[ií]nimo|lojista\w*|revend\w*/i;
-          for (const item of research.results) {
-            let website = "";
-            let host = "";
-            try {
-              const parsed = new URL(item.url);
-              if (parsed.protocol === "https:" && parsed.hostname) {
-                website = parsed.origin;
-                host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-              }
-            } catch {}
-            const evidenceText = String(item.title || "") + " " + String(item.content || "");
-            const isMarketplace = host && [...marketplaceHosts].some(domain => host === domain || host.endsWith("." + domain));
-            // Pesquisa gera candidatos, nunca fornecedores aprovados. Exigimos sinais textuais
-            // mínimos de atacado/fabricação/envio direto e excluímos marketplaces varejistas.
-            if (!website || !item.title || isMarketplace || !supplierEvidencePattern.test(evidenceText)) {
-              rejected++;
-              continue;
-            }
-            const timestamp = new Date().toISOString();
-            const result = await env.DB.prepare(
-              "INSERT OR IGNORE INTO supplier_leads(id, name, website, category, evidence, source_url, verification_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'unverified', ?, ?)"
-            ).bind(crypto.randomUUID(), item.title.slice(0, 180), website, category, String(item.content || "").slice(0, 1400), item.url, timestamp, timestamp).run();
-            saved += Number(result.meta?.changes || 0);
-          }
-          await record(env, "automatic_supplier_discovery", JSON.stringify({
-            category, sources: research.results.length, saved, rejected,
-            candidate_policy: "https_supplier_evidence_keywords_excluding_retail_marketplaces",
-            verification_status: "unverified",
-            note: "Candidatos não são fornecedores confirmados; pedido mínimo, estoque, envio, preço e condições exigem validação direta."
-          }));
-        } catch (error) {
-          await record(env, "automatic_supplier_discovery_failed", String(error?.message || "Falha na pesquisa de fornecedores").slice(0, 300));
-        }
-      }
+      // Modo afiliados primeiro: a pesquisa automática de fornecedores/loja sem estoque
+      // fica pausada até a etapa de afiliados estar operacional. Rotas e dados existentes são preservados.
 
       const reviewUpdate = await env.DB.prepare(
         "UPDATE tasks SET status = 'needs_review', updated_at = ? WHERE status = 'queued' AND requires_approval = 1"
