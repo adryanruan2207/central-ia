@@ -761,7 +761,7 @@ async function handle(request, env) {
     return json({
       service: "CENTRAL IA",
       automation: "cloud-cron",
-      schedule: "Autoverificação a cada 1 minuto; processamento automático conforme fila e limites.",
+      schedule: "Autoverificação a cada 5 minutos; processamento automático conforme fila e limites.",
       last_check: heartbeat?.created_at || null,
       self_monitor: health ? { status: health.status, checked_at: health.checked_at, details: JSON.parse(health.details || "{}") } : null,
       tavily_connection: tavilyEvent ? { ...JSON.parse(tavilyEvent.details || "{}"), checked_at: tavilyEvent.created_at } : { ok: false, error: env.TAVILY_API_KEY ? "Aguardando primeiro teste automático." : "Chave Tavily não configurada." },
