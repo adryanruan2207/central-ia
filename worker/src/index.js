@@ -1407,15 +1407,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     const model = String(body.business_model || "");
     const region = String(body.region || "").trim().slice(0, 80);
     const accountLabel = String(body.account_label || "").trim().slice(0, 100);
-    const connectionStatus = String(body.connection_status || "not_started");
-    const approvalStatus = String(body.approval_status || "unknown");
+    // O cadastro inicial nunca pode declarar uma conexão, aprovação ou capacidade como confirmada.
+    // Esses estados só poderão ser alterados por um fluxo OAuth/API validado no servidor.
+    const connectionStatus = "not_started";
+    const approvalStatus = "unknown";
     const allowedModels = ["affiliate", "seller", "dropshipping"];
-    const allowedConnection = ["not_started", "needs_authorization", "connected", "error", "paused"];
-    const allowedApproval = ["unknown", "pending", "approved", "rejected"];
-    const allowedCapabilities = ["product_research", "link_tracking", "order_sync", "inventory_sync", "fulfillment", "content_publishing", "commission_reporting"];
-    const capabilities = Array.isArray(body.capabilities) ? [...new Set(body.capabilities.filter(value => allowedCapabilities.includes(value)))] : [];
+    const capabilities = [];
     const notes = String(body.notes || "").trim().slice(0, 500);
-    if (!/^[a-z0-9][a-z0-9-]{1,59}$/.test(platformId) || !platformName || !region || !allowedModels.includes(model) || !allowedConnection.includes(connectionStatus) || !allowedApproval.includes(approvalStatus)) {
+    if (!/^[a-z0-9][a-z0-9-]{1,59}$/.test(platformId) || !platformName || !region || !allowedModels.includes(model)) {
       return json({ error: "Informe plataforma, região e modelo válidos. Conta de afiliado, vendedor ou dropshipping são cadastros separados." }, 400);
     }
     const now = new Date().toISOString();
