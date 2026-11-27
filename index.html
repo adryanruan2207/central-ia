@@ -1750,10 +1750,11 @@ async function checkAffiliateCampaignReadiness(){
    else awinConnection={configured:false,connected:false,error:'Não foi possível consultar a conexão Awin.'};
   }catch{awinConnection={configured:false,connected:false,error:'Falha de comunicação ao consultar Awin.'};}
   let programResearch=[];
+  let affiliatePrograms=[];
   try{
    const researchResponse=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/program-research',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
    const researchData=await researchResponse.json().catch(()=>({}));
-   if(researchResponse.ok)programResearch=Array.isArray(researchData.research)?researchData.research:[];
+   if(researchResponse.ok){programResearch=Array.isArray(researchData.research)?researchData.research:[];affiliatePrograms=Array.isArray(researchData.programs)?researchData.programs:[];}
   }catch{}
   const latestResearchByProgram=new Map();
   for(const entry of programResearch){
@@ -1774,6 +1775,19 @@ async function checkAffiliateCampaignReadiness(){
   approvalNote.textContent='Conexão técnica não significa aprovação em anunciantes, comissão confirmada ou autorização para divulgar produtos.';
   connectionPanel.append(approvalNote);results.append(connectionPanel);
   status.textContent=data.count+' produtos verificados • '+data.ready+' prontos para automação • '+data.blocked+' bloqueados • '+programResearch.length+' pesquisas oficiais registradas. '+data.notice;
+  if(affiliatePrograms.length){
+   const catalogPanel=document.createElement('section');catalogPanel.style.cssText='margin:12px 0;padding:13px;border:1px solid #475569;border-radius:12px;background:#202b35';
+   const catalogHeading=document.createElement('b');catalogHeading.textContent='Catálogo de programas • '+affiliatePrograms.length+' opções';catalogPanel.append(catalogHeading);
+   const catalogNote=document.createElement('p');catalogNote.style.cssText='font-size:.8rem;color:#cbd5e1!important';catalogNote.textContent='A lista organiza cadastro, região e pesquisas recentes. Ter um programa no catálogo não significa conta conectada, aprovação ou comissão disponível.';catalogPanel.append(catalogNote);
+   for(const program of affiliatePrograms){
+    const row=document.createElement('div');row.style.cssText='padding:9px 0;border-top:1px solid #475569';
+    const name=document.createElement('b');name.textContent=program.name+' • '+(program.status||'pesquisa');row.append(name);
+    const meta=document.createElement('p');meta.style.cssText='font-size:.78rem;color:#cbd5e1!important;margin:3px 0';meta.textContent=(program.region||'Região não informada')+' • '+(program.category||'Categoria não informada')+' • '+(program.latest_research?.status||'ainda sem pesquisa registrada');row.append(meta);
+    if(program.signup_url){let signup;try{signup=new URL(program.signup_url)}catch{}if(signup&&signup.protocol==='https:'){const link=document.createElement('a');link.href=signup.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Página oficial de cadastro';link.style.cssText='font-size:.8rem';row.append(link);}}
+    catalogPanel.append(row);
+   }
+   results.append(catalogPanel);
+  }
   if(programResearch.length){
    const panel=document.createElement('section');panel.style.cssText='margin:12px 0;padding:13px;border:1px solid #475569;border-radius:12px;background:#202b35';
    const heading=document.createElement('b');heading.textContent='Pesquisa automática de programas de afiliados';panel.append(heading);

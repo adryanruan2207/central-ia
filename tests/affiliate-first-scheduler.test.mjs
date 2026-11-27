@@ -9,9 +9,12 @@ test("cron prioriza programas de afiliados e pesquisa a cada seis horas", () => 
   assert.match(worker, /const programResearchIntervalMs = 6 \* 60 \* 60 \* 1000/);
   assert.match(worker, /Date\.now\(\) - lastProgramResearchMs >= programResearchIntervalMs/);
   assert.match(worker, /Math\.floor\(Date\.now\(\) \/ programResearchIntervalMs\) % programs\.length/);
-  const ids = ["awin", "cj-affiliate", "impact", "rakuten", "partnerstack", "ebay-partner", "aliexpress-portals", "amazon-associates", "clickbank", "digistore24", "awin-tradedoubler", "webgains", "partnerize", "hotmart"];
+  const ids = ["awin", "cj-affiliate", "impact", "rakuten", "partnerstack", "ebay-partner", "aliexpress-portals", "hotmart", "amazon-associates", "clickbank", "digistore24", "awin-tradedoubler", "webgains", "partnerize"];
+  const schedulerStart = worker.indexOf("const programs = [", worker.indexOf("programResearchIntervalMs"));
+  const schedulerEnd = worker.indexOf("];", schedulerStart);
+  const scheduler = worker.slice(schedulerStart, schedulerEnd);
   for (const id of ids) {
-    assert.ok(worker.includes('id: "' + id + '"'), "programa ausente do ciclo: " + id);
+    assert.ok(scheduler.includes('id: "' + id + '"'), "programa ausente ou com ID incorreto no ciclo: " + id);
     assert.ok(programMigration.includes("('" + id + "',"), "programa não cadastrado no catálogo: " + id);
   }
 });

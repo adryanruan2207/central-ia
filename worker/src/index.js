@@ -1354,18 +1354,25 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
   }
 
   if (url.pathname === "/affiliates/program-research" && request.method === "GET") {
-    const result = await env.DB.prepare(
-      "SELECT details, created_at FROM activity_log WHERE event IN ('automatic_affiliate_program_research','automatic_affiliate_program_research_failed') ORDER BY created_at DESC LIMIT 30"
-    ).all();
+    const [result, catalog] = await Promise.all([
+      env.DB.prepare(
+        "SELECT details, created_at FROM activity_log WHERE event IN ('automatic_affiliate_program_research','automatic_affiliate_program_research_failed') ORDER BY created_at DESC LIMIT 50"
+      ).all(),
+      env.DB.prepare("SELECT id, name, region, category, signup_url, status, notes FROM affiliate_programs ORDER BY name ASC").all()
+    ]);
     const research = (result.results || []).map(row => {
       try {
         const item = JSON.parse(row.details || "{}");
         return { ...item, recorded_at: row.created_at };
       } catch { return { status: "unreadable", recorded_at: row.created_at }; }
     });
+    const latestByProgram = new Map();
+    for (const item of research) if (item.program_id && !latestByProgram.has(item.program_id)) latestByProgram.set(item.program_id, item);
+    const programs = (catalog.results || []).map(program => ({ ...program, latest_research: latestByProgram.get(program.id) || null }));
     return json({
       count: research.length,
       research,
+      programs,
       notice: "Pesquisa exploratória com filtro de domínio oficial. Os resultados são referências para conferência; não confirmam taxa, elegibilidade, aprovação ou condições contratuais. Nenhuma comissão é alterada automaticamente."
     });
   }
@@ -2233,12 +2240,12 @@ export default {
       if (programResearchDue && env.TAVILY_API_KEY) {
         const programs = [
           { id: "awin", name: "Awin", domains: ["awin.com"] },
-          { id: "cj", name: "CJ Affiliate", domains: ["cj.com"] },
+          { id: "cj-affiliate", name: "CJ Affiliate", domains: ["cj.com"] },
           { id: "impact", name: "impact.com", domains: ["impact.com"] },
           { id: "rakuten", name: "Rakuten Advertising", domains: ["rakutenadvertising.com"] },
           { id: "partnerstack", name: "PartnerStack", domains: ["partnerstack.com"] },
-          { id: "ebay", name: "eBay Partner Network", domains: ["ebay.com"] },
-          { id: "aliexpress", name: "AliExpress Portals", domains: ["aliexpress.com"] },
+          { id: "ebay-partner", name: "eBay Partner Network", domains: ["ebay.com"] },
+          { id: "aliexpress-portals", name: "AliExpress Portals", domains: ["aliexpress.com"] },
           { id: "hotmart", name: "Hotmart", domains: ["hotmart.com"] },
           { id: "amazon-associates", name: "Amazon Associados Brasil", domains: ["associados.amazon.com.br", "affiliate-program.amazon.com.br"] },
           { id: "clickbank", name: "ClickBank", domains: ["clickbank.com"] },
