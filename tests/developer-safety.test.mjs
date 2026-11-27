@@ -648,9 +648,9 @@ test("shortlist bloqueia avaliação de campanha quando os dados do produto est�
   const route = worker.slice(start, end);
   assert.match(route, /p\.created_at/);
   assert.match(route, /const researchAgeDays =/);
-  assert.match(route, /const recordIsOld = recordAgeDays === null \|\| recordAgeDays > 7/);
+  assert.match(route, /const researchIsOld = researchAgeDays === null \|\| researchAgeDays > 7/);
   assert.match(route, /const campaignCanBePrepared = .*&& !researchIsOld/);
-  assert.match(route, /record_freshness: recordIsOld \? "old_or_unknown" : "created_within_7_days"/);
+  assert.match(route, /research_freshness: researchIsOld \? "stale_or_not_researched" : "researched_within_7_days"/);
   assert.match(route, /research_only: true/);
 });
 
@@ -661,9 +661,9 @@ test("campaign readiness bloqueia produtos com dados desatualizados ou sem data 
   const route = worker.slice(start, end);
   assert.match(route, /p\.created_at/);
   assert.match(route, /const researchAgeDays =/);
-  assert.match(route, /const recordIsOld = recordAgeDays === null \|\| recordAgeDays > 7/);
+  assert.match(route, /const researchIsOld = researchAgeDays === null \|\| researchAgeDays > 7/);
   assert.match(route, /Sem pesquisa de catálogo nos últimos 7 dias/);
-  assert.match(route, /record_freshness: recordIsOld \? "old_or_unknown" : "created_within_7_days"/);
+  assert.match(route, /research_freshness: researchIsOld \? "stale_or_not_researched" : "researched_within_7_days"/);
   assert.match(route, /campaign_status: ready \? "ready" : "blocked"/);
 });
 
