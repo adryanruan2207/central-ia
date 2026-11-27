@@ -1287,14 +1287,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
-      const recordCreatedAtMs = Date.parse(item.created_at || "");
-      const recordAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
-      const recordIsOld = recordAgeDays === null || recordAgeDays > 7;
-      if (recordIsOld) blockers.push("Cadastro antigo ou sem data confiável; atualizar a pesquisa antes de avançar");
+      const lastResearchedAtMs = Date.parse(item.last_researched_at || "");
+      const researchAgeDays = Number.isFinite(lastResearchedAtMs) ? Math.max(0, Math.floor((Date.now() - lastResearchedAtMs) / 86400000)) : null;
+      const researchIsOld = researchAgeDays === null || researchAgeDays > 7;
+      if (researchIsOld) blockers.push("Sem pesquisa de catálogo nos últimos 7 dias; atualizar a pesquisa antes de avançar");
       const productUrlValid = /^https:\/\//i.test(String(item.product_url || ""));
       const affiliateUrlValid = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const commissionRate = Number(item.commission_rate);
@@ -1312,8 +1312,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_url: item.product_url, affiliate_url: item.affiliate_url,
         commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: commissionSourceValid ? "provided_not_verified" : "missing", affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
-        record_age_days: recordAgeDays,
-        record_freshness: recordIsOld ? "old_or_unknown" : "created_within_7_days",
+        last_researched_at: item.last_researched_at || null,
+        research_age_days: researchAgeDays,
+        research_freshness: researchIsOld ? "stale_or_not_researched" : "researched_within_7_days",
         campaign_status: ready ? "ready" : "blocked",
         blockers,
         disclosure_required: true,
@@ -1325,7 +1326,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       ready: products.filter(item => item.campaign_status === "ready").length,
       blocked: products.filter(item => item.campaign_status === "blocked").length,
       products,
-      notice: "Prontidão automática interna. A idade exibida é a do cadastro, não uma prova de revalidação recente. URLs e taxas informadas não são prova verificada; confirme a comissão e a elegibilidade no painel oficial do programa. Também não confirma link funcional, estoque ou pagamento."
+      notice: "Prontidão automática interna. A data de pesquisa só é atualizada quando o produto reaparece em uma consulta bem-sucedida ao catálogo público do Mercado Livre; isso confirma apenas a presença e os dados básicos retornados, não comissão, elegibilidade, estoque ou link afiliado funcional. URLs e taxas informadas não são prova verificada; confirme no painel oficial do programa."
     });
   }
 
@@ -1462,7 +1463,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/shortlist/analyze" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map((item) => {
       const notes = String(item.notes || "");
@@ -1476,9 +1477,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_link: /^https:\/\//i.test(String(item.product_url || ""))
       };
       const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
-      const recordCreatedAtMs = Date.parse(item.created_at || "");
-      const recordAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
-      const recordIsOld = recordAgeDays === null || recordAgeDays > 7;
+      const lastResearchedAtMs = Date.parse(item.last_researched_at || "");
+      const researchAgeDays = Number.isFinite(lastResearchedAtMs) ? Math.max(0, Math.floor((Date.now() - lastResearchedAtMs) / 86400000)) : null;
+      const researchIsOld = researchAgeDays === null || researchAgeDays > 7;
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
       const estimatedCommissionPerSale = Number.isFinite(price) && price > 0 && commissionValid
@@ -1487,7 +1488,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const flags = [];
       if (price === null || !Number.isFinite(price) || price <= 0) flags.push("Preço atual não confirmado");
       if (sales === null) flags.push("Volume de vendas não disponível");
-      if (recordIsOld) flags.push("Cadastro antigo ou sem data confiável; atualizar a pesquisa antes de avançar");
+      if (researchIsOld) flags.push("Sem pesquisa de catálogo nos últimos 7 dias; atualizar a pesquisa antes de avançar");
       if (!commissionValid) flags.push("Taxa de comissão não confirmada");
       const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
       if (!commissionSourceValid) flags.push("Fonte oficial da comissão ausente");
@@ -1502,7 +1503,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const hasAffiliateLink = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const hasProgram = Boolean(item.affiliate_program_id);
       const programApproved = item.program_status === "approved";
-      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null && !recordIsOld;
+      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null && !researchIsOld;
       const campaignStage = campaignCanBePrepared
         ? "Preparar revisão da campanha — não publicar sem validar a fonte"
         : "Pesquisa — ainda não promover";
@@ -1526,9 +1527,10 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         actual_commission_received: null,
         net_profit: null,
         financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
-        evidence, evidence_completeness: completeness, record_age_days: recordAgeDays,
-        record_freshness: recordIsOld ? "old_or_unknown" : "created_within_7_days",
-        priority: recordIsOld ? "Atualizar pesquisa antes de avaliar" : priority, flags,
+        evidence, evidence_completeness: completeness, last_researched_at: item.last_researched_at || null,
+        research_age_days: researchAgeDays,
+        research_freshness: researchIsOld ? "stale_or_not_researched" : "researched_within_7_days",
+        priority: researchIsOld ? "Atualizar pesquisa antes de avaliar" : priority, flags,
         campaign_stage: campaignStage,
         campaign_can_be_prepared: campaignCanBePrepared,
         campaign_can_be_published: false,
@@ -1938,12 +1940,20 @@ export default {
               if (parsed.protocol === "https:" && /mercadolivre\.com\.br$/.test(parsed.hostname)) productUrl = parsed.toString();
             } catch {}
             if (!name || !productUrl) continue;
+            const price = Number(item.price);
+            const sold = Number(item.sold_quantity);
+            const timestamp = new Date().toISOString();
             const exists = await env.DB.prepare(
               "SELECT id FROM affiliate_products WHERE marketplace = 'mercado livre' AND product_url = ? LIMIT 1"
             ).bind(productUrl).first();
-            if (exists) continue;
-            const price = Number(item.price);
-            const sold = Number(item.sold_quantity);
+            if (exists) {
+              await record(env, "affiliate_product_researched", JSON.stringify({
+                product_id: exists.id, source: "mercado_livre_public_catalog",
+                term, observed_price: Number.isFinite(price) && price > 0 ? price : null,
+                observed_sales: Number.isFinite(sold) && sold >= 0 ? sold : null
+              }));
+              continue;
+            }
             const notes = [
               "Descoberta automática por catálogo público do Mercado Livre.",
               "Termo pesquisado: " + term,
@@ -1951,13 +1961,18 @@ export default {
               Number.isFinite(sold) && sold >= 0 ? "Vendas informadas pelo anúncio: " + sold : "Vendas não informadas",
               "Comissão e elegibilidade de afiliado não confirmadas. Produto ainda não aprovado para divulgação."
             ].join("\n");
-            const timestamp = new Date().toISOString();
+            const productId = crypto.randomUUID();
             await env.DB.prepare(
               "INSERT INTO affiliate_products(id, name, marketplace, product_url, commission_rate, notes, status, created_at, updated_at) VALUES (?, ?, 'mercado livre', ?, NULL, ?, 'research', ?, ?)"
-            ).bind(crypto.randomUUID(), name, productUrl, notes, timestamp, timestamp).run();
+            ).bind(productId, name, productUrl, notes, timestamp, timestamp).run();
+            await record(env, "affiliate_product_researched", JSON.stringify({
+              product_id: productId, source: "mercado_livre_public_catalog",
+              term, observed_price: Number.isFinite(price) && price > 0 ? price : null,
+              observed_sales: Number.isFinite(sold) && sold >= 0 ? sold : null
+            }));
             added++;
           }
-          await record(env, "automatic_product_discovery", JSON.stringify({ term, received: Array.isArray(catalog.results) ? catalog.results.length : 0, added }));
+          await record(env, "automatic_product_discovery", JSON.stringify({ term, received: Array.isArray(catalog.results) ? catalog.results.length : 0, added, refreshed: Array.isArray(catalog.results) ? catalog.results.length - added : 0 }));
         } catch (error) {
           await record(env, "automatic_product_discovery_failed", String(error?.message || "Falha na descoberta").slice(0, 300));
         }
