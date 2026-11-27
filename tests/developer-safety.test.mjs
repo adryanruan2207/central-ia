@@ -646,10 +646,11 @@ test("shortlist bloqueia avaliação de campanha quando os dados do produto est�
   const start = worker.indexOf('if (url.pathname === "/affiliates/shortlist/analyze"');
   const end = worker.indexOf('if (url.pathname === "/integrations/affiliate"', start);
   const route = worker.slice(start, end);
-  assert.match(route, /const dataAgeDays =/);
-  assert.match(route, /const dataIsStale = dataAgeDays === null \|\| dataAgeDays > 7/);
-  assert.match(route, /const campaignCanBePrepared = .*&& !dataIsStale/);
-  assert.match(route, /data_freshness: dataIsStale \? "stale_or_unknown" : "current_within_7_days"/);
+  assert.match(route, /p\.created_at/);
+  assert.match(route, /const recordAgeDays =/);
+  assert.match(route, /const recordIsOld = recordAgeDays === null \|\| recordAgeDays > 7/);
+  assert.match(route, /const campaignCanBePrepared = .*&& !recordIsOld/);
+  assert.match(route, /record_freshness: recordIsOld \? "old_or_unknown" : "created_within_7_days"/);
   assert.match(route, /research_only: true/);
 });
 
@@ -658,10 +659,10 @@ test("campaign readiness bloqueia produtos com dados desatualizados ou sem data 
   const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
   const end = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', start);
   const route = worker.slice(start, end);
-  assert.match(route, /p\.updated_at/);
-  assert.match(route, /const dataAgeDays =/);
-  assert.match(route, /const dataIsStale = dataAgeDays === null \|\| dataAgeDays > 7/);
-  assert.match(route, /Dados desatualizados ou sem data confiável/);
-  assert.match(route, /data_freshness: dataIsStale \? "stale_or_unknown" : "current_within_7_days"/);
+  assert.match(route, /p\.created_at/);
+  assert.match(route, /const recordAgeDays =/);
+  assert.match(route, /const recordIsOld = recordAgeDays === null \|\| recordAgeDays > 7/);
+  assert.match(route, /Cadastro antigo ou sem data confiável/);
+  assert.match(route, /record_freshness: recordIsOld \? "old_or_unknown" : "created_within_7_days"/);
   assert.match(route, /campaign_status: ready \? "ready" : "blocked"/);
 });
