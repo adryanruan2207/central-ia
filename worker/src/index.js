@@ -2254,36 +2254,45 @@ export default {
           { id: "webgains", name: "Webgains", domains: ["webgains.com"] },
           { id: "partnerize", name: "Partnerize", domains: ["partnerize.com"] }
         ];
-        const program = programs[Math.floor(Date.now() / programResearchIntervalMs) % programs.length];
-        try {
-          const research = await searchWebWithTavily(
-            "Documentação oficial de " + program.name + " para afiliados: tabela de comissões, categorias, atribuição, cookies, requisitos de aprovação, restrições de divulgação e termos vigentes. Pesquise apenas páginas do próprio programa e priorize páginas de ajuda e termos oficiais. Não infira percentuais a partir de resultados secundários.",
-            env
-          );
-          const officialSources = research.results.filter(item => {
-            try {
-              const host = new URL(item.url).hostname.toLowerCase();
-              return program.domains.some(domain => host === domain || host.endsWith("." + domain));
-            } catch { return false; }
-          }).slice(0, 5).map(item => ({
-            title: item.title, url: item.url,
-            excerpt: item.content.slice(0, 900),
-            published_date: item.published_date || null
-          }));
-          await record(env, "automatic_affiliate_program_research", JSON.stringify({
-            program_id: program.id, program_name: program.name,
-            status: officialSources.length ? "official_sources_found" : "no_official_sources_found",
-            source_policy: "official_domain_allowlist",
-            results: officialSources,
-            commission_rate_extracted: false,
-            commission_rate_updated: false,
-            program_approval_changed: false
-          }));
-        } catch (error) {
-          await record(env, "automatic_affiliate_program_research_failed", JSON.stringify({
-            program_id: program.id, program_name: program.name,
-            error: String(error?.message || "Falha na pesquisa oficial").slice(0, 220)
-          }));
+        // Três programas por ciclo de seis horas reduzem a volta completa do catálogo
+        // de 84 para 30 horas, mantendo a rotação determinística e o orçamento previsível.
+        const batchSize = 3;
+        const cycleIndex = Math.floor(Date.now() / programResearchIntervalMs);
+        const selectedPrograms = Array.from(
+          { length: Math.min(batchSize, programs.length) },
+          (_, offset) => programs[(cycleIndex * batchSize + offset) % programs.length]
+        );
+        for (const program of selectedPrograms) {
+          try {
+            const research = await searchWebWithTavily(
+              "Documentação oficial de " + program.name + " para afiliados: tabela de comissões, categorias, atribuição, cookies, requisitos de aprovação, restrições de divulgação e termos vigentes. Pesquise apenas páginas do próprio programa e priorize páginas de ajuda e termos oficiais. Não infira percentuais a partir de resultados secundários.",
+              env
+            );
+            const officialSources = research.results.filter(item => {
+              try {
+                const host = new URL(item.url).hostname.toLowerCase();
+                return program.domains.some(domain => host === domain || host.endsWith("." + domain));
+              } catch { return false; }
+            }).slice(0, 5).map(item => ({
+              title: item.title, url: item.url,
+              excerpt: item.content.slice(0, 900),
+              published_date: item.published_date || null
+            }));
+            await record(env, "automatic_affiliate_program_research", JSON.stringify({
+              program_id: program.id, program_name: program.name,
+              status: officialSources.length ? "official_sources_found" : "no_official_sources_found",
+              source_policy: "official_domain_allowlist",
+              results: officialSources,
+              commission_rate_extracted: false,
+              commission_rate_updated: false,
+              program_approval_changed: false
+            }));
+          } catch (error) {
+            await record(env, "automatic_affiliate_program_research_failed", JSON.stringify({
+              program_id: program.id, program_name: program.name,
+              error: String(error?.message || "Falha na pesquisa oficial").slice(0, 220)
+            }));
+          }
         }
       }
 
