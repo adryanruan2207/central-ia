@@ -19,5 +19,5 @@ test("score does not imply verified demand, profit or publication authorization"
   assert.match(worker, /vendas públicas são apenas um sinal indireto de interesse/i);
   assert.match(worker, /Concorrência, custos, impostos, devoluções, conversão e lucro líquido não entram no score/i);
   assert.match(worker, /não autoriza divulgação, compra ou publicação/i);
-  assert.match(worker, /Concorrência, conversão ou lucro/);
+  assert.match(worker, /concorrência, conversão ou lucro/i);
 });
