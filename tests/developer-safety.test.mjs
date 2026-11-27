@@ -282,6 +282,14 @@ test("validador TOML rejeita cron inválido e data de compatibilidade alterada",
   assert.equal(validateWranglerCandidate(badDate).reason, "unsupported_or_invalid_value");
 });
 
+test("autoverificação testa resposta real do Workers AI e limita novas tentativas", () => {
+  assert.match(worker, /automatic_workers_ai_check/);
+  assert.match(worker, /env\.AI\.run\("@cf\/meta\/llama-3\.1-8b-instruct-fast"/);
+  assert.match(worker, /Workers AI respondeu sem conteúdo utilizável/);
+  assert.match(worker, /cached\.ok \? 24\*60\*60\*1000 : 60\*60\*1000/);
+  assert.match(worker, /results\.push\(\{name:"workers_ai",ok:!!workersAIHealth\.ok/);
+});
+
 test("cron executa autoverificação completa em cada ciclo de cinco minutos", () => {
   assert.ok(wrangler.includes('crons = ["*/5 * * * *"]'));
   const scheduledStart = worker.indexOf("async scheduled(event, env, ctx)");
