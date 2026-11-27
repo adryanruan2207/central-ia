@@ -1287,7 +1287,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, (SELECT details FROM activity_log WHERE event = 'awin_product_commission_verified' AND details LIKE '%' || p.id || '%' ORDER BY created_at DESC LIMIT 1) AS awin_commission_verification, (SELECT MAX(created_at) FROM activity_log WHERE event = 'awin_product_commission_verified' AND details LIKE '%' || p.id || '%') AS awin_commission_verified_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
@@ -1300,6 +1300,10 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
       const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
+      let awinCommissionVerification = null;
+      try { awinCommissionVerification = JSON.parse(item.awin_commission_verification || "null"); } catch {}
+      const awinVerificationAtMs = Date.parse(item.awin_commission_verified_at || "");
+      const awinVerificationFresh = Boolean(awinCommissionVerification && Number.isFinite(awinVerificationAtMs) && Date.now() - awinVerificationAtMs <= 7 * 86400000);
       if (!productUrlValid) blockers.push("Link original HTTPS ausente ou inválido");
       if (!affiliateUrlValid) blockers.push("Link rastreável HTTPS de afiliado ausente ou inválido");
       if (!commissionValid) blockers.push("Comissão positiva entre 0 e 100 não cadastrada");
@@ -1310,7 +1314,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       return {
         id: item.id, name: item.name, marketplace: item.marketplace,
         product_url: item.product_url, affiliate_url: item.affiliate_url,
-        commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: commissionSourceValid ? "provided_not_verified" : "missing", affiliate_program: item.program_name || null,
+        commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: awinVerificationFresh ? "verified_from_awin_api" : (commissionSourceValid ? "provided_not_verified" : "missing"), commission_verified_at: awinVerificationFresh ? item.awin_commission_verified_at : null, affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
         last_researched_at: item.last_researched_at || null,
         research_age_days: researchAgeDays,
@@ -1318,7 +1322,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         campaign_status: ready ? "ready" : "blocked",
         blockers,
         disclosure_required: true,
-        notice: ready ? "Dados mínimos cadastrados. A URL da comissão foi informada, mas não foi verificada automaticamente; confirme taxa e elegibilidade no painel oficial do programa antes de publicar." : "Não publicar enquanto houver bloqueios."
+        notice: ready ? (awinVerificationFresh ? "Taxa percentual confirmada pela API oficial Awin para o grupo e anunciante registrados; isso não garante comissão em toda venda." : "Dados mínimos cadastrados. A URL da comissão foi informada, mas não foi verificada automaticamente; confirme taxa e elegibilidade no painel oficial do programa antes de publicar.") : "Não publicar enquanto houver bloqueios."
       };
     });
     return json({
@@ -1611,6 +1615,67 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       return json({ configured: true, connected: matched, token_valid: true, publisher_id: publisherId, account_match: matched, account_count: accounts.length, notice: matched ? "Token válido e conta Publisher localizada." : "Token válido, mas o ID Publisher configurado não foi localizado na resposta da Awin. Confira o ID antes de operar." });
     } catch (error) {
       return json({ configured: true, connected: false, error: "Falha de comunicação com a API Awin." }, 502);
+    }
+  }
+
+  if (url.pathname === "/integrations/awin/verify-product-commission" && request.method === "POST") {
+    if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
+    let body;
+    try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
+    const productId = typeof body.product_id === "string" ? body.product_id.trim().slice(0, 100) : "";
+    const advertiserId = String(body.advertiser_id || "");
+    const commissionGroupId = String(body.commission_group_id || "");
+    if (!productId || !/^\\d+$/.test(advertiserId) || !/^\\d+$/.test(commissionGroupId)) {
+      return json({ error: "Informe product_id, advertiser_id e commission_group_id válidos." }, 400);
+    }
+    const product = await env.DB.prepare(
+      "SELECT p.id, p.affiliate_program_id, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ? LIMIT 1"
+    ).bind(productId).first();
+    if (!product) return json({ error: "Produto não encontrado." }, 404);
+    if (product.program_status !== "approved" || !/awin/i.test(String(product.program_name || ""))) {
+      return json({ error: "O produto precisa estar vinculado a um programa Awin aprovado." }, 409);
+    }
+    try {
+      const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/commissiongroups");
+      endpoint.searchParams.set("advertiserId", advertiserId);
+      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
+      const response = await fetch(endpoint.toString(), {
+        headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) return json({
+        error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Sem relação ativa ou permissão para esse anunciante." : "Não foi possível validar a comissão na Awin.",
+        upstream_status: response.status
+      }, 502);
+      const payload = await response.json();
+      const groups = Array.isArray(payload.commissionGroup) ? payload.commissionGroup : [];
+      const group = groups.find(item => String(item.groupId ?? "") === commissionGroupId);
+      if (!group) return json({ error: "Grupo de comissão não encontrado na resposta oficial da Awin; nenhum dado foi alterado." }, 404);
+      if (String(group.type || "").toLowerCase() !== "percentage") {
+        return json({ error: "O grupo oficial usa comissão fixa, não percentual. Nenhuma taxa percentual foi gravada.", commission_type: group.type || "unknown", amount: Number.isFinite(Number(group.amount)) ? Number(group.amount) : null, currency: group.currency || null }, 409);
+      }
+      const officialRate = Number(group.percentage);
+      if (!Number.isFinite(officialRate) || officialRate <= 0 || officialRate > 100) {
+        return json({ error: "A Awin retornou percentual ausente ou fora do intervalo permitido." }, 502);
+      }
+      const sourceUrl = "https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/commissiongroups?advertiserId=" + encodeURIComponent(advertiserId);
+      const verifiedAt = new Date().toISOString();
+      await env.DB.prepare("UPDATE affiliate_products SET commission_rate = ?, commission_source_url = ?, updated_at = ? WHERE id = ?")
+        .bind(officialRate, sourceUrl, verifiedAt, productId).run();
+      await record(env, "awin_product_commission_verified", JSON.stringify({
+        product_id: productId, advertiser_id: advertiserId, commission_group_id: commissionGroupId,
+        commission_rate: officialRate, commission_type: "percentage", currency: null,
+        publisher_id: String(env.AWIN_PUBLISHER_ID), source: "Awin Publisher API", verified_at: verifiedAt
+      }));
+      return json({
+        verified: true, verification_status: "verified_from_awin_api", product_id: productId,
+        advertiser_id: advertiserId, commission_group_id: commissionGroupId,
+        commission_rate: officialRate, commission_type: "percentage", source: "Awin Publisher API",
+        source_url: sourceUrl, verified_at: verifiedAt,
+        notice: "Percentual confirmado na API oficial para o grupo e anunciante informados. A taxa pode variar por grupo, produto, período ou condições da venda e não garante comissão em toda transação."
+      });
+    } catch (error) {
+      return json({ error: "Falha de comunicação ao validar a comissão na Awin." }, 502);
     }
   }
 
