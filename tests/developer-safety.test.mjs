@@ -626,3 +626,16 @@ test("cadastro comercial não permite forjar conexão, aprovação ou permissõe
   assert.match(route, /const capabilities = \[\]/);
   assert.doesNotMatch(route, /body\.connection_status|body\.approval_status|body\.capabilities/);
 });
+
+
+test("shortlist só libera preparação de revisão com programa aprovado e fonte de comissão informada", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/shortlist/analyze"');
+  const end = worker.indexOf('if (url.pathname === "/integrations/affiliate"', start);
+  const route = worker.slice(start, end);
+  assert.match(route, /commission_source_url/);
+  assert.match(route, /a\.status AS program_status/);
+  assert.match(route, /const programApproved = item\.program_status === "approved"/);
+  assert.match(route, /const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid/);
+  assert.match(route, /campaign_can_be_published: false/);
+  assert.match(route, /provided_not_verified/);
+});
