@@ -1462,7 +1462,22 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         const shippingRegions = field(/(?:entrega|envio|shipping|delivery)\s+(?:para|to|em)\s+([^.;\n]{2,90})/i);
         const returnsEvidence = field(/((?:devolu\w*|troca\w*|return policy|refund policy)[^.;\n]{0,100})/i);
         const makeField = value => ({status:value ? "published_evidence_found" : "not_found", value:value || null, source_url:sourceUrl, observed_at:observedAt});
-        return { minimum_order:makeField(minimumOrder), listed_price:{...makeField(listedPrice),currency:currencyMatch?.[1] || null}, delivery_time:makeField(deliveryTime), shipping_regions:makeField(shippingRegions), returns_policy_evidence:makeField(returnsEvidence), total_landed_cost:{status:"not_calculated",value:null,reason:"Preço e frete finais não foram confirmados diretamente com o fornecedor."} };
+        const directShipEvidence = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment/i.test(source);
+        const completenessItems = [minimumOrder, listedPrice, deliveryTime, shippingRegions, returnsEvidence, directShipEvidence ? true : null];
+        const evidenceCount = completenessItems.filter(value => value !== null && value !== undefined && value !== false).length;
+        const evidenceCompletenessScore = Math.round(evidenceCount / completenessItems.length * 100);
+        const operationalModel = directShipEvidence ? "direct_shipping_or_fulfillment_evidence_found" : /atacad\\w*|pedido m[ií]nimo|MOQ/i.test(source) ? "wholesale_or_moq_evidence_only" : "insufficient_public_evidence";
+        return {
+          minimum_order:makeField(minimumOrder),
+          listed_price:{...makeField(listedPrice),currency:currencyMatch?.[1] || null},
+          delivery_time:makeField(deliveryTime),
+          shipping_regions:makeField(shippingRegions),
+          returns_policy_evidence:makeField(returnsEvidence),
+          zero_inventory_model:{status:directShipEvidence ? "published_evidence_found" : "not_confirmed",value:directShipEvidence ? "direct_shipping_or_fulfillment" : null,source_url:sourceUrl,observed_at:observedAt},
+          operational_model_evidence:operationalModel,
+          evidence_completeness:{score:evidenceCompletenessScore,label:evidenceCompletenessScore>=67 ? "more_public_details_found" : evidenceCompletenessScore>=34 ? "some_public_details_found" : "few_public_details_found",meaning:"mede somente a quantidade de campos encontrados em texto público; não mede confiabilidade, qualidade ou aprovação do fornecedor"},
+          total_landed_cost:{status:"not_calculated",value:null,reason:"Preço e frete finais não foram confirmados diretamente com o fornecedor."}
+        };
       };
       const suppliers = search.results.flatMap(item => {
         let parsed;
