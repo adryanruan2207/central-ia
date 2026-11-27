@@ -11,8 +11,8 @@ test("pesquisa direta de fornecedores filtra varejistas e exige evidência públ
   assert.notEqual(end, -1);
   const route = worker.slice(start, end);
   assert.match(route, /const marketplaceHosts = new Set/);
-  assert.match(route, /amazon\\.com\\.br/);
-  assert.match(route, /mercadolivre\\.com\\.br/);
+  assert.ok(route.includes("amazon.com.br"));
+  assert.ok(route.includes("mercadolivre.com.br"));
   assert.match(route, /parsed\.protocol !== "https:"/);
   assert.match(route, /supplierEvidencePattern\.test\(evidenceText\)/);
   assert.match(route, /verification_status: "unverified"/);
