@@ -766,3 +766,17 @@ test("pesquisa de programa afiliado tenta novamente após falha sem esperar 24 h
   assert.match(worker, /lastProgramResearchMs > lastProgramFailureMs/);
   assert.match(worker, /Date\.now\(\) - lastProgramResearchMs >= 24 \* 60 \* 60 \* 1000/);
 });
+
+
+test("pesquisa de fornecedores aplica intervalo de 24 horas após sucesso e nova tentativa após falha", () => {
+  assert.match(worker, /const \[lastSupplierScan, lastSupplierFailure\] = await Promise\.all\(/);
+  assert.match(worker, /event = 'automatic_supplier_discovery_failed'/);
+  assert.match(worker, /const supplierRetryMs = 60 \* 60 \* 1000/);
+  assert.match(worker, /Date\.now\(\) - lastSupplierFailureMs >= supplierRetryMs/);
+  assert.match(worker, /Date\.now\(\) - lastSupplierScanMs >= 24 \* 60 \* 60 \* 1000/);
+  const start = worker.indexOf("const research = await searchWebWithTavily(", worker.indexOf("Pesquisa recorrente de fornecedores"));
+  const end = worker.indexOf("let saved = 0;", start);
+  const section = worker.slice(start, end);
+  assert.match(section, /if \(!research\.configured\) throw new Error/);
+  assert.match(section, /if \(!research\.results\.length\) throw new Error/);
+});
