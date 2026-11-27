@@ -5,7 +5,8 @@ import { readFile } from "node:fs/promises";
 const worker = await readFile(new URL("../worker/src/index.js", import.meta.url), "utf8");
 
 test("catálogo não trata preço ou vendas com mais de 48h como atuais", () => {
-  assert.match(worker, /const observedAgeHours = Number\.isFinite\(observedAtMs\)/);
+  assert.match(worker, /const observedTimestampValid = Number\.isFinite\(observedAtMs\) && observedAtMs <= Date\.now\(\);/);
+  assert.match(worker, /const observedAgeHours = observedTimestampValid \? \(Date\.now\(\) - observedAtMs\) \/ 3600000 : null/);
   assert.match(worker, /observedAgeHours <= 48/);
   assert.match(worker, /const price = catalogSnapshotFresh \? historicalPrice : null/);
   assert.match(worker, /const sales = catalogSnapshotFresh \? historicalSales : null/);
