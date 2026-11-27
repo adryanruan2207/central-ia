@@ -1375,18 +1375,24 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       let awinCommissionVerification = null;
       try { awinCommissionVerification = JSON.parse(item.awin_commission_verification || "null"); } catch {}
       const awinVerificationAtMs = Date.parse(item.awin_commission_verified_at || "");
-      const awinVerificationFresh = Boolean(awinCommissionVerification && Number.isFinite(awinVerificationAtMs) && Date.now() - awinVerificationAtMs <= 7 * 86400000);
+      const awinVerificationAgeMs = Date.now() - awinVerificationAtMs;
+      const awinVerificationFresh = Boolean(awinCommissionVerification && Number.isFinite(awinVerificationAtMs) && awinVerificationAgeMs >= 0 && awinVerificationAgeMs <= 7 * 86400000);
+      const awinProgramMatched = /awin/i.test(String(item.program_name || ""));
+      const verifiedRate = Number(awinCommissionVerification?.commission_rate);
+      const awinRateMatches = awinVerificationFresh && Number.isFinite(verifiedRate) && commissionValid && Math.abs(verifiedRate - commissionRate) < 0.000001;
+      const commissionVerified = awinProgramMatched && awinRateMatches;
       if (!productUrlValid) blockers.push("Link original HTTPS ausente ou inválido");
       if (!affiliateUrlValid) blockers.push("Link rastreável HTTPS de afiliado ausente ou inválido");
       if (!commissionValid) blockers.push("Comissão positiva entre 0 e 100 não cadastrada");
       if (!commissionSourceValid) blockers.push("URL da fonte oficial da comissão ausente ou inválida");
       if (!item.affiliate_program_id) blockers.push("Programa de afiliados não vinculado");
       else if (item.program_status !== "approved") blockers.push("Programa ainda não está marcado como aprovado");
+      if (!commissionVerified) blockers.push("Comissão não confirmada recentemente pela API oficial Awin para este programa e esta taxa");
       const ready = blockers.length === 0;
       return {
         id: item.id, name: item.name, marketplace: item.marketplace, affiliate_program_id: item.affiliate_program_id || null,
         product_url: item.product_url, affiliate_url: item.affiliate_url,
-        commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: awinVerificationFresh ? "verified_from_awin_api" : (commissionSourceValid ? "provided_not_verified" : "missing"), commission_verified_at: awinVerificationFresh ? item.awin_commission_verified_at : null, affiliate_program: item.program_name || null,
+        commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: commissionVerified ? "verified_from_awin_api" : (commissionSourceValid ? "provided_not_verified" : "missing"), commission_verified_at: commissionVerified ? item.awin_commission_verified_at : null, affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
         last_researched_at: item.last_researched_at || null,
         research_age_days: researchAgeDays,
@@ -1394,7 +1400,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         campaign_status: ready ? "ready" : "blocked",
         blockers,
         disclosure_required: true,
-        notice: ready ? (awinVerificationFresh ? "Taxa percentual confirmada pela API oficial Awin para o grupo e anunciante registrados; isso não garante comissão em toda venda." : "Dados mínimos cadastrados. A URL da comissão foi informada, mas não foi verificada automaticamente; confirme taxa e elegibilidade no painel oficial do programa antes de publicar.") : "Não publicar enquanto houver bloqueios."
+        notice: ready ? "Taxa percentual confirmada recentemente pela API oficial Awin para este programa; isso não garante comissão em toda venda." : "Não publicar enquanto houver bloqueios; links e taxas informados não substituem confirmação oficial da comissão."
       };
     });
     return json({
