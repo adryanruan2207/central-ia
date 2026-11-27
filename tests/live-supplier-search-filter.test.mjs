@@ -17,5 +17,5 @@ test("pesquisa direta de fornecedores filtra varejistas e exige evidência públ
   assert.match(route, /supplierEvidencePattern\.test\(evidenceText\)/);
   assert.match(route, /verification_status: "unverified"/);
   assert.match(route, /candidates: suppliers\.length, rejected/);
-  assert.match(route, /não confirmou identidade, estoque, preços, frete ou legitimidade/);
+  assert.ok(route.includes("Candidatos filtrados por evidências públicas, não fornecedores aprovados."));
 });
