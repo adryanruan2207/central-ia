@@ -1746,6 +1746,11 @@ async function checkAffiliateCampaignReadiness(){
    const researchData=await researchResponse.json().catch(()=>({}));
    if(researchResponse.ok)programResearch=Array.isArray(researchData.research)?researchData.research:[];
   }catch{}
+  const latestResearchByProgram=new Map();
+  for(const entry of programResearch){
+   if(!entry.program_id||latestResearchByProgram.has(entry.program_id))continue;
+   latestResearchByProgram.set(entry.program_id,entry);
+  }
   status.textContent=data.count+' produtos verificados • '+data.ready+' prontos para automação • '+data.blocked+' bloqueados • '+programResearch.length+' pesquisas oficiais registradas. '+data.notice;
   if(programResearch.length){
    const panel=document.createElement('section');panel.style.cssText='margin:12px 0;padding:13px;border:1px solid #475569;border-radius:12px;background:#202b35';
@@ -1769,6 +1774,19 @@ async function checkAffiliateCampaignReadiness(){
    const title=document.createElement('b');title.textContent=item.name+' — '+item.marketplace;card.append(title);
    const state=document.createElement('p');state.style.cssText='margin:7px 0;font-weight:600;color:'+(item.campaign_status==='ready'?'#9cdeb1':'#f2c98b')+'!important';state.textContent=item.campaign_status==='ready'?'Requisitos mínimos atendidos: apto para revisão final':'Bloqueado: faltam requisitos';card.append(state);
    const details=document.createElement('p');details.style.cssText='font-size:.84rem;color:#ddd!important';details.textContent='Programa: '+(item.affiliate_program||'não vinculado')+' • Comissão cadastrada: '+(item.commission_rate===null?'não informada':item.commission_rate+'%')+' • Aprovação: '+(item.program_status||'não informada')+' • Fonte da comissão: '+(item.commission_source_verification==='provided_not_verified'?'informada, não verificada': 'ausente')+' • Última pesquisa no catálogo: '+(item.research_age_days===null?'não pesquisado':item.research_age_days+' dias atrás');card.append(details);
+   const relatedResearch=latestResearchByProgram.get(item.affiliate_program_id);
+   if(relatedResearch){
+    const evidence=document.createElement('div');evidence.style.cssText='margin:8px 0;padding:9px;border-left:3px solid #64748b;background:#202b35;border-radius:6px';
+    const evidenceTitle=document.createElement('b');evidenceTitle.textContent='Pesquisa oficial relacionada: '+(relatedResearch.program_name||item.affiliate_program||'Programa');evidence.append(evidenceTitle);
+    const evidenceNote=document.createElement('p');evidenceNote.style.cssText='font-size:.78rem;color:#cbd5e1!important;margin:4px 0';evidenceNote.textContent='Referências do programa para conferência. Não comprovam que este produto participa, nem validam taxa ou aprovação.';evidence.append(evidenceNote);
+    const sources=Array.isArray(relatedResearch.results)?relatedResearch.results:[];
+    for(const source of sources.slice(0,2)){
+     let officialUrl;try{officialUrl=new URL(source.url)}catch{}
+     if(!officialUrl||officialUrl.protocol!=='https:')continue;
+     const sourceLink=document.createElement('a');sourceLink.href=officialUrl.href;sourceLink.target='_blank';sourceLink.rel='noopener noreferrer';sourceLink.textContent=source.title||'Consultar fonte oficial';sourceLink.style.cssText='display:block;font-size:.8rem;margin-top:4px';evidence.append(sourceLink);
+    }
+    card.append(evidence);
+   }
    if(item.blockers.length){const list=document.createElement('ul');for(const issue of item.blockers){const li=document.createElement('li');li.textContent=issue;list.append(li);}card.append(list);}
    if(item.campaign_status==='ready'){
     }
