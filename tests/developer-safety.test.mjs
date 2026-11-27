@@ -442,7 +442,7 @@ test("painel de afiliados separa comissão estimada de lucro líquido e valor re
   assert.match(section, /estimated_commission_per_sale: estimatedCommissionPerSale/);
   assert.match(section, /actual_commission_received: null/);
   assert.match(section, /net_profit: null/);
-  assert.match(section, /const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null/);
+  assert.match(section, /const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && commissionVerified && estimatedCommissionPerSale !== null/);
   assert.match(section, /campaign_can_be_published: false/);
   assert.match(section, /estimativa_bruta_apenas/);
   assert.match(section, /Comissão estimada não significa comissão aprovada, paga ou recebida/);
@@ -597,8 +597,8 @@ test("referência de comissão é explicitamente tratada como não verificada", 
   const readinessStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
   const readinessEnd = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', readinessStart);
   const readiness = worker.slice(readinessStart, readinessEnd);
-  assert.match(readiness, /commission_source_verification: awinVerificationFresh.*provided_not_verified.*missing/);
-  assert.match(readiness, /não foi verificada automaticamente/);
+  assert.match(readiness, /commission_source_verification: commissionVerified \? "verified_from_awin_api".*provided_not_verified.*missing/);
+  assert.match(readiness, /Comissão não confirmada recentemente pela API oficial Awin/);
   assert.match(readiness, /URLs e taxas informadas não são prova verificada/);
   const kitStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST")');
   const kitEnd = worker.indexOf('if (url.pathname === "/affiliates/campaign-kits"', kitStart);
@@ -724,7 +724,9 @@ test("prontidão diferencia taxa Awin verificada de URL apenas informada", () =>
   const route = worker.slice(start, end);
   assert.match(route, /awin_product_commission_verified/);
   assert.match(route, /awinVerificationFresh/);
-  assert.match(route, /commission_source_verification: awinVerificationFresh \? "verified_from_awin_api"/);
+  assert.match(route, /awinRateMatches/);
+  assert.match(route, /awinProgramMatched/);
+  assert.match(route, /commission_source_verification: commissionVerified \? "verified_from_awin_api"/);
   assert.match(route, /commission_verified_at/);
 });
 
