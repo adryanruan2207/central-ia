@@ -1470,6 +1470,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_link: /^https:\/\//i.test(String(item.product_url || ""))
       };
       const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
+      const updatedAtMs = Date.parse(item.updated_at || "");
+      const dataAgeDays = Number.isFinite(updatedAtMs) ? Math.max(0, Math.floor((Date.now() - updatedAtMs) / 86400000)) : null;
+      const dataIsStale = dataAgeDays === null || dataAgeDays > 7;
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
       const estimatedCommissionPerSale = Number.isFinite(price) && price > 0 && commissionValid
@@ -1478,6 +1481,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const flags = [];
       if (price === null || !Number.isFinite(price) || price <= 0) flags.push("Preço atual não confirmado");
       if (sales === null) flags.push("Volume de vendas não disponível");
+      if (dataIsStale) flags.push("Dados do produto desatualizados ou sem data confiável; atualizar antes de avançar");
       if (!commissionValid) flags.push("Taxa de comissão não confirmada");
       const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
       if (!commissionSourceValid) flags.push("Fonte oficial da comissão ausente");
@@ -1492,7 +1496,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const hasAffiliateLink = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const hasProgram = Boolean(item.affiliate_program_id);
       const programApproved = item.program_status === "approved";
-      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null;
+      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null && !dataIsStale;
       const campaignStage = campaignCanBePrepared
         ? "Preparar revisão da campanha — não publicar sem validar a fonte"
         : "Pesquisa — ainda não promover";
@@ -1516,10 +1520,13 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         actual_commission_received: null,
         net_profit: null,
         financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
-        evidence, evidence_completeness: completeness, priority, flags,
+        evidence, evidence_completeness: completeness, data_age_days: dataAgeDays,
+        data_freshness: dataIsStale ? "stale_or_unknown" : "current_within_7_days",
+        priority: dataIsStale ? "Atualizar dados antes de avaliar" : priority, flags,
         campaign_stage: campaignStage,
         campaign_can_be_prepared: campaignCanBePrepared,
         campaign_can_be_published: false,
+        research_only: true,
         publication_gate: "manual_source_confirmation_and_official_platform_authorization_required",
         next_steps: nextSteps,
         updated_at: item.updated_at
