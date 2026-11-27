@@ -781,15 +781,10 @@ test("pesquisa de programa afiliado tenta novamente após falha sem esperar 24 h
 });
 
 
-test("pesquisa de fornecedores aplica intervalo de 24 horas após sucesso e nova tentativa após falha", () => {
-  assert.match(worker, /const \[lastSupplierScan, lastSupplierFailure\] = await Promise\.all\(/);
-  assert.match(worker, /event = 'automatic_supplier_discovery_failed'/);
-  assert.match(worker, /const supplierRetryMs = 60 \* 60 \* 1000/);
-  assert.match(worker, /Date\.now\(\) - lastSupplierFailureMs >= supplierRetryMs/);
-  assert.match(worker, /Date\.now\(\) - lastSupplierScanMs >= 24 \* 60 \* 60 \* 1000/);
-  const start = worker.indexOf("const research = await searchWebWithTavily(", worker.indexOf("Pesquisa recorrente de fornecedores"));
-  const end = worker.indexOf("let saved = 0;", start);
-  const section = worker.slice(start, end);
-  assert.match(section, /if \(!research\.configured\) throw new Error/);
-  assert.match(section, /if \(!research\.results\.length\) throw new Error/);
+test("pesquisa automática de fornecedores fica pausada enquanto afiliados é a prioridade", () => {
+  const scheduledStart = worker.indexOf("async scheduled(event, env, ctx)");
+  const scheduled = worker.slice(scheduledStart);
+  assert.match(scheduled, /Modo afiliados primeiro/);
+  assert.doesNotMatch(scheduled, /automatic_supplier_discovery/);
+  assert.match(worker, /url\\.pathname === "\\/affiliates\\/suppliers"/);
 });
