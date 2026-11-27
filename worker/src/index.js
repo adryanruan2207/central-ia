@@ -162,12 +162,12 @@ async function runMinuteHealthAudit(env, checkedAt) {
     if (Date.now()-lastCheckAt < retryWindow) {
      tavilyHealth = cached;
     } else {
-     const test = await searchWebWithTavily("CENTRAL IA teste de conectividade pesquisa web", env);
+     const test = await testTavilyConnectivity(env, "CENTRAL IA teste de conectividade pesquisa web");
      tavilyHealth = {ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
      await record(env,"automatic_tavily_check",JSON.stringify(tavilyHealth));
     }
    } else {
-    const test = await searchWebWithTavily("CENTRAL IA teste de conectividade pesquisa web", env);
+    const test = await testTavilyConnectivity(env, "CENTRAL IA teste de conectividade pesquisa web");
     tavilyHealth = {ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
     await record(env,"automatic_tavily_check",JSON.stringify(tavilyHealth));
    }
@@ -240,6 +240,13 @@ async function searchWebWithTavily(query, env) {
     };
   }).filter(item => item.url && item.content);
   return { configured: true, results };
+}
+
+async function testTavilyConnectivity(env, query) {
+  const result = await searchWebWithTavily(query, env);
+  if (!result.configured) throw new Error("A chave Tavily não está configurada.");
+  if (!result.results.length) throw new Error("A Tavily respondeu, mas o teste não retornou fontes HTTPS utilizáveis.");
+  return result;
 }
 
 async function handle(request, env) {
@@ -696,7 +703,7 @@ async function handle(request, env) {
     const previousAt = previous?.created_at ? Date.parse(previous.created_at) : 0;
     if (previousAt && Date.now()-previousAt < 30000) return json({configured:true,ok:false,error:"Aguarde 30 segundos antes de solicitar outro teste."}, 429);
     try {
-      const test = await searchWebWithTavily("CENTRAL IA teste manual de conectividade pesquisa web", env);
+      const test = await testTavilyConnectivity(env, "CENTRAL IA teste manual de conectividade pesquisa web");
       const result = {configured:true,ok:true,result_count:test.results.length,checked_at:new Date().toISOString()};
       await record(env, "manual_tavily_check", JSON.stringify(result));
       await record(env, "automatic_tavily_check", JSON.stringify(result));
