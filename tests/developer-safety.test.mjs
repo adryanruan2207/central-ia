@@ -756,3 +756,13 @@ test("status da automação informa a cadência real de cinco minutos", () => {
   assert.match(worker, /schedule: "Autoverificação a cada 5 minutos/);
   assert.doesNotMatch(worker, /schedule: "Autoverificação a cada 1 minuto/);
 });
+
+
+test("pesquisa de programa afiliado tenta novamente após falha sem esperar 24 horas", () => {
+  assert.match(worker, /const \[lastProgramResearch, lastProgramFailure\] = await Promise\.all\(/);
+  assert.match(worker, /event = 'automatic_affiliate_program_research_failed'/);
+  assert.match(worker, /const programResearchRetryMs = 60 \* 60 \* 1000/);
+  assert.match(worker, /Date\.now\(\) - lastProgramFailureMs >= programResearchRetryMs/);
+  assert.match(worker, /lastProgramResearchMs > lastProgramFailureMs/);
+  assert.match(worker, /Date\.now\(\) - lastProgramResearchMs >= 24 \* 60 \* 60 \* 1000/);
+});
