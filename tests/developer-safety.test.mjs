@@ -721,3 +721,11 @@ test("pesquisa de programas de afiliados usa allowlist oficial e nunca altera co
   assert.match(worker, /24 \* 60 \* 60 \* 1000/);
   assert.match(worker, /Nenhuma comissão é alterada automaticamente/);
 });
+
+
+test("painel de afiliados exibe pesquisas automáticas de programas oficiais sem tratar achados como aprovação", () => {
+  assert.match(ui, /\/affiliates\/program-research/);
+  assert.match(ui, /Pesquisa automática de programas de afiliados/);
+  assert.match(ui, /não confirmam comissão, elegibilidade ou aprovação/);
+  assert.match(ui, /parsed\.protocol!=='https:'/);
+});
