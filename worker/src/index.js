@@ -1463,14 +1463,23 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/shortlist/analyze" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, (SELECT details FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%' ORDER BY created_at DESC LIMIT 1) AS latest_research_details, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map((item) => {
       const notes = String(item.notes || "");
       const priceMatch = notes.match(/Preço observado:\s*([0-9]+(?:[.,][0-9]+)?)/i);
       const salesMatch = notes.match(/Vendas informadas pelo anúncio:\s*([0-9]+)/i);
-      const price = priceMatch ? Number(priceMatch[1].replace(",", ".")) : null;
-      const sales = salesMatch ? Number(salesMatch[1]) : null;
+      let latestResearch = null;
+      try { latestResearch = JSON.parse(item.latest_research_details || "null"); } catch {}
+      const hasCatalogResearch = Boolean(item.last_researched_at && latestResearch);
+      const catalogPrice = Number(latestResearch?.observed_price);
+      const catalogSales = Number(latestResearch?.observed_sales);
+      const price = hasCatalogResearch
+        ? (latestResearch.observed_price !== null && Number.isFinite(catalogPrice) && catalogPrice > 0 ? catalogPrice : null)
+        : (priceMatch ? Number(priceMatch[1].replace(",", ".")) : null);
+      const sales = hasCatalogResearch
+        ? (latestResearch.observed_sales !== null && Number.isFinite(catalogSales) && catalogSales >= 0 ? catalogSales : null)
+        : (salesMatch ? Number(salesMatch[1]) : null);
       const evidence = {
         price_observed: Number.isFinite(price) && price > 0,
         public_sales_count: Number.isFinite(sales) && sales >= 0,
