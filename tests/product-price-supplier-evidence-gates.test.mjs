@@ -21,5 +21,8 @@ test("pesquisa de fornecedores rejeita marketplaces varejistas e exige evidênci
   assert.match(worker, /const supplierEvidencePattern = \/dropship/);
   assert.match(worker, /isMarketplace \|\| !supplierEvidencePattern\.test\(evidenceText\)/);
   assert.match(worker, /verification_status: "unverified"/);
-  assert.match(worker, /pedido mínimo, estoque, envio, preço e condições exigem validação direta/);
+  const routeStart = worker.indexOf('if (url.pathname === "/affiliates/suppliers" && request.method === "GET")');
+  const routeEnd = worker.indexOf('if (url.pathname === "/affiliates/supplier-leads"', routeStart);
+  const route = worker.slice(routeStart, routeEnd);
+  assert.match(route, /Candidatos filtrados por evidências públicas, não fornecedores aprovados/);
 });
