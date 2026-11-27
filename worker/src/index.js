@@ -1292,9 +1292,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     const products = (result.results || []).map(item => {
       const blockers = [];
       const recordCreatedAtMs = Date.parse(item.created_at || "");
-      const dataAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
-      const dataIsStale = dataAgeDays === null || dataAgeDays > 7;
-      if (dataIsStale) blockers.push("Cadastro antigo ou sem data confiável; atualizar a pesquisa antes de avançar");
+      const recordAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
+      const recordIsOld = recordAgeDays === null || recordAgeDays > 7;
+      if (recordIsOld) blockers.push("Cadastro antigo ou sem data confiável; atualizar a pesquisa antes de avançar");
       const productUrlValid = /^https:\/\//i.test(String(item.product_url || ""));
       const affiliateUrlValid = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const commissionRate = Number(item.commission_rate);
@@ -1312,8 +1312,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_url: item.product_url, affiliate_url: item.affiliate_url,
         commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: commissionSourceValid ? "provided_not_verified" : "missing", affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
-        data_age_days: dataAgeDays,
-        data_freshness: dataIsStale ? "stale_or_unknown" : "current_within_7_days",
+        record_age_days: recordAgeDays,
+        record_freshness: recordIsOld ? "old_or_unknown" : "created_within_7_days",
         campaign_status: ready ? "ready" : "blocked",
         blockers,
         disclosure_required: true,
@@ -1477,8 +1477,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       };
       const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
       const recordCreatedAtMs = Date.parse(item.created_at || "");
-      const dataAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
-      const dataIsStale = dataAgeDays === null || dataAgeDays > 7;
+      const recordAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
+      const recordIsOld = recordAgeDays === null || recordAgeDays > 7;
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
       const estimatedCommissionPerSale = Number.isFinite(price) && price > 0 && commissionValid
@@ -1526,8 +1526,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         actual_commission_received: null,
         net_profit: null,
         financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
-        evidence, evidence_completeness: completeness, data_age_days: dataAgeDays,
-        data_freshness: dataIsStale ? "stale_or_unknown" : "current_within_7_days",
+        evidence, evidence_completeness: completeness, record_age_days: recordAgeDays,
+        record_freshness: recordIsOld ? "old_or_unknown" : "created_within_7_days",
         priority: dataIsStale ? "Atualizar dados antes de avaliar" : priority, flags,
         campaign_stage: campaignStage,
         campaign_can_be_prepared: campaignCanBePrepared,
