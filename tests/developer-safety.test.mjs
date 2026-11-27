@@ -726,7 +726,7 @@ test("prontidão diferencia taxa Awin verificada de URL apenas informada", () =>
   assert.match(route, /awinVerificationFresh/);
   assert.match(route, /awinRateMatches/);
   assert.match(route, /awinProgramMatched/);
-  assert.match(route, /commission_source_verification: awinVerificationFresh \? "verified_from_awin_api"/);
+  assert.match(route, /commission_source_verification: commissionVerified \? "verified_from_awin_api"/);
   assert.match(route, /commission_verified_at/);
 });
 
