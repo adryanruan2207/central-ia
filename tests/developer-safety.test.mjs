@@ -527,13 +527,16 @@ test("teste de conectividade Tavily só aprova quando há fontes HTTPS utilizáv
   assert.match(worker, /testTavilyConnectivity\(env,/);
 });
 
-test("health diferencia banco disponível de operação completa", () => {
+test("health diferencia configuração de conectividade real e exige auditoria recente", () => {
   const start = worker.indexOf('if (url.pathname === "/health" && request.method === "GET")');
   assert.notEqual(start, -1);
-  const section = worker.slice(start, start + 2600);
-  assert.match(section, /const components = \{/);
-  assert.match(section, /workers_ai: Boolean\(env\.AI\)/);
-  assert.match(section, /web_research: Boolean\(env\.TAVILY_API_KEY\)/);
+  const section = worker.slice(start, start + 3600);
+  assert.match(section, /system_health_checks ORDER BY checked_at DESC LIMIT 1/);
+  assert.match(section, /auditAgeMs <= 15 \* 60 \* 1000/);
+  assert.match(section, /auditedOK\("workers_ai"\)/);
+  assert.match(section, /auditedOK\("web_research"\)/);
+  assert.match(section, /configured,/);
+  assert.match(section, /health_audit_fresh: auditFresh/);
   assert.match(section, /missing_components: missingComponents/);
   assert.match(section, /status: operational \? "online" : "degraded"/);
 });
