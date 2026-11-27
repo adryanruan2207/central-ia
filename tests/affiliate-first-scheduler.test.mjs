@@ -3,13 +3,16 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const worker = await readFile(new URL("../worker/src/index.js", import.meta.url), "utf8");
+const programMigration = await readFile(new URL("../worker/migrations/0003_affiliate_programs.sql", import.meta.url), "utf8");
 
 test("cron prioriza programas de afiliados e pesquisa a cada seis horas", () => {
   assert.match(worker, /const programResearchIntervalMs = 6 \* 60 \* 60 \* 1000/);
   assert.match(worker, /Date\.now\(\) - lastProgramResearchMs >= programResearchIntervalMs/);
   assert.match(worker, /Math\.floor\(Date\.now\(\) \/ programResearchIntervalMs\) % programs\.length/);
-  for (const id of ["awin", "cj", "impact", "rakuten", "partnerstack", "ebay", "aliexpress", "amazon-associates", "clickbank", "digistore24", "tradedoubler", "webgains", "partnerize"]) {
+  const ids = ["awin", "cj-affiliate", "impact", "rakuten", "partnerstack", "ebay-partner", "aliexpress-portals", "amazon-associates", "clickbank", "digistore24", "awin-tradedoubler", "webgains", "partnerize", "hotmart"];
+  for (const id of ids) {
     assert.ok(worker.includes('id: "' + id + '"'), "programa ausente do ciclo: " + id);
+    assert.ok(programMigration.includes("('" + id + "',"), "programa não cadastrado no catálogo: " + id);
   }
 });
 
