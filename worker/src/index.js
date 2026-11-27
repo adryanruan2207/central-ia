@@ -1285,6 +1285,23 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     return json({ count: kits.length, kits, notice: "Histórico de rascunhos; nenhum material foi publicado automaticamente." });
   }
 
+  if (url.pathname === "/affiliates/program-research" && request.method === "GET") {
+    const result = await env.DB.prepare(
+      "SELECT details, created_at FROM activity_log WHERE event IN ('automatic_affiliate_program_research','automatic_affiliate_program_research_failed') ORDER BY created_at DESC LIMIT 30"
+    ).all();
+    const research = (result.results || []).map(row => {
+      try {
+        const item = JSON.parse(row.details || "{}");
+        return { ...item, recorded_at: row.created_at };
+      } catch { return { status: "unreadable", recorded_at: row.created_at }; }
+    });
+    return json({
+      count: research.length,
+      research,
+      notice: "Pesquisa exploratória com filtro de domínio oficial. Os resultados são referências para conferência; não confirmam taxa, elegibilidade, aprovação ou condições contratuais. Nenhuma comissão é alterada automaticamente."
+    });
+  }
+
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
       "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, (SELECT details FROM activity_log WHERE event = 'awin_product_commission_verified' AND details LIKE '%' || p.id || '%' ORDER BY created_at DESC LIMIT 1) AS awin_commission_verification, (SELECT MAX(created_at) FROM activity_log WHERE event = 'awin_product_commission_verified' AND details LIKE '%' || p.id || '%') AS awin_commission_verified_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
@@ -2051,6 +2068,57 @@ export default {
           await record(env, "automatic_product_discovery_failed", String(error?.message || "Falha na descoberta").slice(0, 300));
         }
       }
+      // Pesquisa rotativa de regras públicas em domínios oficiais dos programas de afiliados.
+      const lastProgramResearch = await env.DB.prepare(
+        "SELECT created_at FROM activity_log WHERE event IN ('automatic_affiliate_program_research','automatic_affiliate_program_research_failed') ORDER BY created_at DESC LIMIT 1"
+      ).first();
+      const lastProgramResearchMs = Date.parse(lastProgramResearch?.created_at || "");
+      const programResearchDue = !Number.isFinite(lastProgramResearchMs) || Date.now() - lastProgramResearchMs >= 24 * 60 * 60 * 1000;
+      if (programResearchDue && env.TAVILY_API_KEY) {
+        const programs = [
+          { id: "awin", name: "Awin", domains: ["awin.com"] },
+          { id: "cj", name: "CJ Affiliate", domains: ["cj.com"] },
+          { id: "impact", name: "impact.com", domains: ["impact.com"] },
+          { id: "rakuten", name: "Rakuten Advertising", domains: ["rakutenadvertising.com"] },
+          { id: "partnerstack", name: "PartnerStack", domains: ["partnerstack.com"] },
+          { id: "ebay", name: "eBay Partner Network", domains: ["ebay.com"] },
+          { id: "aliexpress", name: "AliExpress Portals", domains: ["aliexpress.com"] },
+          { id: "hotmart", name: "Hotmart", domains: ["hotmart.com"] },
+          { id: "amazon", name: "Amazon Associates Brasil", domains: ["associados.amazon.com.br", "affiliate-program.amazon.com.br"] }
+        ];
+        const program = programs[Math.floor(Date.now() / (24 * 60 * 60 * 1000)) % programs.length];
+        try {
+          const research = await searchWebWithTavily(
+            "Documentação oficial de " + program.name + " para afiliados: tabela de comissões, categorias, atribuição, cookies, requisitos de aprovação, restrições de divulgação e termos vigentes. Pesquise apenas páginas do próprio programa e priorize páginas de ajuda e termos oficiais. Não infira percentuais a partir de resultados secundários.",
+            env
+          );
+          const officialSources = research.results.filter(item => {
+            try {
+              const host = new URL(item.url).hostname.toLowerCase();
+              return program.domains.some(domain => host === domain || host.endsWith("." + domain));
+            } catch { return false; }
+          }).slice(0, 5).map(item => ({
+            title: item.title, url: item.url,
+            excerpt: item.content.slice(0, 900),
+            published_date: item.published_date || null
+          }));
+          await record(env, "automatic_affiliate_program_research", JSON.stringify({
+            program_id: program.id, program_name: program.name,
+            status: officialSources.length ? "official_sources_found" : "no_official_sources_found",
+            source_policy: "official_domain_allowlist",
+            results: officialSources,
+            commission_rate_extracted: false,
+            commission_rate_updated: false,
+            program_approval_changed: false
+          }));
+        } catch (error) {
+          await record(env, "automatic_affiliate_program_research_failed", JSON.stringify({
+            program_id: program.id, program_name: program.name,
+            error: String(error?.message || "Falha na pesquisa oficial").slice(0, 220)
+          }));
+        }
+      }
+
       // Pesquisa recorrente de fornecedores para modelos sem estoque (dropshipping/fulfillment).
       const lastSupplierScan = await env.DB.prepare(
         "SELECT created_at FROM activity_log WHERE event = 'automatic_supplier_discovery' ORDER BY created_at DESC LIMIT 1"
