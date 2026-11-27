@@ -76,7 +76,10 @@ test("registro comercial separa afiliados, vendedores e dropshipping", async () 
   assert.match(worker, /Nenhuma senha, token ou chave de API é armazenada/);
   assert.match(worker, /connection_status/);
   assert.match(worker, /approval_status/);
-  assert.match(worker, /allowedCapabilities/);
+  assert.match(worker, /const connectionStatus = "not_started"/);
+  assert.match(worker, /const approvalStatus = "unknown"/);
+  assert.match(worker, /const capabilities = \[\]/);
+  assert.match(worker, /só poderão ser alterados por um fluxo OAuth\/API validado no servidor/);
   assert.match(worker, /não cria nem conecta contas/);
   assert.match(worker, /"commerce_accounts"/);
 });
@@ -611,4 +614,15 @@ test("painel comercial usa sessão autenticada e não solicita credenciais exter
   assert.match(ui, /não cria contas nem concede acesso automaticamente/);
   assert.match(ui, /Nunca informe credenciais neste painel ou no chat/);
   assert.doesNotMatch(ui, /id="commerce-(?:password|token|api-key)"/i);
+});
+
+
+test("cadastro comercial não permite forjar conexão, aprovação ou permissões", () => {
+  const start = worker.indexOf('if (url.pathname === "/commerce/accounts" && request.method === "POST")');
+  const end = worker.indexOf('if (url.pathname === "/commerce/', start + 20);
+  const route = worker.slice(start, end > start ? end : start + 4000);
+  assert.match(route, /const connectionStatus = "not_started"/);
+  assert.match(route, /const approvalStatus = "unknown"/);
+  assert.match(route, /const capabilities = \[\]/);
+  assert.doesNotMatch(route, /body\.connection_status|body\.approval_status|body\.capabilities/);
 });
