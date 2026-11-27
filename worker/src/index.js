@@ -1545,7 +1545,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/shortlist/analyze" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, (SELECT details FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%' ORDER BY created_at DESC LIMIT 1) AS latest_research_details, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, p.status, p.created_at, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%') AS last_researched_at, (SELECT details FROM activity_log WHERE event = 'affiliate_product_researched' AND details LIKE '%' || p.id || '%' ORDER BY created_at DESC LIMIT 1) AS latest_research_details, (SELECT details FROM activity_log WHERE event = 'awin_product_commission_verified' AND details LIKE '%' || p.id || '%' ORDER BY created_at DESC LIMIT 1) AS awin_commission_verification, (SELECT MAX(created_at) FROM activity_log WHERE event = 'awin_product_commission_verified' AND details LIKE '%' || p.id || '%') AS awin_commission_verified_at, a.status AS program_status, a.name AS program_name FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map((item) => {
       const notes = String(item.notes || "");
@@ -1582,7 +1582,15 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       if (researchIsOld) flags.push("Sem pesquisa de catálogo nos últimos 7 dias; atualizar a pesquisa antes de avançar");
       if (!commissionValid) flags.push("Taxa de comissão não confirmada");
       const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
+      let awinCommissionVerification = null;
+      try { awinCommissionVerification = JSON.parse(item.awin_commission_verification || "null"); } catch {}
+      const awinVerificationAtMs = Date.parse(item.awin_commission_verified_at || "");
+      const awinVerificationAgeMs = Date.now() - awinVerificationAtMs;
+      const awinVerificationFresh = Boolean(awinCommissionVerification && Number.isFinite(awinVerificationAtMs) && awinVerificationAgeMs >= 0 && awinVerificationAgeMs <= 7 * 86400000);
+      const verifiedRate = Number(awinCommissionVerification?.commission_rate);
+      const commissionVerified = /awin/i.test(String(item.program_name || "")) && awinVerificationFresh && Number.isFinite(verifiedRate) && commissionValid && Math.abs(verifiedRate - commissionRate) < 0.000001;
       if (!commissionSourceValid) flags.push("Fonte oficial da comissão ausente");
+      if (!commissionVerified) flags.push("Comissão ainda não confirmada recentemente pela API oficial Awin para este programa e esta taxa");
       if (item.program_status !== "approved") flags.push("Programa de afiliados não está aprovado");
       flags.push("Fonte e taxa informadas ainda precisam de conferência no painel oficial");
       flags.push("Lucro líquido não calculado: faltam custos, impostos, devoluções e dados de conversão");
@@ -1594,7 +1602,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const hasAffiliateLink = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const hasProgram = Boolean(item.affiliate_program_id);
       const programApproved = item.program_status === "approved";
-      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && estimatedCommissionPerSale !== null && !researchIsOld;
+      const campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && commissionVerified && estimatedCommissionPerSale !== null && !researchIsOld;
       const campaignStage = campaignCanBePrepared
         ? "Preparar revisão da campanha — não publicar sem validar a fonte"
         : "Pesquisa — ainda não promover";
@@ -1611,7 +1619,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         id: item.id, name: item.name, marketplace: item.marketplace, product_url: item.product_url,
         affiliate_url: item.affiliate_url, affiliate_program_id: item.affiliate_program_id,
         commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null,
-        commission_source_verification: commissionSourceValid ? "provided_not_verified" : "missing",
+        commission_source_verification: commissionVerified ? "verified_from_awin_api" : (commissionSourceValid ? "provided_not_verified" : "missing"),
+        commission_verified_at: commissionVerified ? item.awin_commission_verified_at : null,
         affiliate_program: item.program_name || null, program_status: item.program_status || null,
         price_observed: price, public_sales_count: sales,
         estimated_commission_per_sale: estimatedCommissionPerSale,
