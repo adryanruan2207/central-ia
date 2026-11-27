@@ -12,6 +12,7 @@ test("classificação de fornecedores distingue evidência de envio direto de co
   assert.match(route, /zero_inventory_model/);
   assert.match(route, /direct_shipping_or_fulfillment/);
   assert.match(route, /wholesale_or_moq_evidence_only/);
+  assert.match(route, /atacad\\w\*\|pedido m\[ií\]nimo\|MOQ/);
   assert.match(route, /insufficient_public_evidence/);
   assert.match(route, /evidence_completeness/);
   assert.match(route, /não mede confiabilidade, qualidade ou aprovação do fornecedor/);
