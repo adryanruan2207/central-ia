@@ -2073,11 +2073,16 @@ export default {
         }
       }
       // Pesquisa rotativa de regras públicas em domínios oficiais dos programas de afiliados.
-      const lastProgramResearch = await env.DB.prepare(
-        "SELECT created_at FROM activity_log WHERE event IN ('automatic_affiliate_program_research','automatic_affiliate_program_research_failed') ORDER BY created_at DESC LIMIT 1"
-      ).first();
+      const [lastProgramResearch, lastProgramFailure] = await Promise.all([
+        env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'automatic_affiliate_program_research' ORDER BY created_at DESC LIMIT 1").first(),
+        env.DB.prepare("SELECT created_at FROM activity_log WHERE event = 'automatic_affiliate_program_research_failed' ORDER BY created_at DESC LIMIT 1").first()
+      ]);
       const lastProgramResearchMs = Date.parse(lastProgramResearch?.created_at || "");
-      const programResearchDue = !Number.isFinite(lastProgramResearchMs) || Date.now() - lastProgramResearchMs >= 24 * 60 * 60 * 1000;
+      const lastProgramFailureMs = Date.parse(lastProgramFailure?.created_at || "");
+      const programResearchRetryMs = 60 * 60 * 1000;
+      const programResearchDue =
+        (!Number.isFinite(lastProgramResearchMs) || Date.now() - lastProgramResearchMs >= 24 * 60 * 60 * 1000) &&
+        (!Number.isFinite(lastProgramFailureMs) || lastProgramResearchMs > lastProgramFailureMs || Date.now() - lastProgramFailureMs >= programResearchRetryMs);
       if (programResearchDue && env.TAVILY_API_KEY) {
         const programs = [
           { id: "awin", name: "Awin", domains: ["awin.com"] },
