@@ -739,6 +739,6 @@ test("pesquisa oficial é associada ao produto pelo identificador do programa", 
   assert.match(ui, /latestResearchByProgram=new Map\(\)/);
   assert.match(ui, /latestResearchByProgram\.get\(item\.affiliate_program_id\)/);
   assert.match(ui, /Referências do programa para conferência/);
-  assert.match(ui, /não comprovam que este produto participa, nem validam taxa ou aprovação/);
+  assert.match(ui, /não comprovam que este produto participa, nem validam taxa ou aprovação/i);
   assert.match(ui, /sourceLink\.rel='noopener noreferrer'/);
 });
