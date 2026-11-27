@@ -1287,10 +1287,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.updated_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
+      const updatedAtMs = Date.parse(item.updated_at || "");
+      const dataAgeDays = Number.isFinite(updatedAtMs) ? Math.max(0, Math.floor((Date.now() - updatedAtMs) / 86400000)) : null;
+      const dataIsStale = dataAgeDays === null || dataAgeDays > 7;
+      if (dataIsStale) blockers.push("Dados desatualizados ou sem data confiável; atualizar antes de avançar");
       const productUrlValid = /^https:\/\//i.test(String(item.product_url || ""));
       const affiliateUrlValid = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const commissionRate = Number(item.commission_rate);
@@ -1308,6 +1312,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_url: item.product_url, affiliate_url: item.affiliate_url,
         commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: commissionSourceValid ? "provided_not_verified" : "missing", affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
+        data_age_days: dataAgeDays,
+        data_freshness: dataIsStale ? "stale_or_unknown" : "current_within_7_days",
         campaign_status: ready ? "ready" : "blocked",
         blockers,
         disclosure_required: true,
