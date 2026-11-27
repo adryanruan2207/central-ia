@@ -1556,12 +1556,19 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const hasCatalogResearch = Boolean(item.last_researched_at && latestResearch);
       const catalogPrice = Number(latestResearch?.observed_price);
       const catalogSales = Number(latestResearch?.observed_sales);
-      const price = hasCatalogResearch
+      const historicalPrice = hasCatalogResearch
         ? (latestResearch.observed_price !== null && Number.isFinite(catalogPrice) && catalogPrice > 0 ? catalogPrice : null)
         : (priceMatch ? Number(priceMatch[1].replace(",", ".")) : null);
-      const sales = hasCatalogResearch
+      const historicalSales = hasCatalogResearch
         ? (latestResearch.observed_sales !== null && Number.isFinite(catalogSales) && catalogSales >= 0 ? catalogSales : null)
         : (salesMatch ? Number(salesMatch[1]) : null);
+      const observedAtMs = Date.parse(item.last_researched_at || "");
+      const observedAgeHours = Number.isFinite(observedAtMs) ? Math.max(0, (Date.now() - observedAtMs) / 3600000) : null;
+      // Preço e volume do catálogo são voláteis: após 48h passam a ser históricos,
+      // não alimentam estimativas nem são apresentados como dados atuais.
+      const catalogSnapshotFresh = observedAgeHours !== null && observedAgeHours <= 48;
+      const price = catalogSnapshotFresh ? historicalPrice : null;
+      const sales = catalogSnapshotFresh ? historicalSales : null;
       const evidence = {
         price_observed: Number.isFinite(price) && price > 0,
         public_sales_count: Number.isFinite(sales) && sales >= 0,
@@ -1577,8 +1584,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         ? Number((price * commissionRate / 100).toFixed(2))
         : null;
       const flags = [];
+      if (!catalogSnapshotFresh) flags.push("Preço e vendas do catálogo estão desatualizados ou sem data; atualizar antes de comparar ou estimar comissão");
       if (price === null || !Number.isFinite(price) || price <= 0) flags.push("Preço atual não confirmado");
-      if (sales === null) flags.push("Volume de vendas não disponível");
+      if (sales === null) flags.push("Volume de vendas atual não disponível");
       if (researchIsOld) flags.push("Sem pesquisa de catálogo nos últimos 7 dias; atualizar a pesquisa antes de avançar");
       if (!commissionValid) flags.push("Taxa de comissão não confirmada");
       const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
@@ -1628,6 +1636,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         net_profit: null,
         financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
         evidence, evidence_completeness: completeness, last_researched_at: item.last_researched_at || null,
+        catalog_observed_age_hours: observedAgeHours === null ? null : Number(observedAgeHours.toFixed(1)),
+        catalog_snapshot_fresh: catalogSnapshotFresh,
+        catalog_snapshot_status: catalogSnapshotFresh ? "current_within_48_hours" : "historical_refresh_required",
         research_age_days: researchAgeDays,
         research_freshness: researchIsOld ? "stale_or_not_researched" : "researched_within_7_days",
         priority: researchIsOld ? "Atualizar pesquisa antes de avaliar" : priority, flags,
@@ -2213,17 +2224,42 @@ export default {
           if (!research.configured) throw new Error("A chave Tavily não está configurada.");
           if (!research.results.length) throw new Error("A pesquisa não retornou fontes HTTPS utilizáveis para fornecedores.");
           let saved = 0;
+          let rejected = 0;
+          const marketplaceHosts = new Set([
+            "mercadolivre.com.br", "amazon.com.br", "shopee.com.br", "aliexpress.com",
+            "ebay.com", "magazineluiza.com.br", "americanas.com.br"
+          ]);
+          const supplierEvidencePattern = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment|atacad\w*|distribuidor\w*|fabricante\w*|pedido m[ií]nimo|lojista\w*|revend\w*/i;
           for (const item of research.results) {
             let website = "";
-            try { const parsed = new URL(item.url); if (parsed.protocol === "https:") website = parsed.origin; } catch {}
-            if (!website || !item.title) continue;
+            let host = "";
+            try {
+              const parsed = new URL(item.url);
+              if (parsed.protocol === "https:" && parsed.hostname) {
+                website = parsed.origin;
+                host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+              }
+            } catch {}
+            const evidenceText = String(item.title || "") + " " + String(item.content || "");
+            const isMarketplace = host && [...marketplaceHosts].some(domain => host === domain || host.endsWith("." + domain));
+            // Pesquisa gera candidatos, nunca fornecedores aprovados. Exigimos sinais textuais
+            // mínimos de atacado/fabricação/envio direto e excluímos marketplaces varejistas.
+            if (!website || !item.title || isMarketplace || !supplierEvidencePattern.test(evidenceText)) {
+              rejected++;
+              continue;
+            }
             const timestamp = new Date().toISOString();
             const result = await env.DB.prepare(
               "INSERT OR IGNORE INTO supplier_leads(id, name, website, category, evidence, source_url, verification_status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'unverified', ?, ?)"
-            ).bind(crypto.randomUUID(), item.title.slice(0, 180), website, category, item.content.slice(0, 1400), item.url, timestamp, timestamp).run();
+            ).bind(crypto.randomUUID(), item.title.slice(0, 180), website, category, String(item.content || "").slice(0, 1400), item.url, timestamp, timestamp).run();
             saved += Number(result.meta?.changes || 0);
           }
-          await record(env, "automatic_supplier_discovery", JSON.stringify({ category, sources: research.results.length, saved }));
+          await record(env, "automatic_supplier_discovery", JSON.stringify({
+            category, sources: research.results.length, saved, rejected,
+            candidate_policy: "https_supplier_evidence_keywords_excluding_retail_marketplaces",
+            verification_status: "unverified",
+            note: "Candidatos não são fornecedores confirmados; pedido mínimo, estoque, envio, preço e condições exigem validação direta."
+          }));
         } catch (error) {
           await record(env, "automatic_supplier_discovery_failed", String(error?.message || "Falha na pesquisa de fornecedores").slice(0, 300));
         }
