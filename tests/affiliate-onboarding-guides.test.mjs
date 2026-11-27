@@ -9,7 +9,7 @@ test("guia oficial de Awin separa aprovação da rede e dos anunciantes", () => 
   assert.match(worker, /awin: \{/);
   assert.match(worker, /18 anos ou mais/);
   assert.match(worker, /cada anunciante pode exigir uma candidatura separada/);
-  assert.match(worker, /dados fiscais e bancários/);
+  assert.match(worker, /dados fiscais e bancários/i);
   assert.match(worker, /FAQ brasileira informa cadastro gratuito/);
 });
 
