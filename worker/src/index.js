@@ -1329,7 +1329,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       else if (item.program_status !== "approved") blockers.push("Programa ainda não está marcado como aprovado");
       const ready = blockers.length === 0;
       return {
-        id: item.id, name: item.name, marketplace: item.marketplace,
+        id: item.id, name: item.name, marketplace: item.marketplace, affiliate_program_id: item.affiliate_program_id || null,
         product_url: item.product_url, affiliate_url: item.affiliate_url,
         commission_rate: item.commission_rate, commission_source_url: item.commission_source_url || null, commission_source_verification: awinVerificationFresh ? "verified_from_awin_api" : (commissionSourceValid ? "provided_not_verified" : "missing"), commission_verified_at: awinVerificationFresh ? item.awin_commission_verified_at : null, affiliate_program: item.program_name || null,
         program_status: item.program_status || null,
