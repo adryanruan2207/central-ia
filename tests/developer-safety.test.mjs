@@ -729,3 +729,16 @@ test("painel de afiliados exibe pesquisas automáticas de programas oficiais sem
   assert.match(ui, /não confirmam comissão, elegibilidade ou aprovação/);
   assert.match(ui, /parsed\.protocol!=='https:'/);
 });
+
+
+test("pesquisa oficial é associada ao produto pelo identificador do programa", () => {
+  const readinessStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness"');
+  assert.notEqual(readinessStart, -1);
+  const readinessSection = worker.slice(readinessStart, readinessStart + 9000);
+  assert.match(readinessSection, /affiliate_program_id: item\.affiliate_program_id/);
+  assert.match(ui, /latestResearchByProgram=new Map\(\)/);
+  assert.match(ui, /latestResearchByProgram\.get\(item\.affiliate_program_id\)/);
+  assert.match(ui, /Referências do programa para conferência/);
+  assert.match(ui, /não comprovam que este produto participa, nem validam taxa ou aprovação/);
+  assert.match(ui, /sourceLink\.rel='noopener noreferrer'/);
+});
