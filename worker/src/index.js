@@ -1619,13 +1619,13 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
   }
 
   if (url.pathname === "/integrations/awin/verify-product-commission" && request.method === "POST") {
-    if (!env.AWIN_API_TOKEN || !/^\\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
+    if (!env.AWIN_API_TOKEN || !/^\d+$/.test(String(env.AWIN_PUBLISHER_ID || ""))) return json({ error: "Conexão Awin ainda não configurada." }, 503);
     let body;
     try { body = await request.json(); } catch { return json({ error: "JSON inválido." }, 400); }
     const productId = typeof body.product_id === "string" ? body.product_id.trim().slice(0, 100) : "";
     const advertiserId = String(body.advertiser_id || "");
     const commissionGroupId = String(body.commission_group_id || "");
-    if (!productId || !/^\\d+$/.test(advertiserId) || !/^\\d+$/.test(commissionGroupId)) {
+    if (!productId || !/^\d+$/.test(advertiserId) || !/^\d+$/.test(commissionGroupId)) {
       return json({ error: "Informe product_id, advertiser_id e commission_group_id válidos." }, 400);
     }
     const product = await env.DB.prepare(
