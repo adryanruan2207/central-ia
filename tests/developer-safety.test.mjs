@@ -647,9 +647,9 @@ test("shortlist bloqueia avaliação de campanha quando os dados do produto est�
   const end = worker.indexOf('if (url.pathname === "/integrations/affiliate"', start);
   const route = worker.slice(start, end);
   assert.match(route, /p\.created_at/);
-  assert.match(route, /const recordAgeDays =/);
+  assert.match(route, /const researchAgeDays =/);
   assert.match(route, /const recordIsOld = recordAgeDays === null \|\| recordAgeDays > 7/);
-  assert.match(route, /const campaignCanBePrepared = .*&& !recordIsOld/);
+  assert.match(route, /const campaignCanBePrepared = .*&& !researchIsOld/);
   assert.match(route, /record_freshness: recordIsOld \? "old_or_unknown" : "created_within_7_days"/);
   assert.match(route, /research_only: true/);
 });
@@ -660,9 +660,9 @@ test("campaign readiness bloqueia produtos com dados desatualizados ou sem data 
   const end = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', start);
   const route = worker.slice(start, end);
   assert.match(route, /p\.created_at/);
-  assert.match(route, /const recordAgeDays =/);
+  assert.match(route, /const researchAgeDays =/);
   assert.match(route, /const recordIsOld = recordAgeDays === null \|\| recordAgeDays > 7/);
-  assert.match(route, /Cadastro antigo ou sem data confiável/);
+  assert.match(route, /Sem pesquisa de catálogo nos últimos 7 dias/);
   assert.match(route, /record_freshness: recordIsOld \? "old_or_unknown" : "created_within_7_days"/);
   assert.match(route, /campaign_status: ready \? "ready" : "blocked"/);
 });
@@ -670,11 +670,11 @@ test("campaign readiness bloqueia produtos com dados desatualizados ou sem data 
 
 test("frescor de produto depende de pesquisa real no catálogo, não da data de cadastro ou edição", () => {
   assert.match(worker, /event = 'affiliate_product_researched'/);
-  assert.match(worker, /product_id: exists\\.id/);
+  assert.match(worker, /product_id: exists\.id/);
   assert.match(worker, /source: "mercado_livre_public_catalog"/);
   assert.match(worker, /last_researched_at/);
   assert.match(worker, /research_age_days: researchAgeDays/);
-  assert.match(worker, /research_freshness: researchIsOld \\? "stale_or_not_researched" : "researched_within_7_days"/);
+  assert.match(worker, /research_freshness: researchIsOld \? "stale_or_not_researched" : "researched_within_7_days"/);
   assert.match(worker, /Sem pesquisa de catálogo nos últimos 7 dias/);
   assert.match(worker, /&& !researchIsOld/);
   assert.doesNotMatch(worker, /recordAgeDays|recordIsOld/);
