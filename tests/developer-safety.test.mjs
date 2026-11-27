@@ -640,3 +640,15 @@ test("shortlist só libera preparação de revisão com programa aprovado e font
   assert.match(route, /campaign_can_be_published: false/);
   assert.match(route, /provided_not_verified/);
 });
+
+
+test("shortlist bloqueia avaliação de campanha quando os dados do produto estão desatualizados", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/shortlist/analyze"');
+  const end = worker.indexOf('if (url.pathname === "/integrations/affiliate"', start);
+  const route = worker.slice(start, end);
+  assert.match(route, /const dataAgeDays =/);
+  assert.match(route, /const dataIsStale = dataAgeDays === null \|\| dataAgeDays > 7/);
+  assert.match(route, /const campaignCanBePrepared = .*&& !dataIsStale/);
+  assert.match(route, /data_freshness: dataIsStale \? "stale_or_unknown" : "current_within_7_days"/);
+  assert.match(route, /research_only: true/);
+});
