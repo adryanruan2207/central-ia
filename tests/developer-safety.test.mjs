@@ -691,9 +691,9 @@ test("verificação de comissão Awin usa grupo oficial e só grava percentual c
   const route = worker.slice(start, end);
   assert.notEqual(start, -1);
   assert.match(route, /api\.awin\.com/);
-  assert.match(route, /item\\.groupId/);
-  assert.match(route, /group\\.type \\|\\| ""\\)\\.toLowerCase\\(\\) !== "percentage"/);
-  assert.match(route, /officialRate <= 0 \\|\\| officialRate > 100/);
+  assert.match(route, /item\.groupId/);
+  assert.match(route, /group\.type \|\| ""\)\.toLowerCase\(\) !== "percentage"/);
+  assert.match(route, /officialRate <= 0 \|\| officialRate > 100/);
   assert.match(route, /UPDATE affiliate_products SET commission_rate = \?, commission_source_url = \?, updated_at = \? WHERE id = \?/);
   assert.match(route, /awin_product_commission_verified/);
   assert.match(route, /verified_from_awin_api/);
