@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const worker = await readFile(new URL("../worker/src/index.js", import.meta.url), "utf8");
+const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 test("campanhas exigem comissão confirmada pela API Awin, atual e correspondente", () => {
   assert.match(worker, /awinVerificationAgeMs >= 0 && awinVerificationAgeMs <= 7 \* 86400000/);
@@ -16,4 +17,12 @@ test("campanhas exigem comissão confirmada pela API Awin, atual e correspondent
 test("campanha sem verificação oficial não pode ser preparada no ranking", () => {
   assert.match(worker, /if \(!commissionVerified\) flags\.push\("Comissão ainda não confirmada recentemente pela API oficial Awin/);
   assert.match(worker, /campaignCanBePrepared = hasAffiliateLink && hasProgram && programApproved && commissionValid && commissionSourceValid && commissionVerified/);
+});
+
+
+test("painel de prontidão consulta estado real da conexão Awin sem expor segredos", () => {
+  assert.match(worker, /url\.pathname === "\/integrations\/awin\/status"/);
+  assert.match(html, /Conexão do programa Awin/);
+  assert.match(html, /Conexão ainda não confirmada/);
+  assert.match(html, /Os valores secretos não são exibidos aqui/);
 });
