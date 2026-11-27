@@ -1791,6 +1791,23 @@ async function checkAffiliateCampaignReadiness(){
     const approvalLabel=program.approval_status==='not_verified'?'aprovação não verificada':'aprovação não confirmada';
     meta.textContent=(program.region||'Região não informada')+' • '+(program.category||'Categoria não informada')+' • '+researchLabel+' • '+freshnessLabel+' • '+sourceLabel+' • '+signupLabel+' • '+integrationLabel+' • '+approvalLabel;row.append(meta);
     if(program.signup_url){let signup;try{signup=new URL(program.signup_url)}catch{}if(signup&&signup.protocol==='https:'){const link=document.createElement('a');link.href=signup.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Página oficial de cadastro';link.style.cssText='font-size:.8rem';row.append(link);}}
+    if(program.onboarding_guide){
+     const guide=document.createElement('div');guide.style.cssText='margin:7px 0;padding:9px;border-left:3px solid #64748b;background:#18232d;border-radius:6px';
+     const guideTitle=document.createElement('b');guideTitle.textContent='Requisitos e próximos passos (referência oficial)';guide.append(guideTitle);
+     for(const field of ['age_requirement','promotional_space','network_review','payout_setup','cost_note']){
+      if(!program.onboarding_guide[field])continue;
+      const line=document.createElement('p');line.style.cssText='font-size:.78rem;color:#cbd5e1!important;margin:4px 0';
+      const labels={age_requirement:'Idade: ',promotional_space:'Canal de divulgação: ',network_review:'Aprovação: ',payout_setup:'Recebimento: ',cost_note:'Custos: '};
+      line.textContent=labels[field]+program.onboarding_guide[field];guide.append(line);
+     }
+     const sources=document.createElement('div');sources.style.cssText='display:flex;flex-wrap:wrap;gap:9px;margin-top:6px';
+     for(const sourceUrl of (Array.isArray(program.onboarding_guide.official_urls)?program.onboarding_guide.official_urls:[])){
+      let parsed;try{parsed=new URL(sourceUrl)}catch{}if(!parsed||parsed.protocol!=='https:')continue;
+      const link=document.createElement('a');link.href=parsed.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Ajuda oficial';link.style.cssText='font-size:.76rem';sources.append(link);
+     }
+     guide.append(sources);row.append(guide);
+    }
+
     catalogPanel.append(row);
    }
    results.append(catalogPanel);

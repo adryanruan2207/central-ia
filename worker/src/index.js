@@ -1369,6 +1369,34 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     const latestByProgram = new Map();
     for (const item of research) if (item.program_id && !latestByProgram.has(item.program_id)) latestByProgram.set(item.program_id, item);
     const nowMs = Date.now();
+    const onboardingGuides = {
+      awin: {
+        source: "official_awin_pt",
+        age_requirement: "18 anos ou mais",
+        promotional_space: "É necessário informar um espaço promocional; site, blog ou canal social são aceitos.",
+        network_review: "A inscrição na rede passa por análise de conformidade. Depois da aprovação, cada anunciante pode exigir uma candidatura separada.",
+        payout_setup: "Dados fiscais e bancários são necessários para receber pagamentos.",
+        cost_note: "A FAQ brasileira informa cadastro gratuito para afiliados; confira as condições exibidas no formulário local antes de concluir.",
+        official_urls: [
+          "https://www.awin.com/pt/faq",
+          "https://success.awin.com/articles/pt_BR/Knowledge/What-are-the-requirements-for-joining-the-Awin-network",
+          "https://success.awin.com/articles/pt_BR/Knowledge/How-do-I-join-Awin-as-a-Publisher"
+        ]
+      },
+      hotmart: {
+        source: "official_hotmart_pt",
+        age_requirement: "Consulte os termos e a validação de identidade da plataforma.",
+        promotional_space: "Site não é obrigatório; redes sociais e outros canais podem ser usados.",
+        network_review: "A conta pode ser criada gratuitamente. A afiliação a cada produto pode ser automática, depender de aprovação do produtor ou não estar disponível.",
+        payout_setup: "Consulte as exigências de cadastro, dados fiscais e pagamento na própria conta.",
+        cost_note: "A página oficial informa cadastro gratuito para afiliados.",
+        official_urls: [
+          "https://hotmart.com/pt-br/afiliados",
+          "https://suportehotmart.zendesk.com/hc/pt-br/articles/208424898-Quero-ser-Afiliado-o-que-preciso-saber",
+          "https://suportehotmart.zendesk.com/hc/pt-br/articles/215829028-Como-me-afiliar-a-um-produto-na-Hotmart"
+        ]
+      }
+    };
     const programs = (catalog.results || []).map(program => {
       const latestResearch = latestByProgram.get(program.id) || null;
       const recordedAtMs = Date.parse(latestResearch?.recorded_at || "");
@@ -1388,6 +1416,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       })();
       return {
         ...program,
+        onboarding_guide: onboardingGuides[program.id] || null,
         latest_research: latestResearch,
         research_checked_at: validResearchTime ? latestResearch.recorded_at : null,
         research_age_hours: researchAgeHours,
