@@ -1751,6 +1751,22 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const campaignStage = campaignCanBePrepared
         ? "Preparar revisão da campanha — não publicar sem validar a fonte"
         : "Pesquisa — ainda não promover";
+      // Score operacional usa apenas sinais observáveis; vendas públicas são proxy de interesse,
+      // nunca demanda comprovada. Concorrência e lucro líquido ainda não são medidos.
+      const demandPoints = sales === null ? 0 : sales >= 1000 ? 25 : sales >= 100 ? 18 : sales >= 10 ? 10 : sales > 0 ? 5 : 0;
+      const commissionPoints = commissionVerified ? Math.min(20, Math.max(0, commissionRate * 4)) : 0;
+      const readinessPoints = (programApproved ? 10 : 0) + (hasAffiliateLink ? 10 : 0) + (/^https:\/\//i.test(String(item.product_url || "")) ? 5 : 0);
+      const freshnessPoints = (!researchIsOld ? 10 : 0) + (catalogSnapshotFresh ? 5 : 0);
+      const evidencePoints = Number((completeness * 0.15).toFixed(2));
+      const scoreComponents = {
+        public_sales_signal: demandPoints,
+        verified_commission: Number(commissionPoints.toFixed(2)),
+        operational_readiness: readinessPoints,
+        research_freshness: freshnessPoints,
+        evidence_completeness: evidencePoints
+      };
+      const opportunityScore = Number(Object.values(scoreComponents).reduce((sum, value) => sum + value, 0).toFixed(1));
+      const opportunityTier = opportunityScore >= 75 ? "prioridade_alta_para_validacao" : opportunityScore >= 50 ? "prioridade_media_para_validacao" : "coletar_dados_antes_de_priorizar";
       const nextSteps = [
         "Confirmar se o produto e o vendedor continuam ativos e disponíveis",
         "Verificar comissão, elegibilidade e regras do programa na fonte oficial",
@@ -1769,6 +1785,16 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         affiliate_program: item.program_name || null, program_status: item.program_status || null,
         price_observed: price, public_sales_count: sales,
         estimated_commission_per_sale: estimatedCommissionPerSale,
+        campaign_can_be_published: false,
+        opportunity_score: opportunityScore,
+        opportunity_tier: opportunityTier,
+        score_components: scoreComponents,
+        score_limitations: [
+          "Vendas públicas são apenas um sinal indireto de interesse, não vendas verificadas nem previsão de conversão.",
+          "Comissão só pontua quando verificada recentemente pela API oficial Awin; percentuais apenas informados recebem zero.",
+          "Concorrência, custos, impostos, devoluções, conversão e lucro líquido não entram no score por falta de dados confiáveis.",
+          "A pontuação prioriza investigação e não autoriza divulgação, compra ou publicação."
+        ],
         actual_commission_received: null,
         net_profit: null,
         financial_status: estimatedCommissionPerSale === null ? "dados_insuficientes" : "estimativa_bruta_apenas",
@@ -1781,18 +1807,17 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         priority: researchIsOld ? "Atualizar pesquisa antes de avaliar" : priority, flags,
         campaign_stage: campaignStage,
         campaign_can_be_prepared: campaignCanBePrepared,
-        campaign_can_be_published: false,
         research_only: true,
         publication_gate: "manual_source_confirmation_and_official_platform_authorization_required",
         next_steps: nextSteps,
         created_at: item.created_at
       };
     });
-    products.sort((a, b) => (b.public_sales_count ?? -1) - (a.public_sales_count ?? -1) || b.evidence_completeness - a.evidence_completeness);
+    products.sort((a, b) => b.opportunity_score - a.opportunity_score || (b.public_sales_count ?? -1) - (a.public_sales_count ?? -1) || b.evidence_completeness - a.evidence_completeness);
     return json({
       analyzed_at: new Date().toISOString(),
       count: products.length,
-      ranking_basis: "Sinais históricos públicos e completude dos dados cadastrados; não é previsão de vendas nem cálculo de lucro.",
+      ranking_basis: "Score operacional de 0 a 100 baseado em vendas públicas como proxy, comissão Awin verificada, prontidão de links/programa, atualidade e evidência. Não mede concorrência, conversão ou lucro; serve apenas para ordenar pesquisas.",
       products
     });
   }
