@@ -1268,7 +1268,7 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     const creativeAngle = creativeAngles[variationIndex - 1];
     if (!productId) return json({ error: "Produto não informado." }, 400);
     const item = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ?"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.notes, a.name AS program_name, a.status AS program_status, (SELECT MAX(created_at) FROM activity_log WHERE event = 'affiliate_product_researched' AND json_valid(details) AND json_extract(details, '$.product_id') = p.id) AS last_researched_at, (SELECT details FROM activity_log WHERE event = 'awin_product_commission_verified' AND json_valid(details) AND json_extract(details, '$.product_id') = p.id ORDER BY created_at DESC LIMIT 1) AS awin_commission_verification, (SELECT MAX(created_at) FROM activity_log WHERE event = 'awin_product_commission_verified' AND json_valid(details) AND json_extract(details, '$.product_id') = p.id) AS awin_commission_verified_at FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id WHERE p.id = ?"
     ).bind(productId).first();
     if (!item) return json({ error: "Produto não encontrado." }, 404);
     const blockers = [];
@@ -1278,7 +1278,20 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     const commissionRate = Number(item.commission_rate);
     const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
     if (!commissionValid) blockers.push("comissão positiva entre 0 e 100 não cadastrada");
-    if (!/^https:\/\//i.test(String(item.commission_source_url || ""))) blockers.push("URL da fonte oficial da comissão ausente ou inválida");
+    const commissionSourceValid = /^https:\/\//i.test(String(item.commission_source_url || ""));
+    if (!commissionSourceValid) blockers.push("URL da fonte oficial da comissão ausente ou inválida");
+    const lastResearchedAtMs = Date.parse(item.last_researched_at || "");
+    const researchTimestampValid = Number.isFinite(lastResearchedAtMs) && lastResearchedAtMs <= Date.now();
+    const researchAgeDays = researchTimestampValid ? Math.floor((Date.now() - lastResearchedAtMs) / 86400000) : null;
+    if (researchAgeDays === null || researchAgeDays > 7) blockers.push("Sem pesquisa de catálogo nos últimos 7 dias; atualizar a pesquisa antes de avançar");
+    let awinCommissionVerification = null;
+    try { awinCommissionVerification = JSON.parse(item.awin_commission_verification || "null"); } catch {}
+    const awinVerificationAtMs = Date.parse(item.awin_commission_verified_at || "");
+    const awinVerificationAgeMs = Date.now() - awinVerificationAtMs;
+    const awinVerificationFresh = Boolean(awinCommissionVerification && Number.isFinite(awinVerificationAtMs) && awinVerificationAgeMs >= 0 && awinVerificationAgeMs <= 7 * 86400000);
+    const verifiedRate = Number(awinCommissionVerification?.commission_rate);
+    const commissionVerified = /awin/i.test(String(item.program_name || "")) && awinVerificationFresh && Number.isFinite(verifiedRate) && commissionValid && Math.abs(verifiedRate - commissionRate) < 0.000001;
+    if (!commissionVerified) blockers.push("Comissão não confirmada recentemente pela API oficial Awin para este programa e esta taxa");
     if (blockers.length) return json({ error: "Campanha bloqueada: " + blockers.join("; ") + ". Corrija os requisitos antes de gerar material promocional.", blockers }, 409);
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
     let affiliateHost = "";
