@@ -40,6 +40,7 @@ O registro não cria contas, não comprova aprovação e não armazena senhas ou
 - Frontend: GitHub Pages.
 - Backend: Cloudflare Workers.
 - Banco: Cloudflare D1.
+- O deploy normal do Worker não executa migrações D1. Novas migrações devem ser revisadas e executadas separadamente, de forma explícita, antes de publicar código que dependa delas.
 - IA: Cloudflare Workers AI.
 - Pesquisa web: integração Tavily, quando a chave estiver configurada e válida.
 

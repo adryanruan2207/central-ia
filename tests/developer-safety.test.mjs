@@ -182,7 +182,8 @@ test("deploy do Worker exige TOML válido e compilação dry-run antes da produ�
   assert.ok(!testJob.includes("CLOUDFLARE_API_TOKEN"));
   assert.ok(!testJob.includes("secrets."));
   const deployJob = workflow.split("  deploy:")[1] || "";
-  assert.ok(deployJob.includes("wrangler d1 migrations apply central-ia-db --remote"), "Migrações pendentes precisam ser aplicadas antes do deploy do Worker");
+  assert.ok(deployJob.includes("wrangler deploy"));
+  assert.doesNotMatch(workflow, /wrangler d1 migrations apply/i, "Deploy normal não deve aplicar migrações D1 automaticamente");
 });
 
 test("auditoria do repositório verifica autenticação e bloqueia execução dinâmica", () => {

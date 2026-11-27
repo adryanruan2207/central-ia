@@ -68,10 +68,6 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN" || (echo "Missing CLOUDFLARE_API_TOKEN repository secret" && exit 1)
           test -n "$CLOUDFLARE_ACCOUNT_ID" || (echo "Missing CLOUDFLARE_ACCOUNT_ID repository secret" && exit 1)
 
-      - name: Apply pending D1 migrations
-        working-directory: worker
-        run: wrangler d1 migrations apply central-ia-db --remote
-
       - name: Deploy Worker
         working-directory: worker
         run: wrangler deploy
