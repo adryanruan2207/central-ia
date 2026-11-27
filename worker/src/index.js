@@ -1287,7 +1287,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.created_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
@@ -1325,7 +1325,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       ready: products.filter(item => item.campaign_status === "ready").length,
       blocked: products.filter(item => item.campaign_status === "blocked").length,
       products,
-      notice: "Prontidão automática interna. URLs e taxas informadas não são prova verificada; confirme a comissão e a elegibilidade no painel oficial do programa. Também não confirma link funcional, estoque ou pagamento."
+      notice: "Prontidão automática interna. A idade exibida é a do cadastro, não uma prova de revalidação recente. URLs e taxas informadas não são prova verificada; confirme a comissão e a elegibilidade no painel oficial do programa. Também não confirma link funcional, estoque ou pagamento."
     });
   }
 
