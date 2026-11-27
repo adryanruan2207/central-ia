@@ -591,3 +591,12 @@ test("painel de afiliados exibe estado real de prontidão e da fonte da comissã
   assert.match(ui, /if\(item\.campaign_status==='ready'\)/);
   assert.doesNotMatch(ui, /item\.campaign_status==='ready_for_review'/);
 });
+
+
+test("IDs numéricos das transações Awin são reconhecidos para comparação de pagamento", () => {
+  const start = worker.indexOf("async function syncAwinTransactionSnapshot");
+  const end = worker.indexOf("async function runMinuteHealthAudit", start);
+  const sync = worker.slice(start, end);
+  assert.ok(sync.includes("if (!/^\\d+$/.test(id)) continue;"), "IDs numéricos válidos devem entrar no snapshot");
+  assert.ok(!sync.includes("if (!/^\\\\d+$/.test(id)) continue;"), "Não aceitar regex que procura barra invertida literal");
+});
