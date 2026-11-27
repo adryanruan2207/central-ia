@@ -1776,6 +1776,52 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       ];
       if (!hasAffiliateLink) nextSteps.unshift("Obter e validar um link rastreável pelo programa oficial; não usar link comum como se fosse afiliado");
       if (!hasProgram) nextSteps.unshift("Vincular um programa de afiliados aprovado");
+      // A próxima ação é determinada pelo primeiro bloqueio operacional verificável.
+      // Score alto nunca sobrepõe falta de aprovação, comissão ou dados atuais.
+      let decisionStatus = "research_only";
+      let nextActionCode = "manual_evidence_review";
+      let decisionReason = "Dados básicos disponíveis; revisar fontes e comparar custos antes de qualquer campanha.";
+      if (researchIsOld) {
+        decisionStatus = "blocked_stale_research";
+        nextActionCode = "refresh_catalog_research";
+        decisionReason = "Pesquisa ausente, inválida ou com mais de 7 dias.";
+      } else if (!evidence.product_link) {
+        decisionStatus = "blocked_invalid_product_url";
+        nextActionCode = "correct_product_url";
+        decisionReason = "O produto não possui URL HTTPS válida.";
+      } else if (!catalogSnapshotFresh) {
+        decisionStatus = "blocked_stale_snapshot";
+        nextActionCode = "refresh_price_and_sales";
+        decisionReason = "Preço e vendas têm mais de 48 horas e não devem ser tratados como atuais.";
+      } else if (!hasProgram) {
+        decisionStatus = "awaiting_program_selection";
+        nextActionCode = "select_affiliate_program";
+        decisionReason = "Ainda não há programa de afiliados vinculado.";
+      } else if (!programApproved) {
+        decisionStatus = "awaiting_program_approval";
+        nextActionCode = "apply_for_program";
+        decisionReason = "O programa ainda não está aprovado para esta conta.";
+      } else if (!hasAffiliateLink) {
+        decisionStatus = "awaiting_tracking_link";
+        nextActionCode = "create_tracking_link";
+        decisionReason = "Falta um link de afiliado rastreável gerado pelo programa.";
+      } else if (!commissionVerified) {
+        decisionStatus = "awaiting_commission_verification";
+        nextActionCode = "verify_official_commission";
+        decisionReason = "A comissão não foi confirmada recentemente pela API oficial Awin.";
+      } else if (price === null) {
+        decisionStatus = "blocked_missing_price";
+        nextActionCode = "confirm_current_price";
+        decisionReason = "Não há preço atual válido para estimar comissão bruta.";
+      } else if (sales === null) {
+        decisionStatus = "needs_demand_evidence";
+        nextActionCode = "collect_demand_evidence";
+        decisionReason = "Não há indicador atual de vendas públicas; reunir outras evidências de demanda.";
+      } else if (campaignCanBePrepared) {
+        decisionStatus = "ready_for_manual_review";
+        nextActionCode = "review_campaign_sources";
+        decisionReason = "Requisitos técnicos mínimos atendidos; ainda exige revisão humana e conferência das alegações.";
+      }
       return {
         id: item.id, name: item.name, marketplace: item.marketplace, product_url: item.product_url,
         affiliate_url: item.affiliate_url, affiliate_program_id: item.affiliate_program_id,
@@ -1789,6 +1835,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         opportunity_score: opportunityScore,
         opportunity_tier: opportunityTier,
         score_components: scoreComponents,
+        decision_status: decisionStatus,
+        next_action_code: nextActionCode,
+        decision_reason: decisionReason,
         score_limitations: [
           "Vendas públicas são apenas um sinal indireto de interesse, não vendas verificadas nem previsão de conversão.",
           "Comissão só pontua quando verificada recentemente pela API oficial Awin; percentuais apenas informados recebem zero.",
