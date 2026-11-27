@@ -743,3 +743,9 @@ test("pesquisa oficial é associada ao produto pelo identificador do programa", 
   assert.match(ui, /sourceLink\.rel='noopener noreferrer'/);
 });
 
+
+
+test("status da automação informa a cadência real de cinco minutos", () => {
+  assert.match(worker, /schedule: "Autoverificação a cada 5 minutos/);
+  assert.doesNotMatch(worker, /schedule: "Autoverificação a cada 1 minuto/);
+});
