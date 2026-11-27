@@ -512,6 +512,13 @@ test("planejador autônomo não cria tarefas de pesquisa bloqueadas sem Tavily",
 });
 
 
+test("teste de conectividade Tavily só aprova quando há fontes HTTPS utilizáveis", () => {
+  assert.match(worker, /async function testTavilyConnectivity\(env, query\)/);
+  assert.match(worker, /if \(!result\.configured\) throw new Error/);
+  assert.match(worker, /if \(!result\.results\.length\) throw new Error/);
+  assert.match(worker, /testTavilyConnectivity\(env,/);
+});
+
 test("health diferencia banco disponível de operação completa", () => {
   const start = worker.indexOf('if (url.pathname === "/health" && request.method === "GET")');
   assert.notEqual(start, -1);
