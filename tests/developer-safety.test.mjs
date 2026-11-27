@@ -709,3 +709,15 @@ test("prontidão diferencia taxa Awin verificada de URL apenas informada", () =>
   assert.match(route, /commission_source_verification: awinVerificationFresh \? "verified_from_awin_api"/);
   assert.match(route, /commission_verified_at/);
 });
+
+
+test("pesquisa de programas de afiliados usa allowlist oficial e nunca altera comissão ou aprovação", () => {
+  assert.match(worker, /url\.pathname === "\/affiliates\/program-research"/);
+  assert.match(worker, /automatic_affiliate_program_research/);
+  assert.match(worker, /official_domain_allowlist/);
+  assert.match(worker, /program\.domains\.some\(domain => host === domain \|\| host\.endsWith\("\." \+ domain\)\)/);
+  assert.match(worker, /commission_rate_updated: false/);
+  assert.match(worker, /program_approval_changed: false/);
+  assert.match(worker, /24 \* 60 \* 60 \* 1000/);
+  assert.match(worker, /Nenhuma comissão é alterada automaticamente/);
+});
