@@ -1364,7 +1364,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     const products = (result.results || []).map(item => {
       const blockers = [];
       const lastResearchedAtMs = Date.parse(item.last_researched_at || "");
-      const researchAgeDays = Number.isFinite(lastResearchedAtMs) ? Math.max(0, Math.floor((Date.now() - lastResearchedAtMs) / 86400000)) : null;
+      const researchTimestampValid = Number.isFinite(lastResearchedAtMs) && lastResearchedAtMs <= Date.now();
+      const researchAgeDays = researchTimestampValid ? Math.floor((Date.now() - lastResearchedAtMs) / 86400000) : null;
       const researchIsOld = researchAgeDays === null || researchAgeDays > 7;
       if (researchIsOld) blockers.push("Sem pesquisa de catálogo nos últimos 7 dias; atualizar a pesquisa antes de avançar");
       const productUrlValid = /^https:\/\//i.test(String(item.product_url || ""));
@@ -1563,7 +1564,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         ? (latestResearch.observed_sales !== null && Number.isFinite(catalogSales) && catalogSales >= 0 ? catalogSales : null)
         : (salesMatch ? Number(salesMatch[1]) : null);
       const observedAtMs = Date.parse(item.last_researched_at || "");
-      const observedAgeHours = Number.isFinite(observedAtMs) ? Math.max(0, (Date.now() - observedAtMs) / 3600000) : null;
+      const observedTimestampValid = Number.isFinite(observedAtMs) && observedAtMs <= Date.now();
+      const observedAgeHours = observedTimestampValid ? (Date.now() - observedAtMs) / 3600000 : null;
       // Preço e volume do catálogo são voláteis: após 48h passam a ser históricos,
       // não alimentam estimativas nem são apresentados como dados atuais.
       const catalogSnapshotFresh = observedAgeHours !== null && observedAgeHours <= 48;
@@ -1576,7 +1578,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       };
       const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
       const lastResearchedAtMs = Date.parse(item.last_researched_at || "");
-      const researchAgeDays = Number.isFinite(lastResearchedAtMs) ? Math.max(0, Math.floor((Date.now() - lastResearchedAtMs) / 86400000)) : null;
+      const researchTimestampValid = Number.isFinite(lastResearchedAtMs) && lastResearchedAtMs <= Date.now();
+      const researchAgeDays = researchTimestampValid ? Math.floor((Date.now() - lastResearchedAtMs) / 86400000) : null;
       const researchIsOld = researchAgeDays === null || researchAgeDays > 7;
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
