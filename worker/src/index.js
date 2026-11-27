@@ -1479,7 +1479,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         const completenessItems = [minimumOrder, listedPrice, deliveryTime, shippingRegions, returnsEvidence, directShipEvidence ? true : null];
         const evidenceCount = completenessItems.filter(value => value !== null && value !== undefined && value !== false).length;
         const evidenceCompletenessScore = Math.round(evidenceCount / completenessItems.length * 100);
-        const operationalModel = directShipEvidence ? "direct_shipping_or_fulfillment_evidence_found" : /atacad\\w*|pedido m[ií]nimo|MOQ/i.test(source) ? "wholesale_or_moq_evidence_only" : "insufficient_public_evidence";
+        const operationalModel = directShipEvidence ? "direct_shipping_or_fulfillment_evidence_found" : /atacad\w*|pedido m[ií]nimo|MOQ/i.test(source) ? "wholesale_or_moq_evidence_only" : "insufficient_public_evidence";
         return {
           minimum_order:makeField(minimumOrder),
           listed_price:{...makeField(listedPrice),currency:currencyMatch?.[1] || null},
