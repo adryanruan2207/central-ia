@@ -1446,15 +1446,41 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     if (!env.TAVILY_API_KEY) return json({ error: "Pesquisa de fornecedores indisponível: configure a chave Tavily no Worker." }, 503);
     try {
       const search = await searchWebWithTavily("Encontrar fabricantes e fornecedores legítimos para " + query + ". Priorize sites oficiais de fabricantes, distribuidores e atacadistas; identifique site oficial, localização, linhas de produtos, condições públicas de atacado, pedido mínimo e canais oficiais de contato. Não inclua marketplaces de varejo como se fossem fabricantes.", env);
-      const suppliers = search.results.map(item => ({
-        name: item.title,
-        website: item.url,
-        evidence: item.content,
-        published_date: item.published_date || null,
-        verification: "não verificado — confirmar CNPJ/registro, endereço, reputação, contrato, amostras e condições diretamente com a empresa"
+      const marketplaceHosts = new Set([
+        "mercadolivre.com.br", "amazon.com.br", "shopee.com.br", "aliexpress.com",
+        "ebay.com", "magazineluiza.com.br", "americanas.com.br"
+      ]);
+      const supplierEvidencePattern = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment|atacad\\w*|distribuidor\\w*|fabricante\\w*|pedido m[ií]nimo|lojista\\w*|revend\\w*/i;
+      let rejected = 0;
+      const suppliers = search.results.flatMap(item => {
+        let parsed;
+        try { parsed = new URL(item.url); } catch { rejected++; return []; }
+        const host = parsed.hostname.toLowerCase().replace(/^www\\./, "");
+        const isMarketplace = [...marketplaceHosts].some(domain => host === domain || host.endsWith("." + domain));
+        const evidenceText = String(item.title || "") + " " + String(item.content || "");
+        if (parsed.protocol !== "https:" || !item.title || isMarketplace || !supplierEvidencePattern.test(evidenceText)) {
+          rejected++;
+          return [];
+        }
+        return [{
+          name: String(item.title).slice(0, 180),
+          website: parsed.origin,
+          source_url: item.url,
+          evidence: String(item.content || "").slice(0, 1400),
+          published_date: item.published_date || null,
+          verification_status: "unverified",
+          verification: "não verificado — confirmar CNPJ/registro, endereço, reputação, contrato, amostras, estoque, preços e condições diretamente com a empresa"
+        }];
+      });
+      await record(env, "affiliate_supplier_research", JSON.stringify({
+        query, sources: search.results.length, candidates: suppliers.length, rejected,
+        verification_status: "unverified",
+        candidate_policy: "https_supplier_evidence_keywords_excluding_retail_marketplaces"
       }));
-      await record(env, "affiliate_supplier_research", JSON.stringify({ query, results: suppliers.length }));
-      return json({ query, suppliers, notice: "Resultados encontrados na web, não fornecedores aprovados. A CENTRAL IA não contatou empresas nem verificou identidade, estoque, preços ou legitimidade." });
+      return json({
+        query, suppliers, candidates: suppliers.length, rejected,
+        notice: "Candidatos filtrados por evidências públicas, não fornecedores aprovados. A CENTRAL IA não contatou empresas nem confirmou identidade, estoque, preços, frete ou legitimidade."
+      });
     } catch (error) {
       return json({ error: String(error?.message || "Falha na pesquisa de fornecedores").slice(0, 300) }, 502);
     }
