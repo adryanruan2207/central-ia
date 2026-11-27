@@ -150,7 +150,40 @@ async function runMinuteHealthAudit(env, checkedAt) {
  } catch(error) {
   results.push({name:"task_flow",ok:false,error:String(error?.message||error).slice(0,180)});
  }
- results.push({name:"workers_ai",ok:!!env.AI});
+ let workersAIHealth = {ok:false,error:"Workers AI não está configurado."};
+ if (env.AI) {
+  try {
+   const lastAICheck = await env.DB.prepare("SELECT details, created_at FROM activity_log WHERE event = 'automatic_workers_ai_check' ORDER BY created_at DESC LIMIT 1").first();
+   const lastAIAt = lastAICheck?.created_at ? Date.parse(lastAICheck.created_at) : 0;
+   if (lastAIAt) {
+    const cached = JSON.parse(lastAICheck.details || "{}");
+    const retryWindow = cached.ok ? 24*60*60*1000 : 60*60*1000;
+    if (Date.now()-lastAIAt < retryWindow) {
+     workersAIHealth = cached;
+    } else {
+     const probe = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+      messages:[{role:"user",content:"Responda apenas: OK"}],
+      max_tokens:8
+     });
+     if (!String(probe?.response || "").trim()) throw new Error("Workers AI respondeu sem conteúdo utilizável.");
+     workersAIHealth = {ok:true,checked_at:new Date().toISOString()};
+     await record(env,"automatic_workers_ai_check",JSON.stringify(workersAIHealth));
+    }
+   } else {
+    const probe = await env.AI.run("@cf/meta/llama-3.1-8b-instruct-fast", {
+     messages:[{role:"user",content:"Responda apenas: OK"}],
+     max_tokens:8
+    });
+    if (!String(probe?.response || "").trim()) throw new Error("Workers AI respondeu sem conteúdo utilizável.");
+    workersAIHealth = {ok:true,checked_at:new Date().toISOString()};
+    await record(env,"automatic_workers_ai_check",JSON.stringify(workersAIHealth));
+   }
+  } catch(error) {
+   workersAIHealth = {ok:false,error:String(error?.message||error).slice(0,220),checked_at:new Date().toISOString()};
+   await record(env,"automatic_workers_ai_check",JSON.stringify(workersAIHealth));
+  }
+ }
+ results.push({name:"workers_ai",ok:!!workersAIHealth.ok,...(!workersAIHealth.ok?{error:workersAIHealth.error}:{})});
  let tavilyHealth = {ok:false,error:"Chave Tavily não configurada."};
  if (env.TAVILY_API_KEY) {
   try {
