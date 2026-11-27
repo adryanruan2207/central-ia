@@ -777,8 +777,8 @@ test("pesquisa de programa afiliado tenta novamente após falha sem esperar 24 h
   assert.match(worker, /const programResearchRetryMs = 60 \* 60 \* 1000/);
   assert.match(worker, /Date\.now\(\) - lastProgramFailureMs >= programResearchRetryMs/);
   assert.match(worker, /lastProgramResearchMs > lastProgramFailureMs/);
-  assert.match(worker, /const programResearchIntervalMs = 6 \\* 60 \\* 60 \\* 1000/);
-  assert.match(worker, /Date\\.now\\(\\) - lastProgramResearchMs >= programResearchIntervalMs/);
+  assert.match(worker, /const programResearchIntervalMs = 6 \* 60 \* 60 \* 1000/);
+  assert.match(worker, /Date\.now\(\) - lastProgramResearchMs >= programResearchIntervalMs/);
 });
 
 
@@ -787,5 +787,5 @@ test("pesquisa automática de fornecedores fica pausada enquanto afiliados é a 
   const scheduled = worker.slice(scheduledStart);
   assert.match(scheduled, /Modo afiliados primeiro/);
   assert.doesNotMatch(scheduled, /automatic_supplier_discovery/);
-  assert.match(worker, /url\\.pathname === "\\/affiliates\\/suppliers"/);
+  assert.match(worker, /url\.pathname === "\/affiliates\/suppliers"/);
 });
