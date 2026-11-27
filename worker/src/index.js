@@ -1368,7 +1368,36 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     });
     const latestByProgram = new Map();
     for (const item of research) if (item.program_id && !latestByProgram.has(item.program_id)) latestByProgram.set(item.program_id, item);
-    const programs = (catalog.results || []).map(program => ({ ...program, latest_research: latestByProgram.get(program.id) || null }));
+    const nowMs = Date.now();
+    const programs = (catalog.results || []).map(program => {
+      const latestResearch = latestByProgram.get(program.id) || null;
+      const recordedAtMs = Date.parse(latestResearch?.recorded_at || "");
+      const validResearchTime = Number.isFinite(recordedAtMs) && recordedAtMs <= nowMs;
+      const researchAgeHours = validResearchTime ? Math.floor((nowMs - recordedAtMs) / 3600000) : null;
+      const officialSourceCount = latestResearch?.status === "official_sources_found" && Array.isArray(latestResearch.results)
+        ? latestResearch.results.filter(source => {
+            try {
+              const parsed = new URL(source.url);
+              return parsed.protocol === "https:";
+            } catch { return false; }
+          }).length
+        : 0;
+      const signupUrlValid = (() => {
+        try { return new URL(program.signup_url).protocol === "https:"; }
+        catch { return false; }
+      })();
+      return {
+        ...program,
+        latest_research: latestResearch,
+        research_checked_at: validResearchTime ? latestResearch.recorded_at : null,
+        research_age_hours: researchAgeHours,
+        research_fresh: researchAgeHours !== null && researchAgeHours <= 168,
+        official_source_count: officialSourceCount,
+        signup_url_valid: signupUrlValid,
+        integration_status: program.id === "awin" ? "available_requires_credentials" : "not_implemented",
+        approval_status: "not_verified"
+      };
+    });
     return json({
       count: research.length,
       research,
