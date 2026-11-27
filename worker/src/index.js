@@ -1287,14 +1287,14 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
 
   if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET") {
     const result = await env.DB.prepare(
-      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.updated_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
+      "SELECT p.id, p.name, p.marketplace, p.product_url, p.affiliate_url, p.affiliate_program_id, p.commission_rate, p.commission_source_url, p.status, p.notes, p.created_at, a.name AS program_name, a.status AS program_status FROM affiliate_products p LEFT JOIN affiliate_programs a ON a.id = p.affiliate_program_id ORDER BY p.updated_at DESC LIMIT 200"
     ).all();
     const products = (result.results || []).map(item => {
       const blockers = [];
-      const updatedAtMs = Date.parse(item.updated_at || "");
-      const dataAgeDays = Number.isFinite(updatedAtMs) ? Math.max(0, Math.floor((Date.now() - updatedAtMs) / 86400000)) : null;
+      const recordCreatedAtMs = Date.parse(item.created_at || "");
+      const dataAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
       const dataIsStale = dataAgeDays === null || dataAgeDays > 7;
-      if (dataIsStale) blockers.push("Dados desatualizados ou sem data confiável; atualizar antes de avançar");
+      if (dataIsStale) blockers.push("Cadastro antigo ou sem data confiável; atualizar a pesquisa antes de avançar");
       const productUrlValid = /^https:\/\//i.test(String(item.product_url || ""));
       const affiliateUrlValid = /^https:\/\//i.test(String(item.affiliate_url || ""));
       const commissionRate = Number(item.commission_rate);
@@ -1476,8 +1476,8 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         product_link: /^https:\/\//i.test(String(item.product_url || ""))
       };
       const completeness = Math.round(Object.values(evidence).filter(Boolean).length / 3 * 100);
-      const updatedAtMs = Date.parse(item.updated_at || "");
-      const dataAgeDays = Number.isFinite(updatedAtMs) ? Math.max(0, Math.floor((Date.now() - updatedAtMs) / 86400000)) : null;
+      const recordCreatedAtMs = Date.parse(item.created_at || "");
+      const dataAgeDays = Number.isFinite(recordCreatedAtMs) ? Math.max(0, Math.floor((Date.now() - recordCreatedAtMs) / 86400000)) : null;
       const dataIsStale = dataAgeDays === null || dataAgeDays > 7;
       const commissionRate = Number(item.commission_rate);
       const commissionValid = item.commission_rate !== null && Number.isFinite(commissionRate) && commissionRate > 0 && commissionRate <= 100;
