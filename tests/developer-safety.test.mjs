@@ -777,7 +777,8 @@ test("pesquisa de programa afiliado tenta novamente após falha sem esperar 24 h
   assert.match(worker, /const programResearchRetryMs = 60 \* 60 \* 1000/);
   assert.match(worker, /Date\.now\(\) - lastProgramFailureMs >= programResearchRetryMs/);
   assert.match(worker, /lastProgramResearchMs > lastProgramFailureMs/);
-  assert.match(worker, /Date\.now\(\) - lastProgramResearchMs >= 24 \* 60 \* 60 \* 1000/);
+  assert.match(worker, /const programResearchIntervalMs = 6 \\* 60 \\* 60 \\* 1000/);
+  assert.match(worker, /Date\\.now\\(\\) - lastProgramResearchMs >= programResearchIntervalMs/);
 });
 
 
