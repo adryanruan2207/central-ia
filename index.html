@@ -634,6 +634,23 @@ body.show-chat .intro{display:flex!important}
 <div class="notice" style="margin-top:14px"><b>Pesquisa na internet — integração gratuita preparada.</b><p>Para habilitar pesquisas com fontes e links, a CENTRAL IA usa o plano gratuito da Tavily: até 1.000 créditos por mês, sem cartão de crédito. É necessária uma chave privada cadastrada diretamente como secret <code>TAVILY_API_KEY</code> no Cloudflare Worker. Não cole essa chave no chat nem no site. Não ative pagamento automático; quando os créditos gratuitos acabarem, a pesquisa deve parar até a renovação.</p><p><a href="https://www.tavily.com/pricing" target="_blank" rel="noopener noreferrer">Conferir plano gratuito Tavily</a> · <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Abrir Cloudflare</a></p></div>
 <p style="font-size:.78rem;margin-top:12px">O processamento automático ocorre em ciclos de até 15 minutos, uma tarefa segura por ciclo. Tarefas marcadas para revisão ficam aguardando sua autorização. Pesquisas web só serão executadas depois de configurar a chave gratuita; sem ela, a tarefa fica aguardando configuração.</p>
 </div></div>
+<div class="resource-section" id="commerce-accounts-panel"><h3>🌐 Contas e canais comerciais</h3><div class="card">
+<p>Centralize os cadastros de afiliado, vendedor e dropshipping. Este painel registra suas contas e o estado informado; não cria contas nem concede acesso automaticamente. A conexão real só será confirmada após autorização oficial da plataforma.</p>
+<div id="commerce-accounts-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px;margin:12px 0"></div>
+<div id="commerce-accounts-list" aria-live="polite" style="display:grid;gap:9px;margin:12px 0"><p>Entre na plataforma para carregar os cadastros.</p></div>
+<details style="margin-top:14px;padding:12px;border:1px solid #46506a;border-radius:12px;background:#202536">
+<summary style="cursor:pointer;font-weight:700">Adicionar cadastro de plataforma</summary>
+<div style="display:grid;gap:9px;margin-top:12px">
+<label for="commerce-platform-name">Plataforma<input id="commerce-platform-name" maxlength="100" placeholder="Ex.: Awin, Mercado Livre, Hotmart" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label for="commerce-model">Modelo de negócio<select id="commerce-model" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"><option value="affiliate">Afiliado</option><option value="seller">Vendedor</option><option value="dropshipping">Dropshipping</option></select></label>
+<label for="commerce-region">País ou região<input id="commerce-region" maxlength="80" value="Brasil" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<label for="commerce-account-label">Identificação (opcional)<input id="commerce-account-label" maxlength="100" placeholder="Ex.: conta principal" style="width:100%;padding:11px;border-radius:9px;background:#202020;border:1px solid #555;color:#fff"></label>
+<button id="commerce-account-add" type="button">Salvar cadastro</button>
+<p id="commerce-account-status" role="status" aria-live="polite"></p>
+</div></details>
+<button id="commerce-accounts-refresh" type="button" class="secondary" style="margin-top:10px">Atualizar lista</button>
+<div class="notice">Segurança: este cadastro não solicita senha, token ou chave de API. Nunca informe credenciais neste painel ou no chat. A mesma plataforma pode exigir aprovações separadas para afiliado, vendedor e dropshipping.</div>
+</div></div>
 <div class="resource-section" id="campaign-performance"><h3>📊 Laboratório de desempenho e otimização</h3><div class="card">
 <p>Registre resultados reais das campanhas. A IA calcula indicadores, aponta gargalos e sugere o próximo teste. Não confunda faturamento com lucro: informe valores em reais.</p>
 <form id="campaign-metrics-form" style="display:grid;gap:10px;margin-top:14px">
@@ -2059,6 +2076,71 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
   const copy=document.createElement('button');copy.type='button';copy.className='secondary';copy.textContent='Copiar resultado';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(report);copy.textContent='Copiado';}catch(_){copy.textContent='Cópia não disponível';}});output.append(copy);
   button.disabled=false;button.textContent='Executar diagnóstico novamente';
  });
+})();
+</script>
+
+<script>
+/* Cadastro comercial: usa somente a sessão autenticada e nunca armazena credenciais externas. */
+(()=> {
+ const api='https://central-ia-worker.adryanru2207.workers.dev';
+ const $=id=>document.getElementById(id);
+ const list=$('commerce-accounts-list'), summary=$('commerce-accounts-summary');
+ const add=$('commerce-account-add'), refresh=$('commerce-accounts-refresh');
+ if(!list||!add||add.dataset.bound)return;
+ add.dataset.bound='1';
+ const token=()=>localStorage.getItem('central_ia_session_v1');
+ const headers=()=>({Authorization:'Bearer '+token(),'Content-Type':'application/json'});
+ const labels={affiliate:'Afiliado',seller:'Vendedor',dropshipping:'Dropshipping'};
+ const esc=value=>String(value??'');
+ function metric(label,value){const box=document.createElement('div');box.style.cssText='padding:10px;border:1px solid #46598a;border-radius:10px;background:#17213b';const b=document.createElement('b');b.textContent=String(value);const small=document.createElement('small');small.textContent=label;small.style.display='block';box.append(b,small);return box;}
+ async function load(){
+  if(!token()){list.textContent='Entre na plataforma para consultar os cadastros.';return;}
+  list.textContent='Carregando cadastros…';
+  try{
+   const response=await fetch(api+'/commerce/accounts',{headers:headers(),cache:'no-store'});
+   const data=await response.json().catch(()=>({}));
+   if(response.status===401){list.textContent='Sessão expirada. Entre novamente para consultar as contas.';return;}
+   if(!response.ok)throw Error(data.error||'Falha ao consultar cadastros.');
+   summary.replaceChildren();
+   const counts=data.summary||{};
+   [['Total',counts.total||0],['Afiliados',counts.affiliate||0],['Vendedores',counts.seller||0],['Dropshipping',counts.dropshipping||0],['Conexões confirmadas',counts.connected||0]].forEach(([label,value])=>summary.append(metric(label,value)));
+   list.replaceChildren();
+   const accounts=Array.isArray(data.accounts)?data.accounts:[];
+   if(!accounts.length){const empty=document.createElement('p');empty.textContent='Nenhuma conta cadastrada. Adicione uma plataforma quando quiser organizar uma conta existente.';list.append(empty);return;}
+   for(const item of accounts){
+    const card=document.createElement('article');card.style.cssText='padding:12px;border:1px solid #46598a;border-radius:12px;background:#17213b';
+    const title=document.createElement('strong');title.textContent=esc(item.platform_name);
+    const meta=document.createElement('p');meta.style.cssText='margin:5px 0;color:#cbd5e1!important';meta.textContent=(labels[item.business_model]||item.business_model)+' · '+esc(item.region)+(item.account_label?' · '+esc(item.account_label):'');
+    const state=document.createElement('small');state.textContent='Conexão: '+(item.connection_status==='connected'?'conectada (status cadastrado)':item.connection_status==='needs_authorization'?'aguardando autorização':'não conectada')+' · Aprovação: '+(item.approval_status||'desconhecida');
+    card.append(title,meta,state);list.append(card);
+   }
+  }catch(error){list.textContent=error.message||'Não foi possível carregar a lista.';}
+ }
+ add.addEventListener('click',async()=>{
+  const name=$('commerce-platform-name').value.trim();
+  const model=$('commerce-model').value;
+  const region=$('commerce-region').value.trim();
+  const label=$('commerce-account-label').value.trim();
+  const status=$('commerce-account-status');
+  if(!name||!region){status.textContent='Informe a plataforma e o país/região.';return;}
+  if(!token()){status.textContent='Entre novamente para salvar.';return;}
+  const platformId=name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,60);
+  add.disabled=true;status.textContent='Salvando cadastro…';
+  try{
+   const response=await fetch(api+'/commerce/accounts',{method:'POST',headers:headers(),body:JSON.stringify({platform_id:platformId,platform_name:name,business_model:model,region,account_label:label,connection_status:'not_started',approval_status:'unknown',capabilities:[],notes:''})});
+   const data=await response.json().catch(()=>({}));
+   if(response.status===401)throw Error('Sessão expirada. Entre novamente.');
+   if(!response.ok)throw Error(data.error||'Não foi possível salvar o cadastro.');
+   status.textContent='Cadastro salvo. A plataforma ainda não está conectada.';
+   $('commerce-platform-name').value='';$('commerce-account-label').value='';
+   await load();
+  }catch(error){status.textContent=error.message||'Falha ao salvar.';}
+  finally{add.disabled=false;}
+ });
+ refresh?.addEventListener('click',load);
+ const observer=new MutationObserver(()=>{if(!document.body.classList.contains('auth-locked'))load();});
+ observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+ if(!document.body.classList.contains('auth-locked'))load();
 })();
 </script>
 
