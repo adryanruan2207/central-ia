@@ -6,7 +6,7 @@ const worker = await readFile(new URL("../worker/src/index.js", import.meta.url)
 
 test("datas futuras não tornam pesquisa de produto artificialmente recente", () => {
   const freshnessChecks = worker.match(/const researchTimestampValid = Number\.isFinite\(lastResearchedAtMs\) && lastResearchedAtMs <= Date\.now\(\);/g) || [];
-  assert.equal(freshnessChecks.length, 2, "shortlist e campaign readiness devem rejeitar timestamps futuros");
+  assert.equal(freshnessChecks.length, 3, "shortlist, campaign readiness e campaign kit devem rejeitar timestamps futuros");
   assert.match(worker, /const researchAgeDays = researchTimestampValid \? Math\.floor\(\(Date\.now\(\) - lastResearchedAtMs\) \/ 86400000\) : null/);
   assert.match(worker, /const researchIsOld = researchAgeDays === null \|\| researchAgeDays > 7/);
 });
