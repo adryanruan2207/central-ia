@@ -1742,6 +1742,13 @@ async function checkAffiliateCampaignReadiness(){
  try{
   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/campaign-readiness',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível verificar a prontidão.');
+  let awinConnection={configured:false,connected:false,missing:[]};
+  try{
+   const awinResponse=await fetch('https://central-ia-worker.adryanru2207.workers.dev/integrations/awin/status',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+   const awinData=await awinResponse.json().catch(()=>({}));
+   if(awinResponse.ok||awinResponse.status===502||awinResponse.status===503)awinConnection=awinData;
+   else awinConnection={configured:false,connected:false,error:'Não foi possível consultar a conexão Awin.'};
+  }catch{awinConnection={configured:false,connected:false,error:'Falha de comunicação ao consultar Awin.'};}
   let programResearch=[];
   try{
    const researchResponse=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/program-research',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
@@ -1753,6 +1760,19 @@ async function checkAffiliateCampaignReadiness(){
    if(!entry.program_id||latestResearchByProgram.has(entry.program_id))continue;
    latestResearchByProgram.set(entry.program_id,entry);
   }
+  const connectionPanel=document.createElement('section');connectionPanel.style.cssText='margin:12px 0;padding:13px;border:1px solid #475569;border-radius:12px;background:#202b35';
+  const connectionTitle=document.createElement('b');connectionTitle.textContent='Conexão do programa Awin';connectionPanel.append(connectionTitle);
+  const connectionState=document.createElement('p');connectionState.style.cssText='font-size:.86rem;margin:7px 0;color:'+(awinConnection.connected?'#9cdeb1':'#f2c98b')+'!important';
+  connectionState.textContent=awinConnection.connected?'Conexão confirmada pela API Awin.':'Conexão ainda não confirmada.';
+  connectionPanel.append(connectionState);
+  const connectionDetail=document.createElement('p');connectionDetail.style.cssText='font-size:.8rem;color:#cbd5e1!important;margin:4px 0';
+  if(awinConnection.connected)connectionDetail.textContent='Token aceito e conta Publisher localizada. A aprovação para cada anunciante e a participação de cada produto ainda precisam ser verificadas separadamente.';
+  else if(Array.isArray(awinConnection.missing)&&awinConnection.missing.length)connectionDetail.textContent='Configuração pendente no Cloudflare: '+awinConnection.missing.map(key=>key==='AWIN_API_TOKEN'?'token da API Awin':'ID numérico Publisher').join(' e ')+'. Os valores secretos não são exibidos aqui.';
+  else connectionDetail.textContent=awinConnection.error||awinConnection.notice||'Confira a conta Publisher, as permissões do token e o ID numérico configurado no Worker.';
+  connectionPanel.append(connectionDetail);
+  const approvalNote=document.createElement('p');approvalNote.style.cssText='font-size:.78rem;color:#cbd5e1!important;margin:6px 0 0';
+  approvalNote.textContent='Conexão técnica não significa aprovação em anunciantes, comissão confirmada ou autorização para divulgar produtos.';
+  connectionPanel.append(approvalNote);results.append(connectionPanel);
   status.textContent=data.count+' produtos verificados • '+data.ready+' prontos para automação • '+data.blocked+' bloqueados • '+programResearch.length+' pesquisas oficiais registradas. '+data.notice;
   if(programResearch.length){
    const panel=document.createElement('section');panel.style.cssText='margin:12px 0;padding:13px;border:1px solid #475569;border-radius:12px;background:#202b35';
