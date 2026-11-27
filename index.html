@@ -1782,7 +1782,11 @@ async function checkAffiliateCampaignReadiness(){
    for(const program of affiliatePrograms){
     const row=document.createElement('div');row.style.cssText='padding:9px 0;border-top:1px solid #475569';
     const name=document.createElement('b');name.textContent=program.name+' • '+(program.status||'pesquisa');row.append(name);
-    const meta=document.createElement('p');meta.style.cssText='font-size:.78rem;color:#cbd5e1!important;margin:3px 0';meta.textContent=(program.region||'Região não informada')+' • '+(program.category||'Categoria não informada')+' • '+(program.latest_research?.status||'ainda sem pesquisa registrada');row.append(meta);
+    const meta=document.createElement('p');meta.style.cssText='font-size:.78rem;color:#cbd5e1!important;margin:3px 0';
+    const researchLabel=program.latest_research?.status==='official_sources_found'?'fontes oficiais localizadas':program.latest_research?.status==='no_official_sources_found'?'nenhuma fonte oficial localizada':'pesquisa ainda não registrada';
+    const signupLabel=program.signup_url&&/^https:\/\//i.test(program.signup_url)?'cadastro oficial disponível':'cadastro não validado';
+    const integrationLabel=program.id==='awin'?(awinConnection.connected?'conexão técnica confirmada':'integração disponível; conexão pendente'):'integração automática ainda não implementada';
+    meta.textContent=(program.region||'Região não informada')+' • '+(program.category||'Categoria não informada')+' • '+researchLabel+' • '+signupLabel+' • '+integrationLabel+' • aprovação não verificada';row.append(meta);
     if(program.signup_url){let signup;try{signup=new URL(program.signup_url)}catch{}if(signup&&signup.protocol==='https:'){const link=document.createElement('a');link.href=signup.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='Página oficial de cadastro';link.style.cssText='font-size:.8rem';row.append(link);}}
     catalogPanel.append(row);
    }
