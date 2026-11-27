@@ -671,6 +671,10 @@ test("campaign readiness bloqueia produtos com dados desatualizados ou sem data 
 test("frescor de produto depende de pesquisa real no catálogo, não da data de cadastro ou edição", () => {
   assert.match(worker, /event = 'affiliate_product_researched'/);
   assert.match(worker, /product_id: exists\.id/);
+  assert.match(worker, /latest_research_details/);
+  assert.match(worker, /hasCatalogResearch/);
+  assert.match(worker, /latestResearch\.observed_price/);
+  assert.match(worker, /latestResearch\.observed_sales/);
   assert.match(worker, /source: "mercado_livre_public_catalog"/);
   assert.match(worker, /last_researched_at/);
   assert.match(worker, /research_age_days: researchAgeDays/);
