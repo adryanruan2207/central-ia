@@ -1740,8 +1740,30 @@ async function checkAffiliateCampaignReadiness(){
  try{
   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/campaign-readiness',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível verificar a prontidão.');
-  status.textContent=data.count+' produtos verificados • '+data.ready+' prontos para automação • '+data.blocked+' bloqueados. '+data.notice;
-  if(!data.products?.length){results.textContent='Nenhum produto cadastrado.';return;}
+  let programResearch=[];
+  try{
+   const researchResponse=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/program-research',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+   const researchData=await researchResponse.json().catch(()=>({}));
+   if(researchResponse.ok)programResearch=Array.isArray(researchData.research)?researchData.research:[];
+  }catch{}
+  status.textContent=data.count+' produtos verificados • '+data.ready+' prontos para automação • '+data.blocked+' bloqueados • '+programResearch.length+' pesquisas oficiais registradas. '+data.notice;
+  if(programResearch.length){
+   const panel=document.createElement('section');panel.style.cssText='margin:12px 0;padding:13px;border:1px solid #475569;border-radius:12px;background:#202b35';
+   const heading=document.createElement('b');heading.textContent='Pesquisa automática de programas de afiliados';panel.append(heading);
+   const note=document.createElement('p');note.style.cssText='font-size:.8rem;color:#cbd5e1!important';note.textContent='Fontes oficiais encontradas são referências para conferência; não confirmam comissão, elegibilidade ou aprovação.';panel.append(note);
+   for(const entry of programResearch.slice(0,12)){
+    const item=document.createElement('div');item.style.cssText='padding:8px 0;border-top:1px solid #475569';
+    const name=document.createElement('b');name.textContent=(entry.program_name||entry.program_id||'Programa')+' • '+(entry.status||'sem status');item.append(name);
+    for(const source of (Array.isArray(entry.results)?entry.results:[]).slice(0,3)){
+     let parsed;try{parsed=new URL(source.url)}catch{}
+     if(!parsed||parsed.protocol!=='https:')continue;
+     const link=document.createElement('a');link.href=parsed.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent=source.title||'Abrir fonte oficial';link.style.cssText='display:block;font-size:.82rem;margin-top:5px';item.append(link);
+    }
+    panel.append(item);
+   }
+   results.append(panel);
+  }
+  if(!data.products?.length){const empty=document.createElement('p');empty.textContent='Nenhum produto cadastrado.';results.append(empty);return;}
   for(const item of data.products){
    const card=document.createElement('article');card.style.cssText='padding:13px;border:1px solid #454545;border-radius:12px;background:#292929';
    const title=document.createElement('b');title.textContent=item.name+' — '+item.marketplace;card.append(title);
