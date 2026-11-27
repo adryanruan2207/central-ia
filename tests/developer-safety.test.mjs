@@ -652,3 +652,16 @@ test("shortlist bloqueia avaliação de campanha quando os dados do produto est�
   assert.match(route, /data_freshness: dataIsStale \? "stale_or_unknown" : "current_within_7_days"/);
   assert.match(route, /research_only: true/);
 });
+
+
+test("campaign readiness bloqueia produtos com dados desatualizados ou sem data confiável", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
+  const end = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', start);
+  const route = worker.slice(start, end);
+  assert.match(route, /p\.updated_at/);
+  assert.match(route, /const dataAgeDays =/);
+  assert.match(route, /const dataIsStale = dataAgeDays === null \|\| dataAgeDays > 7/);
+  assert.match(route, /Dados desatualizados ou sem data confiável/);
+  assert.match(route, /data_freshness: dataIsStale \? "stale_or_unknown" : "current_within_7_days"/);
+  assert.match(route, /campaign_status: ready \? "ready" : "blocked"/);
+});
