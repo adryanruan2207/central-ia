@@ -1452,6 +1452,18 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       ]);
       const supplierEvidencePattern = /dropship(?:ping)?|drop shipping|envio direto|fulfillment|fulfilment|atacad\w*|distribuidor\w*|fabricante\w*|pedido m[ií]nimo|lojista\w*|revend\w*/i;
       let rejected = 0;
+      const parsePublishedTerms = (text, sourceUrl, observedAt) => {
+        const source = String(text || "").slice(0, 1800);
+        const field = (pattern, group = 1) => { const match = source.match(pattern); return match?.[group] ? String(match[group]).trim().slice(0, 120) : null; };
+        const minimumOrder = field(/(?:MOQ|pedido mínimo|quantidade mínima)\s*(?:[：:]|de)?\s*(\d[\d.,]*)\s*(unidades?|peças?|pcs?|units?)?/i);
+        const listedPrice = field(/(?:R\$|US\$|USD\s*|EUR\s*|€\s*|£\s*|\$\s*)(\d[\d.,]*)/i);
+        const currencyMatch = source.match(/(R\$|US\$|USD|EUR|€|£|\$)/i);
+        const deliveryTime = field(/(?:prazo de entrega|entrega|delivery|shipping time)[^\n.;]{0,70}?(\d{1,3}(?:\s*(?:a|até|-)\s*\d{1,3})?\s*(?:dias?|days?|semanas?|weeks?))/i);
+        const shippingRegions = field(/(?:entrega|envio|shipping|delivery)\s+(?:para|to|em)\s+([^.;\n]{2,90})/i);
+        const returnsEvidence = field(/((?:devolu\w*|troca\w*|return policy|refund policy)[^.;\n]{0,100})/i);
+        const makeField = value => ({status:value ? "published_evidence_found" : "not_found", value:value || null, source_url:sourceUrl, observed_at:observedAt});
+        return { minimum_order:makeField(minimumOrder), listed_price:{...makeField(listedPrice),currency:currencyMatch?.[1] || null}, delivery_time:makeField(deliveryTime), shipping_regions:makeField(shippingRegions), returns_policy_evidence:makeField(returnsEvidence), total_landed_cost:{status:"not_calculated",value:null,reason:"Preço e frete finais não foram confirmados diretamente com o fornecedor."} };
+      };
       const suppliers = search.results.flatMap(item => {
         let parsed;
         try { parsed = new URL(item.url); } catch { rejected++; return []; }
@@ -1462,14 +1474,17 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
           rejected++;
           return [];
         }
+        const observedAt = new Date().toISOString();
         return [{
           name: String(item.title).slice(0, 180),
           website: parsed.origin,
           source_url: item.url,
           evidence: String(item.content || "").slice(0, 1400),
           published_date: item.published_date || null,
+          terms_observed_at: observedAt,
+          published_terms: parsePublishedTerms(evidenceText, item.url, observedAt),
           verification_status: "unverified",
-          verification: "não verificado — confirmar CNPJ/registro, endereço, reputação, contrato, amostras, estoque, preços e condições diretamente com a empresa"
+          verification: "não verificado — evidências extraídas de texto público; confirmar CNPJ/registro, endereço, reputação, contrato, amostras, estoque, preços e condições diretamente com a empresa"
         }];
       });
       await record(env, "affiliate_supplier_research", JSON.stringify({
