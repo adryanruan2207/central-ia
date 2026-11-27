@@ -683,3 +683,30 @@ test("frescor de produto depende de pesquisa real no catálogo, não da data de 
   assert.match(worker, /&& !researchIsOld/);
   assert.doesNotMatch(worker, /recordAgeDays|recordIsOld/);
 });
+
+
+test("verificação de comissão Awin usa grupo oficial e só grava percentual confirmado", () => {
+  const start = worker.indexOf('if (url.pathname === "/integrations/awin/verify-product-commission" && request.method === "POST")');
+  const end = worker.indexOf('if (url.pathname === "/integrations/awin/commission-groups"', start);
+  const route = worker.slice(start, end);
+  assert.notEqual(start, -1);
+  assert.match(route, /api\.awin\.com/);
+  assert.match(route, /group\.groupId/);
+  assert.match(route, /group\.type.*percentage/);
+  assert.match(route, /officialRate > 0 \|\| officialRate > 100/);
+  assert.match(route, /UPDATE affiliate_products SET commission_rate = \?, commission_source_url = \?, updated_at = \? WHERE id = \?/);
+  assert.match(route, /awin_product_commission_verified/);
+  assert.match(route, /verified_from_awin_api/);
+  assert.match(route, /Nenhuma taxa percentual foi gravada/);
+  assert.doesNotMatch(route, /env\.AWIN_API_TOKEN\s*[,}]|console\.(?:log|error).*AWIN_API_TOKEN/);
+});
+
+test("prontidão diferencia taxa Awin verificada de URL apenas informada", () => {
+  const start = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
+  const end = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', start);
+  const route = worker.slice(start, end);
+  assert.match(route, /awin_product_commission_verified/);
+  assert.match(route, /awinVerificationFresh/);
+  assert.match(route, /commission_source_verification: awinVerificationFresh \? "verified_from_awin_api"/);
+  assert.match(route, /commission_verified_at/);
+});
