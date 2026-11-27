@@ -597,7 +597,7 @@ test("referência de comissão é explicitamente tratada como não verificada", 
   const readinessStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-readiness" && request.method === "GET")');
   const readinessEnd = worker.indexOf('if (url.pathname.startsWith("/affiliates/products/")', readinessStart);
   const readiness = worker.slice(readinessStart, readinessEnd);
-  assert.match(readiness, /commission_source_verification: commissionVerified \\? "verified_from_awin_api".*provided_not_verified.*missing/);
+  assert.match(readiness, /commission_source_verification: commissionVerified \? "verified_from_awin_api".*provided_not_verified.*missing/);
   assert.match(readiness, /Comissão não confirmada recentemente pela API oficial Awin/);
   assert.match(readiness, /URLs e taxas informadas não são prova verificada/);
   const kitStart = worker.indexOf('if (url.pathname === "/affiliates/campaign-kit" && request.method === "POST")');
