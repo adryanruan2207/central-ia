@@ -282,13 +282,13 @@ test("validador TOML rejeita cron inválido e data de compatibilidade alterada",
   assert.equal(validateWranglerCandidate(badDate).reason, "unsupported_or_invalid_value");
 });
 
-test("cron reduz consultas D1 e mantém auditoria completa periódica", () => {
+test("cron executa autoverificação completa em cada ciclo de cinco minutos", () => {
   assert.ok(wrangler.includes('crons = ["*/5 * * * *"]'));
   const scheduledStart = worker.indexOf("async scheduled(event, env, ctx)");
-  const scheduled = worker.slice(scheduledStart);
-  assert.match(scheduled, /utcMinute % 15 === 0/);
-  assert.match(scheduled, /runMinuteHealthAudit\(env, now\)/);
-  assert.match(scheduled, /Verificação automática da fila executada/);
+  const scheduled = worker.slice(scheduledStart, scheduledStart + 1800);
+  assert.match(scheduled, /await runMinuteHealthAudit\(env, now\)/);
+  assert.match(scheduled, /await record\(env, "scheduled_check"/);
+  assert.doesNotMatch(scheduled, /utcMinute % 15/);
 });
 
 test("validador TOML aceita comentários e linhas vazias sem alterar a configuração", () => {
@@ -743,12 +743,3 @@ test("pesquisa oficial é associada ao produto pelo identificador do programa", 
   assert.match(ui, /sourceLink\.rel='noopener noreferrer'/);
 });
 
-
-test("autoverificação completa acompanha cada execução do cron de cinco minutos", () => {
-  const scheduledStart = worker.indexOf("async scheduled(event, env, ctx)");
-  assert.notEqual(scheduledStart, -1);
-  const scheduledSection = worker.slice(scheduledStart, scheduledStart + 1800);
-  assert.match(scheduledSection, /await runMinuteHealthAudit\(env, now\)/);
-  assert.match(scheduledSection, /await record\(env, "scheduled_check"/);
-  assert.doesNotMatch(scheduledSection, /utcMinute % 15/);
-});
