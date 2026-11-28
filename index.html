@@ -466,7 +466,7 @@ body.show-chat .intro{display:flex!important}
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
   try{
-   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/auth/login',{
+   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/login',{
     method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
     body:JSON.stringify({password}),signal:controller.signal,cache:'no-store'
    });
@@ -888,7 +888,7 @@ function showPlatform(){document.body.classList.remove('auth-locked');loginScree
 async function verifySavedSession(){
  if(!sessionToken){showLogin();return;}
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/auth/session',{headers:{'Authorization':'Bearer '+sessionToken},cache:'no-store'});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/session',{headers:{'Authorization':'Bearer '+sessionToken},cache:'no-store'});
   if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');return;}
   if(!response.ok){showPlatform();chatStatus.textContent='Sessão salva. Não foi possível validar agora; tente novamente quando a conexão estabilizar.';return;}
   const data=await response.json();
@@ -909,7 +909,7 @@ async function login(event){
  try{
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);
   let response;
-  try{response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password}),signal:controller.signal,cache:'no-store'});}
+  try{response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password}),signal:controller.signal,cache:'no-store'});}
   finally{clearTimeout(timeout);}
   const raw=await response.text();let data={};
   try{data=raw?JSON.parse(raw):{};}catch{throw Error('O servidor respondeu em formato inesperado (HTTP '+response.status+').');}
@@ -942,7 +942,7 @@ async function sendChatMessage(){
  try{
   const outgoingMessage=(thinkingMore?'Responda no modo de reflexão aprofundada: analise cuidadosamente, confira os passos e explique as incertezas. ':'')+message;
   const context=[...chatHistory,{role:'user',content:outgoingMessage}].slice(-12);
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message:outgoingMessage,messages:context.slice(0,-1),image:image||undefined})});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({message:outgoingMessage,messages:context.slice(0,-1),image:image||undefined})});
   const data=await response.json().catch(()=>({error:'Resposta inválida do servidor'}));
   if(response.status===401){sessionToken='';localStorage.removeItem(SESSION_KEY);showLogin('Sua sessão expirou. Entre novamente.');throw new Error('Sua sessão expirou. Entre novamente.');}
   if(!response.ok)throw new Error(data.error||('Erro HTTP '+response.status));
@@ -976,7 +976,7 @@ function renderTasks(tasks){
 async function loadTasks(){
  if(!sessionToken){taskStatus.textContent='Entre para consultar a fila.';return;}
  taskStatus.textContent='Carregando tarefas…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/tasks',{headers:{'Authorization':'Bearer '+sessionToken}});
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/tasks',{headers:{'Authorization':'Bearer '+sessionToken}});
  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar as tarefas.');
  renderTasks(Array.isArray(data.tasks)?data.tasks:[]);taskStatus.textContent='Fila atualizada.';
  }catch(error){taskStatus.textContent=error.message;}
@@ -984,7 +984,7 @@ async function loadTasks(){
 taskForm?.addEventListener('submit',async event=>{
  event.preventDefault();const title=taskTitle.value.trim();if(!title)return;
  taskSubmit.disabled=true;taskStatus.textContent='Registrando tarefa na nuvem…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/tasks',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({title,task_type:taskType.value,requires_approval:taskApproval.checked})});
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/tasks',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({title,task_type:taskType.value,requires_approval:taskApproval.checked})});
  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível registrar a tarefa.');
  taskTitle.value='';taskStatus.textContent=data.message||'Tarefa registrada.';await loadTasks();
  }catch(error){taskStatus.textContent=error.message;}finally{taskSubmit.disabled=false;}
@@ -1017,7 +1017,7 @@ async function checkPublicWorkerHealth(){
  const line=document.getElementById('worker-health-public');
  if(!line)return;
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/health',{},2);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/health',{},2);
   const schema=data.database?.schema_ready===true?'tabelas essenciais OK':data.database?.schema_ready===false?'faltam tabelas essenciais':'estrutura não verificada';
   const componentNames={database:'Banco/estrutura D1',workers_ai:'Workers AI',web_research:'pesquisa Tavily'};
   const missing=(Array.isArray(data.missing_components)?data.missing_components:[]).map(name=>componentNames[name]||name);
@@ -1035,7 +1035,7 @@ async function createDeveloperPlan(){
  if(!command){status.textContent='Descreva a melhoria que deseja analisar.';return;}
  button.disabled=true;status.textContent='Analisando módulos, tarefas e falhas recentes…';output.textContent='';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/plan',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({command})},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/plan',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({command})},1);
   output.textContent=data.plan||'A IA não retornou um plano.';
   status.textContent='Plano técnico criado • modo somente leitura • nenhuma alteração ou publicação foi executada.';
  }catch(error){status.textContent='Não foi possível criar o plano: '+(error.message||'erro desconhecido');}
@@ -1048,7 +1048,7 @@ async function loadDeveloperPlanHistory(){
  if(!sessionToken){status.textContent='Entre para consultar o histórico.';return;}
  target.textContent='Carregando histórico…';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/plans?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/plans?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
   target.replaceChildren();
   if(!data.plans?.length){target.textContent='Nenhum plano salvo ainda.';return;}
   for(const item of data.plans){
@@ -1072,7 +1072,7 @@ async function runDeveloperRepositoryAudit(){
  if(!sessionToken){status.textContent='Entre para executar a auditoria.';return;}
  button.disabled=true;status.textContent='Inspecionando arquivos públicos do repositório…';target.replaceChildren();
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/audit',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/audit',{headers:{'Authorization':'Bearer '+sessionToken}},1);
   status.textContent=(data.ok?'Auditoria concluída: ':'Auditoria encontrou pontos pendentes: ')+data.passed+'/'+data.total+' verificações aprovadas. Modo somente leitura.';
   for(const file of (data.files||[])){
    const section=document.createElement('section');section.style.cssText='margin:8px 0;padding:10px;border:1px solid #52659a;border-radius:10px';
@@ -1100,7 +1100,7 @@ async function createDeveloperChangeProposal(){
  if(!request){status.textContent='Descreva a alteração desejada.';return;}
  button.disabled=true;status.textContent='Preparando proposta técnica…';output.replaceChildren();
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposal',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({request})},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/proposal',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({request})},1);
   renderDeveloperProposal(output,data.proposal,'Proposta salva para revisão • nenhuma alteração foi aplicada.');
  }catch(error){status.textContent='Não foi possível preparar a proposta: '+(error.message||'erro');}
  finally{button.disabled=false;}
@@ -1111,7 +1111,7 @@ async function prepareDeveloperPatch(proposalId){
  if(!window.confirm('Preparar um patch de revisão? O código original não será alterado nem publicado.'))return;
  status.textContent='Preparando patch candidato…';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patch/prepare',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({proposal_id:proposalId})},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/patch/prepare',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({proposal_id:proposalId})},1);
   const card=document.createElement('section');card.style.cssText='margin-top:12px;padding:10px;border:1px solid #52659a;border-radius:10px';
   const heading=document.createElement('strong');heading.textContent='Patch candidato • '+data.path+' • não aplicado';card.append(heading);
   const pre=document.createElement('pre');pre.textContent=data.diff;pre.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere;max-height:420px;overflow:auto;font-size:12px';card.append(pre);
@@ -1122,7 +1122,7 @@ async function loadDeveloperPatchVerificationHistory(patchId,resultNode,button){
  if(!sessionToken){resultNode.textContent='Entre para consultar o histórico.';return;}
  button.disabled=true;resultNode.textContent='Carregando verificações anteriores…';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patch/verification-history?patch_id='+encodeURIComponent(patchId),{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/patch/verification-history?patch_id='+encodeURIComponent(patchId),{headers:{'Authorization':'Bearer '+sessionToken}},1);
   resultNode.replaceChildren();
   if(!data.verifications?.length){resultNode.textContent='Este patch ainda não possui verificações registradas.';return;}
   const heading=document.createElement('strong');heading.textContent='Últimas '+data.count+' verificações';resultNode.append(heading);
@@ -1141,7 +1141,7 @@ async function verifyDeveloperPatch(patchId,resultNode,button){
  if(!sessionToken){resultNode.textContent='Entre para verificar o patch.';return;}
  button.disabled=true;resultNode.textContent='Verificando hash, configurações e arquivo original…';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patch/verify',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({patch_id:patchId})},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/patch/verify',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({patch_id:patchId})},1);
   resultNode.replaceChildren();
   const heading=document.createElement('strong');heading.textContent=data.verified?'Verificação estática aprovada':'Verificação estática com pendências';resultNode.append(heading);
   const list=document.createElement('ul');
@@ -1157,7 +1157,7 @@ async function loadDeveloperPatchHistory(){
  if(!sessionToken){status.textContent='Entre para consultar o histórico de patches.';return;}
  status.textContent='Consultando histórico e integridade dos patches…';output.replaceChildren();
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/patches?limit=20',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/patches?limit=20',{headers:{'Authorization':'Bearer '+sessionToken}},1);
   if(!data.patches?.length){status.textContent='Nenhum patch candidato salvo.';return;}
   status.textContent='Últimos '+data.count+' patches • arquivo atual '+(data.integrity_checked?'verificado por SHA-256':'não pôde ser verificado agora')+'.';
   for(const patch of data.patches){
@@ -1182,7 +1182,7 @@ async function reviewDeveloperProposal(proposalId,decision){
  if(!window.confirm(message))return;
  status.textContent='Registrando decisão…';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposal/review',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({proposal_id:proposalId,decision})},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/proposal/review',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({proposal_id:proposalId,decision})},1);
   status.textContent=data.message||'Decisão registrada.';await loadDeveloperChangeProposals();
  }catch(error){status.textContent='Não foi possível registrar a decisão: '+(error.message||'erro');}
 }
@@ -1191,7 +1191,7 @@ async function loadDeveloperChangeProposals(){
  if(!sessionToken){status.textContent='Entre para consultar propostas.';return;}
  status.textContent='Carregando propostas…';output.replaceChildren();
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/developer/proposals?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/developer/proposals?limit=10',{headers:{'Authorization':'Bearer '+sessionToken}},1);
   if(!data.proposals?.length){status.textContent='Nenhuma proposta salva.';return;}
   status.textContent='Últimas '+data.proposals.length+' propostas (somente leitura).';
   for(const item of data.proposals){
@@ -1222,7 +1222,7 @@ async function testTavilyNow(){
  if(!sessionToken){status.textContent='Entre para testar a conexão.';return;}
  button.disabled=true;button.textContent='Testando conexão…';status.textContent='Verificando se a chave está configurada e se a pesquisa responde…';
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/automation/test-tavily',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken}});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/automation/test-tavily',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken}});
   const data=await response.json().catch(()=>({}));
   if(data.ok){status.textContent='Pesquisa Tavily: CONECTADA • teste retornou '+(data.result_count||0)+' resultados • '+new Date(data.checked_at).toLocaleString('pt-BR');}
   else{status.textContent='Pesquisa Tavily: '+(data.configured?'ERRO DE CONEXÃO':'CHAVE NÃO CONFIGURADA')+' • '+(data.error||'Não foi possível validar a conexão.');}
@@ -1235,7 +1235,7 @@ async function loadAutomationStatus(){
  if(!sessionToken){automationHealth.textContent='Entre para consultar o monitoramento.';return;}
  automationHealth.textContent='Consultando status da nuvem…';
  try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/automation/status',{headers:{'Authorization':'Bearer '+sessionToken}},2);
+  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/automation/status',{headers:{'Authorization':'Bearer '+sessionToken}},2);
   automationHealth.textContent='Serviço: '+data.service+' • Execução programada: '+data.schedule+' • Autoverificação: '+(data.self_monitor?.status==='healthy'?'NORMAL':data.self_monitor?.status==='degraded'?'COM PENDÊNCIAS':'AGUARDANDO PRIMEIRA VERIFICAÇÃO')+' • Última análise: '+(data.self_monitor?.checked_at?new Date(data.self_monitor.checked_at).toLocaleTimeString('pt-BR'):'—');
    const tavilyLine=document.getElementById('automation-tavily-status');
    if(tavilyLine){const t=data.tavily_connection||{};tavilyLine.textContent='Pesquisa Tavily: '+(t.ok?'CONECTADA • '+(t.result_count||0)+' resultados no teste':'PENDENTE • '+(t.error||'Aguardando verificação'))+' • Último teste: '+(t.checked_at?new Date(t.checked_at).toLocaleString('pt-BR'):'ainda não realizado');}
@@ -1261,7 +1261,7 @@ async function loadAutomationStatus(){
     const supplierText=supplierDiscovery?(supplierDiscovery.status==='completed'?'Pesquisa de fornecedores: '+new Date(supplierDiscovery.last_run).toLocaleString('pt-BR')+'. ':'Pesquisa de fornecedores apresentou erro. '):'Pesquisa de fornecedores aguardando primeira execução. ';
     pipeline.textContent=discoveryText+supplierText+'Esteira: '+(p.products_registered||0)+' produtos candidatos • '+(p.supplier_leads||0)+' fornecedores para validar • '+programTotal+' programas de afiliados • '+publicationTotal+' conteúdos na fila. A CENTRAL IA pesquisa múltiplos caminhos de afiliação e fornecedores para venda sem estoque; leads ainda exigem diligência antes de fechar parceria.';
     try{
-     const {data:integrationsData}=await fetchJsonWithRetry('https://central-ia-worker.adryanru2207.workers.dev/integrations/affiliate',{headers:{'Authorization':'Bearer '+sessionToken}},2);
+     const {data:integrationsData}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/integrations/affiliate',{headers:{'Authorization':'Bearer '+sessionToken}},2);
      if(Array.isArray(integrationsData.integrations)){
       const connected=integrationsData.integrations.filter(x=>x.credentials_configured).length;
       const pending=integrationsData.integrations.filter(x=>x.status==='connection_required').length;
@@ -1351,7 +1351,7 @@ function renderCampaignKpis(data){
 }
 async function loadCampaignMetrics(){
  if(!sessionToken){campaignMetricsStatus.textContent='Entre novamente para consultar o histórico.';return;}
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/marketing/campaign-metrics',{headers:{'Authorization':'Bearer '+sessionToken}});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar o histórico.');
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/campaign-metrics',{headers:{'Authorization':'Bearer '+sessionToken}});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar o histórico.');
  campaignMetricsHistory.replaceChildren();const rows=data.campaigns||[];if(!rows.length){campaignMetricsHistory.textContent='Nenhuma campanha registrada ainda.';return;}
  for(const item of rows){const card=document.createElement('div');card.style.cssText='background:#202020;border:1px solid #454545;border-radius:9px;padding:11px';const title=document.createElement('strong');title.textContent=item.campaign_name+' · '+item.platform;const details=document.createElement('div');details.style.cssText='font-size:13px;opacity:.85;margin-top:5px';details.textContent=new Date(item.created_at).toLocaleString('pt-BR')+' | '+item.impressions.toLocaleString('pt-BR')+' impressões | '+item.clicks+' cliques | '+item.conversions+' conversões | CTR '+item.ctr+'% | Receita '+campaignMoney(item.revenue)+' | Gasto '+campaignMoney(item.spend);card.append(title,details);campaignMetricsHistory.append(card);}
  }catch(error){campaignMetricsHistory.textContent=error.message;}
@@ -1360,7 +1360,7 @@ campaignMetricsForm?.addEventListener('submit',async event=>{
  event.preventDefault();if(!sessionToken){campaignMetricsStatus.textContent='Entre novamente para registrar resultados.';return;}
  const payload={campaign_name:document.getElementById('campaign-metrics-name').value.trim(),platform:document.getElementById('campaign-metrics-platform').value,impressions:Number(document.getElementById('campaign-metrics-impressions').value),clicks:Number(document.getElementById('campaign-metrics-clicks').value),spend:Number(document.getElementById('campaign-metrics-spend').value),conversions:Number(document.getElementById('campaign-metrics-conversions').value),revenue:Number(document.getElementById('campaign-metrics-revenue').value)};
  const submit=document.getElementById('campaign-metrics-submit');submit.disabled=true;campaignMetricsStatus.textContent='Calculando indicadores e preparando diagnóstico da IA…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/marketing/campaign-metrics',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível analisar a campanha.');
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/campaign-metrics',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível analisar a campanha.');
  renderCampaignKpis(data);campaignMetricsAnalysis.textContent=data.ai_analysis+'\\n\\nNOTA: '+data.notice;campaignMetricsAnalysis.style.display='block';campaignMetricsStatus.textContent='Resultados registrados no histórico da CENTRAL IA.';await loadCampaignMetrics();
  }catch(error){campaignMetricsStatus.textContent=error.message;}
  finally{submit.disabled=false;}
@@ -1376,7 +1376,7 @@ competitorAnalysisForm?.addEventListener('submit',async event=>{
  const payload={product:document.getElementById('competitor-product').value.trim(),competitor:document.getElementById('competitor-name').value.trim(),reference_url:document.getElementById('competitor-url').value.trim(),audience:document.getElementById('competitor-audience').value.trim(),platform:document.getElementById('competitor-platform').value,own_ad:document.getElementById('competitor-own-ad').value.trim()};
  const submit=document.getElementById('competitor-analysis-submit');submit.disabled=true;competitorAnalysisStatus.textContent='Pesquisando referências públicas e comparando estratégias…';competitorAnalysisResult.style.display='none';competitorAnalysisSources.replaceChildren();
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/marketing/competitor-analysis',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/competitor-analysis',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Falha na análise competitiva.');
   competitorAnalysisResult.textContent=data.analysis+'\\n\\nOBSERVAÇÃO: '+data.notice;competitorAnalysisResult.style.display='block';latestCompetitorInsights=data.analysis;document.getElementById('competitor-to-script').style.display='inline-block';
   for(const source of (data.sources||[])){if(!source.url||!/^https:\/\//.test(source.url))continue;const link=document.createElement('a');link.href=source.url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=source.title+' — consultar fonte';competitorAnalysisSources.append(link);}
@@ -1459,7 +1459,7 @@ videoScriptForm?.addEventListener('submit',async event=>{
  const payload={product:document.getElementById('video-product').value.trim(),benefits:document.getElementById('video-benefits').value.trim(),audience:document.getElementById('video-audience').value.trim(),platform:document.getElementById('video-platform').value,duration:Number(document.getElementById('video-duration').value),tone:document.getElementById('video-tone').value,price:document.getElementById('video-price').value.trim(),affiliate_url:document.getElementById('video-affiliate-url').value.trim(),competitive_insights:latestCompetitorInsights};
  const submit=document.getElementById('video-script-submit');submit.disabled=true;videoScriptStatus.textContent='A IA está criando ângulos, ganchos, cenas e testes A/B…';videoScriptResult.style.display='none';videoScriptCopy.style.display='none';
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/marketing/video-script',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/video-script',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível criar o roteiro.');
   videoScriptResult.textContent=data.script+'\\n\\nSTATUS: '+data.production_status+'\\nCHECAGEM DE FATOS OBRIGATÓRIA: '+(data.fact_check_required?'SIM':'não')+'\\nFATOS/benefícios fornecidos: '+(data.facts_provided?'sim — ainda precisam ser comprovados':'não — não alegar benefícios específicos')+'\\nIDENTIFICAÇÃO DE AFILIADO: '+(data.affiliate_disclosure_required?'obrigatória':'não informada; não alegar vínculo')+'\\n\\nCHECKLIST ANTES DE PUBLICAR:\\n'+(data.prepublication_checklist||[]).map((item,index)=>(index+1)+'. '+item).join('\\n')+'\\n\\nLIMITAÇÃO: '+data.notice;videoScriptResult.style.display='block';videoScriptCopy.style.display='inline-block';videoScriptStatus.textContent='Roteiro estratégico criado. Revise os fatos marcados para confirmação antes de usar.';
  }catch(error){videoScriptStatus.textContent=error.message;}
@@ -1482,7 +1482,7 @@ campaignPlanForm?.addEventListener('submit',async event=>{
  campaignPlanStatus.textContent='Pesquisando mercado e concorrentes e avaliando a oportunidade…';
  campaignPlanResult.style.display='none';campaignPlanSources.replaceChildren();document.getElementById('campaign-plan-to-script').style.display='none';
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/marketing/campaign-plan',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({product,audience,channel,constraints})});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/marketing/campaign-plan',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({product,audience,channel,constraints})});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||('Falha ao montar plano (HTTP '+response.status+').'));
   latestCampaignPlanProduct=product;
@@ -1510,7 +1510,7 @@ marketSearchForm?.addEventListener('submit',async event=>{
  const submit=document.getElementById('market-search-submit');submit.disabled=true;
  marketSearchStatus.textContent='Consultando anúncios do Mercado Livre…';marketSearchResults.replaceChildren();
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/market/research?q='+encodeURIComponent(query),{headers:{'Authorization':'Bearer '+sessionToken}});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/market/research?q='+encodeURIComponent(query),{headers:{'Authorization':'Bearer '+sessionToken}});
   const data=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(data.error||'Não foi possível pesquisar produtos.');
   if(!Array.isArray(data.products)||!data.products.length){marketSearchStatus.textContent='Nenhum anúncio encontrado para esta pesquisa.';return;}
@@ -1531,7 +1531,7 @@ marketSearchForm?.addEventListener('submit',async event=>{
     shortlist.disabled=true;shortlist.textContent='Salvando…';
     const notes=['Adicionado pela pesquisa pública do Mercado Livre.','Preço observado: '+(product.price===null?'não informado':product.price+' '+(product.currency||'BRL')),'Vendas informadas pelo anúncio: '+(product.sold_quantity===null?'não disponíveis':product.sold_quantity),'Sinal: '+(product.demand_signal||'sem dado') ,'Data da captura: '+new Date().toLocaleString('pt-BR')].join('\\n');
     try{
-     const saved=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/products',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name:product.title,marketplace:'mercado livre',product_url:product.permalink||'',commission_rate:null,notes})});
+     const saved=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/products',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name:product.title,marketplace:'mercado livre',product_url:product.permalink||'',commission_rate:null,notes})});
      const result=await saved.json().catch(()=>({}));if(!saved.ok)throw Error(result.error||'Não foi possível salvar.');
      shortlist.textContent=result.duplicate?'✓ Já estava na seleção':'✓ Adicionado à seleção';shortlist.style.background='#17452d';
      if(typeof loadAffiliateProducts==='function')await loadAffiliateProducts();
@@ -1551,7 +1551,7 @@ supplierForm?.addEventListener('submit',async event=>{
  const status=document.getElementById('supplier-search-status'),results=document.getElementById('supplier-search-results'),submit=document.getElementById('supplier-search-submit');
  submit.disabled=true;status.textContent='Pesquisando fontes públicas…';results.replaceChildren();
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/suppliers?q='+encodeURIComponent(query),{headers:{'Authorization':'Bearer '+sessionToken}});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/suppliers?q='+encodeURIComponent(query),{headers:{'Authorization':'Bearer '+sessionToken}});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível pesquisar fornecedores.');
   if(!Array.isArray(data.suppliers)||!data.suppliers.length){status.textContent='Nenhum resultado utilizável encontrado. Tente outra descrição.';return;}
   status.textContent='Encontrados '+data.suppliers.length+' resultados. Nenhum foi verificado ou aprovado.';
@@ -1574,7 +1574,7 @@ async function loadGlobalAffiliatePrograms(){
  if(!sessionToken){globalAffiliateStatus.textContent='Entre para consultar o catálogo.';return;}
  globalAffiliateStatus.textContent='Carregando programas globais…';
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/programs',{headers:{'Authorization':'Bearer '+sessionToken}});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/programs',{headers:{'Authorization':'Bearer '+sessionToken}});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar os programas.');
   const programs=Array.isArray(data.programs)?data.programs:[];
   globalAffiliateList.replaceChildren();globalAffiliateCount.textContent=programs.length+' programas no catálogo';
@@ -1594,7 +1594,7 @@ async function loadGlobalAffiliatePrograms(){
    select.addEventListener('change',async()=>{
     select.disabled=true;globalAffiliateStatus.textContent='Atualizando etapa de '+program.name+'…';
     try{
-     const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/programs/'+encodeURIComponent(program.id)+'/status',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({status:select.value})});
+     const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/programs/'+encodeURIComponent(program.id)+'/status',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({status:select.value})});
      const result=await response.json().catch(()=>({}));if(!response.ok)throw Error(result.error||'Falha ao atualizar etapa.');
      globalAffiliateStatus.textContent='Etapa de '+program.name+' atualizada.';
     }catch(error){globalAffiliateStatus.textContent=error.message;select.value=program.status;}
@@ -1624,7 +1624,7 @@ function renderPublications(items){
   if(item.last_error){const error=document.createElement('p');error.textContent='Detalhe: '+item.last_error;error.style.color='#ffaaaa';card.append(error);}
   if(item.status==='queued'||item.status==='paused'){
    const action=document.createElement('button');action.type='button';action.className='secondary';action.textContent=item.status==='paused'?'Retomar fila':'Pausar';action.style.marginTop='9px';
-   action.addEventListener('click',async()=>{action.disabled=true;try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/publications/'+encodeURIComponent(item.id)+'/status',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({status:item.status==='paused'?'queued':'paused'})});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível atualizar.');publicationStatus.textContent=data.message;await loadPublications();}catch(error){publicationStatus.textContent=error.message;}finally{action.disabled=false;}});
+   action.addEventListener('click',async()=>{action.disabled=true;try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications/'+encodeURIComponent(item.id)+'/status',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify({status:item.status==='paused'?'queued':'paused'})});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível atualizar.');publicationStatus.textContent=data.message;await loadPublications();}catch(error){publicationStatus.textContent=error.message;}finally{action.disabled=false;}});
    card.append(action);
   }
   publicationList.append(card);
@@ -1633,7 +1633,7 @@ function renderPublications(items){
 async function loadPublications(){
  if(!sessionToken){publicationStatus.textContent='Entre para consultar seus conteúdos.';return;}
  publicationStatus.textContent='Carregando conteúdos…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/publications',{headers:{'Authorization':'Bearer '+sessionToken}});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar conteúdos.');renderPublications(Array.isArray(data.publications)?data.publications:[]);publicationStatus.textContent='Conteúdos atualizados. A fila ainda não envia publicações externas.';}
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications',{headers:{'Authorization':'Bearer '+sessionToken}});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar conteúdos.');renderPublications(Array.isArray(data.publications)?data.publications:[]);publicationStatus.textContent='Conteúdos atualizados. A fila ainda não envia publicações externas.';}
  catch(error){publicationStatus.textContent=error.message;}
 }
 publicationForm?.addEventListener('submit',async event=>{
@@ -1641,7 +1641,7 @@ publicationForm?.addEventListener('submit',async event=>{
  const schedule=document.getElementById('publication-schedule').value;
  const payload={channel:document.getElementById('publication-channel').value,title:document.getElementById('publication-title').value.trim(),content:document.getElementById('publication-content').value.trim(),affiliate_url:document.getElementById('publication-link').value.trim(),scheduled_at:schedule?new Date(schedule).toISOString():null};
  const submit=document.getElementById('publication-submit');submit.disabled=true;publicationStatus.textContent='Salvando conteúdo na nuvem…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/publications',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível salvar.');publicationForm.reset();publicationStatus.textContent=data.message||'Conteúdo salvo.';await loadPublications();}
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/publications',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível salvar.');publicationForm.reset();publicationStatus.textContent=data.message||'Conteúdo salvo.';await loadPublications();}
  catch(error){publicationStatus.textContent=error.message;}finally{submit.disabled=false;}
 });
 document.getElementById('sidebar-resources')?.addEventListener('click',loadPublications);
@@ -1663,7 +1663,7 @@ evaluateForm?.addEventListener('submit',async event=>{
  };
  const submit=document.getElementById('affiliate-evaluate-submit');submit.disabled=true;evaluateResult.textContent='Calculando avaliação…';
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/evaluate',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/evaluate',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível avaliar.');
   const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
   evaluateResult.textContent='Pontuação: '+data.score+'/100\\nClassificação: '+data.classification+'\\nComissão estimada por venda: '+money.format(data.estimated_commission_per_sale)+'\\nRecomendação: '+data.recommendation+'\\n\\nFatores: demanda '+data.factors.demand+'/30; comissão '+data.factors.commission+'/20; concorrência '+data.factors.competition+'/15; evidências '+data.factors.evidence+'/20; risco '+data.factors.risk+'/15.\\n\\nLimitações: '+data.limitations.join(' ');
@@ -1693,7 +1693,7 @@ async function analyzeAffiliateShortlist(){
  if(!token){status.textContent='Entre novamente para analisar sua seleção.';return;}
  button.disabled=true;status.textContent='Analisando evidências dos produtos cadastrados…';results.replaceChildren();
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/shortlist/analyze',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/shortlist/analyze',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível analisar a seleção.');
   if(!Array.isArray(data.products)||!data.products.length){status.textContent='Sua seleção ainda está vazia. Pesquise produtos e use “Adicionar à seleção”.';return;}
   status.textContent=data.count+' produtos analisados. '+data.ranking_basis;
@@ -1751,11 +1751,11 @@ async function checkAffiliateCampaignReadiness(){
  if(!token){status.textContent='Entre novamente para verificar os links.';return;}
  button.disabled=true;status.textContent='Verificando links rastreáveis, comissões e aprovação dos programas…';results.replaceChildren();
  try{
-  const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/campaign-readiness',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+  const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/campaign-readiness',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
   const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível verificar a prontidão.');
   let awinConnection={configured:false,connected:false,missing:[]};
   try{
-   const awinResponse=await fetch('https://central-ia-worker.adryanru2207.workers.dev/integrations/awin/status',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
+   const awinResponse=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/integrations/awin/status',{headers:{'Authorization':'Bearer '+token,'Cache-Control':'no-cache'}});
    const awinData=await awinResponse.json().catch(()=>({}));
    if(awinResponse.ok||awinResponse.status===502||awinResponse.status===503)awinConnection=awinData;
    else awinConnection={configured:false,connected:false,error:'Não foi possível consultar a conexão Awin.'};
@@ -1892,7 +1892,7 @@ async function generateAffiliateCampaignKit(productId,card){
  try{
   for(const platform of platforms){
    status.textContent='Gerando material para '+platform.label+' ('+(created+failed+1)+'/9)…';
-   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/campaign-kit',{
+   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/campaign-kit',{
     method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
     body:JSON.stringify({product_id:productId,platform:platform.id,variation_index:platform.variation_index})
    });
@@ -1919,7 +1919,7 @@ document.getElementById('affiliate-check-readiness')?.addEventListener('click',c
 async function loadAffiliateProducts(){
  if(!sessionToken){affiliateStatus.textContent='Entre para consultar suas oportunidades.';return;}
  affiliateStatus.textContent='Carregando oportunidades…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/products',{headers:{'Authorization':'Bearer '+sessionToken}});
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/products',{headers:{'Authorization':'Bearer '+sessionToken}});
  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível carregar oportunidades.');
  renderAffiliateProducts(Array.isArray(data.products)?data.products:[]);affiliateStatus.textContent='Lista atualizada.';
  }catch(error){affiliateStatus.textContent=error.message;}
@@ -1928,7 +1928,7 @@ affiliateForm?.addEventListener('submit',async event=>{
  event.preventDefault();if(!sessionToken){affiliateStatus.textContent='Entre novamente para cadastrar.';return;}
  const payload={name:document.getElementById('affiliate-name').value.trim(),marketplace:document.getElementById('affiliate-marketplace').value,product_url:document.getElementById('affiliate-url').value.trim(),commission_rate:document.getElementById('affiliate-commission').value||null,notes:document.getElementById('affiliate-notes').value.trim()};
  const submit=document.getElementById('affiliate-submit');submit.disabled=true;affiliateStatus.textContent='Salvando oportunidade na nuvem…';
- try{const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/affiliates/products',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+ try{const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/affiliates/products',{method:'POST',headers:{'Authorization':'Bearer '+sessionToken,'Content-Type':'application/json'},body:JSON.stringify(payload)});
  const data=await response.json().catch(()=>({}));if(!response.ok)throw Error(data.error||'Não foi possível cadastrar.');
  affiliateForm.reset();affiliateStatus.textContent=data.message||'Oportunidade cadastrada.';await loadAffiliateProducts();
  }catch(error){affiliateStatus.textContent=error.message;}finally{submit.disabled=false;}
@@ -1942,7 +1942,7 @@ enable.addEventListener('click',async()=>{try{const p=await Notification.request
 
 setup();
 const inbox=document.getElementById('notifications-inbox');
-const notificationApi='https://central-ia-worker.adryanru2207.workers.dev/notifications';
+const notificationApi='https://central-ia-worker.adryanruan2207.workers.dev/notifications';
 async function pollOwnerNotifications(){
  const token=localStorage.getItem('central_ia_session_v1');
  if(!token||!inbox)return;
@@ -2006,7 +2006,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  const menuButton=$('attach-menu-button'), menu=$('attach-menu');
  const note=$('attachment-note'), status=$('chat-status'), input=$('chat-message'), send=$('send-chat'), log=$('chat-log');
  const tokenKey='central_ia_session_v1';
- const apiBase='https://central-ia-worker.adryanru2207.workers.dev';
+ const apiBase='https://central-ia-worker.adryanruan2207.workers.dev';
  let busy=false, thinking=false;
  const authHeaders=token=>({'Authorization':'Bearer '+token,'Content-Type':'application/json'});
  function drawMessage(role,content){
@@ -2060,7 +2060,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
   conversationHistory=context;
   await saveMessage('user',message,token);
   try{
-   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({message:(thinking?'Responda com reflexão aprofundada: ':'')+message,messages:context.slice(0,-1)})});
+   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/ai/chat',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({message:(thinking?'Responda com reflexão aprofundada: ':'')+message,messages:context.slice(0,-1)})});
    const data=await response.json().catch(()=>({}));
    if(response.status===401){localStorage.removeItem(tokenKey);throw Error('Sua sessão expirou. Atualize a página e entre novamente.');}
    if(!response.ok)throw Error(data.error||('O servidor respondeu com erro HTTP '+response.status+'.'));
@@ -2090,7 +2090,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
  if(topButton&&topMenu){
   topButton.addEventListener('click',e=>{e.stopPropagation();topMenu.hidden=!topMenu.hidden;topButton.setAttribute('aria-expanded',String(!topMenu.hidden));});
   topMenu.addEventListener('click',e=>{e.stopPropagation();const action=e.target.closest('[data-top-action]')?.dataset.topAction;if(!action)return;topMenu.hidden=true;topButton.setAttribute('aria-expanded','false');
-   if(action==='new'){const token=localStorage.getItem('central_ia_session_v1');if(token){fetch('https://central-ia-worker.adryanru2207.workers.dev/chat/history',{method:'DELETE',headers:{'Authorization':'Bearer '+token}}).catch(()=>{});}document.getElementById('chat-log')?.replaceChildren();const status=document.getElementById('chat-status');if(status)status.textContent='Nova conversa iniciada.';const input=document.getElementById('chat-message');if(input){input.value='';input.focus();}}
+   if(action==='new'){const token=localStorage.getItem('central_ia_session_v1');if(token){fetch('https://central-ia-worker.adryanruan2207.workers.dev/chat/history',{method:'DELETE',headers:{'Authorization':'Bearer '+token}}).catch(()=>{});}document.getElementById('chat-log')?.replaceChildren();const status=document.getElementById('chat-status');if(status)status.textContent='Nova conversa iniciada.';const input=document.getElementById('chat-message');if(input){input.value='';input.focus();}}
    if(action==='resources'){document.getElementById('resource-panel')?.classList.add('open');}
    if(action==='logout'){localStorage.removeItem('central_ia_session_v1');location.reload();}
   });
@@ -2163,7 +2163,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
   add('Permissão de notificações',('Notification'in window)&&Notification.permission==='granted',('Notification'in window)?Notification.permission:'não suportado');
   try{
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),9000);
-   const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/health',{cache:'no-store',signal:controller.signal});
+   const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/health',{cache:'no-store',signal:controller.signal});
    clearTimeout(timeout);const data=await response.json().catch(()=>({}));
    add('Servidor CENTRAL IA',response.ok&&data.status==='online','HTTP '+response.status+' · '+(data.status||'sem status'));
    add('Banco de dados D1',response.ok&&data.database===true,data.database?'vínculo detectado':'não confirmado');
@@ -2172,7 +2172,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
    const token=localStorage.getItem('central_ia_session_v1');
    if(!token)add('Sessão de acesso',false,'token local não encontrado');
    else{
-    const response=await fetch('https://central-ia-worker.adryanru2207.workers.dev/auth/session',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+    const response=await fetch('https://central-ia-worker.adryanruan2207.workers.dev/auth/session',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
     const data=await response.json().catch(()=>({}));
     add('Sessão de acesso',response.ok&&data.authenticated===true,response.ok?'autenticada':'sessão inválida ou expirada');
    }
@@ -2193,7 +2193,7 @@ document.getElementById('copy-diagnostic')?.addEventListener('click',async()=>{
 <script>
 /* Cadastro comercial: usa somente a sessão autenticada e nunca armazena credenciais externas. */
 (()=> {
- const api='https://central-ia-worker.adryanru2207.workers.dev';
+ const api='https://central-ia-worker.adryanruan2207.workers.dev';
  const $=id=>document.getElementById(id);
  const list=$('commerce-accounts-list'), summary=$('commerce-accounts-summary');
  const add=$('commerce-account-add'), refresh=$('commerce-accounts-refresh');
