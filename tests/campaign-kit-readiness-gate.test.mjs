@@ -30,3 +30,8 @@ test("campaign kit returns a conflict before generating or saving a draft when b
   const save = route.indexOf("INSERT INTO publication_queue");
   assert.ok(block > -1 && ai > block && save > ai);
 });
+
+test("campaign readiness explains provider-specific verification gaps without falsely blaming Awin", () => {
+  assert.match(route, /Este programa ainda não possui integração oficial de verificação de comissão na CENTRAL IA/);
+  assert.match(route, /\/awin\/i\.test\(String\(item\.program_name \|\| ""\)\)/);
+});
