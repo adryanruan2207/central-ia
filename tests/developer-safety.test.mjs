@@ -437,7 +437,7 @@ test("publicações idênticas reutilizam registro existente e evitam duplicaç�
 test("painel de afiliados separa comissão estimada de lucro líquido e valor recebido", () => {
   const start = worker.indexOf('if (url.pathname === "/affiliates/shortlist/analyze"');
   assert.notEqual(start, -1);
-  const section = worker.slice(start, start + 11000);
+  const section = worker.slice(start, start + 18000);
   assert.match(section, /estimatedCommissionPerSale/);
   assert.match(section, /estimated_commission_per_sale: estimatedCommissionPerSale/);
   assert.match(section, /actual_commission_received: null/);
