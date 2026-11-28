@@ -6,5 +6,5 @@ const worker = readFileSync(new URL("../worker/src/index.js", import.meta.url), 
 
 test("Awin credentials are sent only in the Authorization header", () => {
   assert.doesNotMatch(worker, /searchParams\.set\(["']accessToken["']/);
-  assert.match(worker, /Authorization:\s*"Bearer "\s*\+\s*env\.AWIN_API_TOKEN/);
+  assert.match(worker, /["']Authorization["']:\s*["']Bearer\s*["']\s*\+\s*env\.AWIN_API_TOKEN/);
 });
