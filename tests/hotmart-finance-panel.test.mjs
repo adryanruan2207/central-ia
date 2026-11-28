@@ -24,3 +24,13 @@ test("Hotmart dashboard separates currency totals and avoids implying bank depos
   assert.match(html, /Os totais são separados por moeda/);
   assert.match(html, /não comprovam saque ou crédito bancário/);
 });
+
+test("Hotmart dashboard follows additional cursors with a bounded refresh budget", () => {
+  assert.match(html, /const maxBatches=5/);
+  assert.match(html, /do\{/);
+  assert.match(html, /query\.set\('page_token',pageToken\)/);
+  assert.match(html, /data\.page_info\?\.next_page_token/);
+  assert.match(html, /aggregate\.get\(currency\)/);
+  assert.match(html, /while\(pageToken&&batchesFetched<maxBatches\)/);
+  assert.match(html, /ainda existem resultados não incluídos/);
+});

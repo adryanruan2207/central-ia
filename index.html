@@ -1327,31 +1327,55 @@ async function loadAwinFinanceSummary(){
  }catch(error){status.textContent='Não foi possível consultar o resumo Awin agora.';}
 }
 async function loadHotmartFinanceSummary(){
- const status=document.getElementById('hotmart-finance-status');
- const totals=document.getElementById('hotmart-finance-totals');
- const period=document.getElementById('hotmart-finance-period');
- if(!status||!totals||!period||!sessionToken)return;
- try{
-  const {data}=await fetchJsonWithRetry('https://central-ia-worker.adryanruan2207.workers.dev/integrations/hotmart/sales-summary',{headers:{'Authorization':'Bearer '+sessionToken,'Cache-Control':'no-cache'}},2);
-  totals.replaceChildren();
-  if(!data.synced){
-   status.textContent=Array.isArray(data.missing)&&data.missing.length?'Hotmart ainda não conectada. Aguardando configuração segura das credenciais no Cloudflare.':(data.error||'A conexão Hotmart ainda não está pronta.');
-   period.textContent='Nenhuma venda ou comissão foi presumida ou contabilizada.';
-   return;
-  }
-  status.textContent='Resumo consultado em '+new Date(data.synced_at).toLocaleString('pt-BR')+'.';
-  const money=(value,currency)=>Number(value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+currency;
-  for(const item of (data.items||[])){
-   const currency=item.total_value?.currency_code||'Moeda não informada';
-   const tile=document.createElement('div');tile.style.cssText='padding:10px;border:1px solid #46598a;border-radius:10px;background:#17213b';
-   const caption=document.createElement('div');caption.style.cssText='font-size:.76rem;color:#c2cce8!important';caption.textContent='Comissões • '+currency;
-   const amount=document.createElement('strong');amount.style.cssText='display:block;margin-top:5px;color:#fff!important';amount.textContent=item.total_value?.value==null?'Valor indisponível':money(item.total_value.value,currency);
-   const count=document.createElement('small');count.style.cssText='display:block;margin-top:4px;color:#c2cce8!important';count.textContent=Number(item.total_items||0)+' transações';
-   tile.append(caption,amount,count);totals.append(tile);
-  }
-  period.textContent='Período: '+data.period.start_date+' até '+data.period.end_date+' UTC. '+(data.accounting_note||'Os totais são separados por moeda e não comprovam saque ou crédito bancário.');
- }catch(error){status.textContent='Não foi possível consultar o resumo Hotmart agora.';}
-}
+  const status=document.getElementById('hotmart-finance-status');
+  const totals=document.getElementById('hotmart-finance-totals');
+  const period=document.getElementById('hotmart-finance-period');
+  if(!status||!totals||!period||!sessionToken)return;
+  try{
+   const endpoint='https://central-ia-worker.adryanruan2207.workers.dev/integrations/hotmart/sales-summary';
+   const aggregate=new Map();
+   let pageToken='';
+   let lastData=null;
+   let batchesFetched=0;
+   const maxBatches=5;
+   do{
+    const query=new URLSearchParams();
+    if(pageToken)query.set('page_token',pageToken);
+    const url=endpoint+(query.size?'?'+query.toString():'');
+    const {data}=await fetchJsonWithRetry(url,{headers:{'Authorization':'Bearer '+sessionToken,'Cache-Control':'no-cache'}},2);
+    lastData=data;
+    if(!data.synced){
+     totals.replaceChildren();
+     status.textContent=Array.isArray(data.missing)&&data.missing.length?'Hotmart ainda não conectada. Aguardando configuração segura das credenciais no Cloudflare.':(data.error||'A conexão Hotmart ainda não está pronta.');
+     period.textContent='Nenhuma venda ou comissão foi presumida ou contabilizada.';
+     return;
+    }
+    for(const item of (data.items||[])){
+     const currency=item.total_value?.currency_code||'';
+     const amount=Number(item.total_value?.value);
+     const count=Number(item.total_items);
+     if(!currency||!Number.isFinite(amount)||!Number.isFinite(count))throw Error('A Hotmart retornou valores incompletos; o painel não exibirá totais parciais.');
+     const current=aggregate.get(currency)||{total_value:0,total_items:0};
+     current.total_value+=amount;current.total_items+=count;aggregate.set(currency,current);
+    }
+    batchesFetched++;
+    pageToken=data.page_info?.has_more&&typeof data.page_info?.next_page_token==='string'?data.page_info.next_page_token:'';
+   }while(pageToken&&batchesFetched<maxBatches);
+   totals.replaceChildren();
+   status.textContent='Resumo consultado em '+new Date(lastData.synced_at).toLocaleString('pt-BR')+'.';
+   const money=(value,currency)=>Number(value||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+currency;
+   for(const [currency,item] of aggregate){
+    const tile=document.createElement('div');tile.style.cssText='padding:10px;border:1px solid #46598a;border-radius:10px;background:#17213b';
+    const caption=document.createElement('div');caption.style.cssText='font-size:.76rem;color:#c2cce8!important';caption.textContent='Comissões • '+currency;
+    const amount=document.createElement('strong');amount.style.cssText='display:block;margin-top:5px;color:#fff!important';amount.textContent=money(item.total_value,currency);
+    const count=document.createElement('small');count.style.cssText='display:block;margin-top:4px;color:#c2cce8!important';count.textContent=item.total_items+' transações';
+    tile.append(caption,amount,count);totals.append(tile);
+   }
+   const stillMore=!!pageToken;
+   if(stillMore)status.textContent+=' Há mais páginas; o painel continuará na próxima atualização automática.';
+   period.textContent='Período: '+lastData.period.start_date+' até '+lastData.period.end_date+' UTC. '+(lastData.accounting_note||'Os totais são separados por moeda e não comprovam saque ou crédito bancário.')+(stillMore?' Foram consultados até '+(batchesFetched*10)+' páginas nesta atualização; ainda existem resultados não incluídos.':' Consulta concluída para todas as páginas retornadas.');
+  }catch(error){status.textContent=error.message||'Não foi possível consultar o resumo Hotmart agora.';}
+ }
 async function refreshAutomaticPanels(){
  if(!sessionToken||document.hidden||autoRefreshBusy)return;
  autoRefreshBusy=true;
