@@ -38,6 +38,56 @@ async function validSession(token, secret) {
   } catch { return false; }
 }
 
+
+let hotmartAccessTokenCache = null;
+
+async function getHotmartAccessToken(env) {
+  const clientId = String(env.HOTMART_CLIENT_ID || "");
+  const clientSecret = String(env.HOTMART_CLIENT_SECRET || "");
+  const basicToken = String(env.HOTMART_BASIC_TOKEN || "");
+  if (!clientId || !clientSecret || !basicToken) {
+    return { ok: false, missing: [
+      !clientId ? "HOTMART_CLIENT_ID" : null,
+      !clientSecret ? "HOTMART_CLIENT_SECRET" : null,
+      !basicToken ? "HOTMART_BASIC_TOKEN" : null
+    ].filter(Boolean) };
+  }
+  if (hotmartAccessTokenCache?.token && hotmartAccessTokenCache.expiresAt > Date.now() + 60_000) {
+    return { ok: true, token: hotmartAccessTokenCache.token, cached: true };
+  }
+  try {
+    const endpoint = new URL("https://api-sec-vlc.hotmart.com/security/oauth/token");
+    endpoint.searchParams.set("grant_type", "client_credentials");
+    endpoint.searchParams.set("client_id", clientId);
+    endpoint.searchParams.set("client_secret", clientSecret);
+    const response = await fetch(endpoint.toString(), {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + basicToken,
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify({}),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) {
+      hotmartAccessTokenCache = null;
+      return { ok: false, status: response.status, error: "A Hotmart recusou a autenticação OAuth." };
+    }
+    const payload = await response.json();
+    const accessToken = typeof payload.access_token === "string" ? payload.access_token : "";
+    const expiresIn = Number(payload.expires_in);
+    if (!accessToken || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+      hotmartAccessTokenCache = null;
+      return { ok: false, status: 502, error: "Resposta OAuth da Hotmart incompleta ou inválida." };
+    }
+    hotmartAccessTokenCache = { token: accessToken, expiresAt: Date.now() + expiresIn * 1000 };
+    return { ok: true, token: accessToken, cached: false };
+  } catch {
+    return { ok: false, status: 502, error: "Falha de comunicação com a autenticação Hotmart." };
+  }
+}
+
 async function record(env, event, details = "") {
   if (!env.DB) return;
   await env.DB.prepare("INSERT INTO activity_log(event, details, created_at) VALUES (?, ?, ?)")
@@ -800,7 +850,7 @@ async function handle(request, env) {
     const affiliateConnections = [
       {id:"amazon",name:"Amazon Associados",keys:["AMAZON_PAAPI_ACCESS_KEY","AMAZON_PAAPI_SECRET_KEY","AMAZON_ASSOCIATES_TAG"]},
       {id:"shopee",name:"Shopee",keys:["SHOPEE_PARTNER_ID","SHOPEE_PARTNER_KEY"]},
-      {id:"hotmart",name:"Hotmart",keys:["HOTMART_CLIENT_ID","HOTMART_CLIENT_SECRET"]},
+      {id:"hotmart",name:"Hotmart",keys:["HOTMART_CLIENT_ID","HOTMART_CLIENT_SECRET","HOTMART_BASIC_TOKEN"]},
       {id:"aliexpress",name:"AliExpress Portals",keys:["ALIEXPRESS_APP_KEY","ALIEXPRESS_APP_SECRET"]},
       {id:"awin",name:"Awin",keys:["AWIN_API_TOKEN","AWIN_PUBLISHER_ID"]},
       {id:"cj",name:"CJ Affiliate",keys:["CJ_API_KEY","CJ_WEBSITE_ID"]},
@@ -1901,6 +1951,28 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
         connection_required: integrations.filter(item => item.status === "connection_required").length
       },
       security: "Somente o estado de configuração é exibido; valores de segredos nunca são retornados."
+    });
+  }
+
+
+  if (url.pathname === "/integrations/hotmart/status" && request.method === "GET") {
+    const credentials = ["HOTMART_CLIENT_ID", "HOTMART_CLIENT_SECRET", "HOTMART_BASIC_TOKEN"];
+    const missing = credentials.filter(key => !env[key]);
+    if (missing.length) return json({ configured: false, connected: false, missing });
+    const authResult = await getHotmartAccessToken(env);
+    if (!authResult.ok) {
+      return json({
+        configured: true, connected: false,
+        error: authResult.error || "Não foi possível validar as credenciais Hotmart.",
+        http_status: authResult.status || null
+      }, authResult.status === 401 || authResult.status === 403 ? 200 : 502);
+    }
+    return json({
+      configured: true, connected: true,
+      authentication: "oauth2_client_credentials",
+      token_cached: authResult.cached,
+      token_expires_at: hotmartAccessTokenCache ? new Date(hotmartAccessTokenCache.expiresAt).toISOString() : null,
+      notice: "Autenticação confirmada. Isso não confirma aprovação como afiliado, vínculo a produtos ou comissões disponíveis."
     });
   }
 
