@@ -1976,6 +1976,94 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     });
   }
 
+  if (url.pathname === "/integrations/hotmart/sales-summary" && request.method === "GET") {
+    const authResult = await getHotmartAccessToken(env);
+    if (!authResult.ok) {
+      return json({
+        configured: !authResult.missing,
+        connected: false,
+        missing: authResult.missing || undefined,
+        error: authResult.error || "Conexão Hotmart ainda não está pronta."
+      }, authResult.missing ? 503 : 502);
+    }
+    const datePattern = /^\\d{4}-\\d{2}-\\d{2}$/;
+    const now = new Date();
+    const defaultEnd = now.toISOString().slice(0, 10);
+    const defaultStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const startDate = url.searchParams.get("start_date") || defaultStart;
+    const endDate = url.searchParams.get("end_date") || defaultEnd;
+    const parseDay = value => {
+      if (!datePattern.test(value)) return null;
+      const parsed = new Date(value + "T00:00:00.000Z");
+      return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? parsed.getTime() : null;
+    };
+    const startMs = parseDay(startDate);
+    const endDayMs = parseDay(endDate);
+    if (startMs === null || endDayMs === null || startMs > endDayMs || endDayMs - startMs > 90 * 24 * 60 * 60 * 1000) {
+      return json({ error: "Informe datas reais em YYYY-MM-DD, com início anterior ao fim e intervalo máximo de 90 dias." }, 400);
+    }
+    const allowedStatuses = ["APPROVED","BLOCKED","CANCELLED","CHARGEBACK","COMPLETE","EXPIRED","NO_FUNDS","OVERDUE","PARTIALLY_REFUNDED","PRE_ORDER","PRINTED_BILLET","PROCESSING_TRANSACTION","PROTESTED","REFUNDED","STARTED","UNDER_ANALISYS","WAITING_PAYMENT"];
+    const transactionStatus = String(url.searchParams.get("transaction_status") || "").toUpperCase();
+    if (transactionStatus && !allowedStatuses.includes(transactionStatus)) {
+      return json({ error: "transaction_status não reconhecido pela API Hotmart." }, 400);
+    }
+    const productId = url.searchParams.get("product_id") || "";
+    if (productId && !/^\\d{7}$/.test(productId)) return json({ error: "product_id deve conter exatamente 7 dígitos." }, 400);
+    try {
+      const endpoint = new URL("https://developers.hotmart.com/payments/api/v1/sales/summary");
+      endpoint.searchParams.set("start_date", String(startMs));
+      endpoint.searchParams.set("end_date", String(endDayMs + 24 * 60 * 60 * 1000 - 1));
+      endpoint.searchParams.set("max_results", "500");
+      if (transactionStatus) endpoint.searchParams.set("transaction_status", transactionStatus);
+      if (productId) endpoint.searchParams.set("product_id", productId);
+      const response = await fetch(endpoint.toString(), {
+        headers: { "Authorization": "Bearer " + authResult.token, "Accept": "application/json" },
+        signal: AbortSignal.timeout(15000)
+      });
+      if (!response.ok) {
+        return json({
+          configured: true, connected: true, synced: false,
+          upstream_status: response.status,
+          error: response.status === 401 ? "A Hotmart recusou o token de acesso; verifique as credenciais OAuth." :
+            response.status === 403 ? "A credencial não tem permissão para consultar o histórico de vendas." :
+            "Não foi possível consultar o resumo de vendas Hotmart."
+        }, 502);
+      }
+      const payload = await response.json();
+      if (!payload || !Array.isArray(payload.items)) {
+        return json({ configured: true, connected: true, synced: false, error: "A resposta da Hotmart veio em formato inesperado; nenhum valor foi contabilizado." }, 502);
+      }
+      const items = payload.items.map(item => ({
+        total_items: Number.isFinite(Number(item.total_items)) ? Number(item.total_items) : 0,
+        total_value: {
+          value: Number.isFinite(Number(item.total_value?.value)) ? Number(item.total_value.value) : null,
+          currency_code: typeof item.total_value?.currency_code === "string" ? item.total_value.currency_code.slice(0, 8) : null
+        }
+      }));
+      const result = {
+        source: "Hotmart Sales Summary API",
+        configured: true, connected: true, synced: true,
+        period: { start_date: startDate, end_date: endDate, timezone: "UTC" },
+        transaction_status_filter: transactionStatus || "APPROVED, COMPLETE (padrão da Hotmart)",
+        product_id: productId || null,
+        items,
+        page_info: payload.page_info && typeof payload.page_info === "object" ? {
+          total_results: Number.isFinite(Number(payload.page_info.total_results)) ? Number(payload.page_info.total_results) : null,
+          results_per_page: Number.isFinite(Number(payload.page_info.results_per_page)) ? Number(payload.page_info.results_per_page) : null
+        } : null,
+        synced_at: new Date().toISOString(),
+        accounting_note: "Valores são totais informados pela Hotmart por moeda. Não some moedas diferentes. Status APPROVED ainda pode estar dentro do prazo de garantia; COMPLETE indica comissão liquidada conforme as regras da plataforma. Isso não comprova saque ou crédito bancário."
+      };
+      await record(env, "hotmart_sales_summary_synced", JSON.stringify({
+        period: result.period, transaction_status_filter: result.transaction_status_filter,
+        product_id: result.product_id, items: result.items, synced_at: result.synced_at
+      }));
+      return json(result);
+    } catch {
+      return json({ configured: true, connected: true, synced: false, error: "Falha de comunicação ao consultar as vendas Hotmart." }, 502);
+    }
+  }
+
   if (url.pathname === "/integrations/awin/status" && request.method === "GET") {
     if (!env.AWIN_API_TOKEN || !env.AWIN_PUBLISHER_ID) {
       return json({ configured: false, connected: false, missing: [!env.AWIN_API_TOKEN ? "AWIN_API_TOKEN" : null, !env.AWIN_PUBLISHER_ID ? "AWIN_PUBLISHER_ID" : null].filter(Boolean) });
