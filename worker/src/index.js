@@ -59,7 +59,6 @@ async function syncAwinTransactionSnapshot(env, nowIso) {
   endpoint.searchParams.set("endDate", fmt(end));
   endpoint.searchParams.set("timezone", "UTC");
   endpoint.searchParams.set("dateType", "transaction");
-  endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
   const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(15000) });
   if (!response.ok) throw new Error("Awin API respondeu HTTP " + response.status);
   const payload = await response.json();
@@ -1913,7 +1912,6 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     try {
       const endpoint = new URL("https://api.awin.com/accounts");
       endpoint.searchParams.set("type", "publisher");
-      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
       const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(12000) });
       if (!response.ok) return json({ configured: true, connected: false, upstream_status: response.status, error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "Token sem permissão para consultar contas Publisher." : "Awin não confirmou a conexão." }, 502);
       const payload = await response.json();
@@ -1947,7 +1945,6 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     try {
       const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/commissiongroups");
       endpoint.searchParams.set("advertiserId", advertiserId);
-      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
       const response = await fetch(endpoint.toString(), {
         headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" },
         signal: AbortSignal.timeout(15000)
@@ -1995,7 +1992,6 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     try {
       const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/commissiongroups");
       endpoint.searchParams.set("advertiserId", advertiserId);
-      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
       const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(15000) });
       if (!response.ok) return json({ error: response.status === 401 ? "Token Awin inválido ou expirado." : response.status === 403 ? "A conta não tem relação ativa ou permissão para esse anunciante." : "Não foi possível consultar as comissões oficiais na Awin.", upstream_status: response.status }, 502);
       const payload = await response.json();
@@ -2021,7 +2017,6 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
     catch { return json({ error: "destination_url deve ser uma URL HTTPS válida." }, 400); }
     try {
       const endpoint = new URL("https://api.awin.com/publishers/" + encodeURIComponent(String(env.AWIN_PUBLISHER_ID)) + "/linkbuilder/generate");
-      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
       const response = await fetch(endpoint.toString(), {
         method: "POST",
         headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Content-Type": "application/json", "Accept": "application/json" },
@@ -2070,7 +2065,6 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       endpoint.searchParams.set("endDate", endDate);
       endpoint.searchParams.set("timezone", "UTC");
       endpoint.searchParams.set("dateType", "transaction");
-      endpoint.searchParams.set("accessToken", env.AWIN_API_TOKEN);
       if (advertiserId) endpoint.searchParams.set("advertiserId", advertiserId);
       if (status) endpoint.searchParams.set("status", status);
       const response = await fetch(endpoint.toString(), { headers: { "Authorization": "Bearer " + env.AWIN_API_TOKEN, "Accept": "application/json" }, signal: AbortSignal.timeout(15000) });
