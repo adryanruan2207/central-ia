@@ -1340,7 +1340,7 @@ Regras obrigatórias de integridade: trate os benefícios e fatos fornecidos com
     const awinVerificationFresh = Boolean(awinCommissionVerification && Number.isFinite(awinVerificationAtMs) && awinVerificationAgeMs >= 0 && awinVerificationAgeMs <= 7 * 86400000);
     const verifiedRate = Number(awinCommissionVerification?.commission_rate);
     const commissionVerified = /awin/i.test(String(item.program_name || "")) && awinVerificationFresh && Number.isFinite(verifiedRate) && commissionValid && Math.abs(verifiedRate - commissionRate) < 0.000001;
-    if (!commissionVerified) blockers.push("Comissão não confirmada recentemente pela API oficial Awin para este programa e esta taxa");
+    if (!commissionVerified) blockers.push(/awin/i.test(String(item.program_name || "")) ? "Comissão não confirmada recentemente pela API oficial Awin para este programa e esta taxa" : "Este programa ainda não possui integração oficial de verificação de comissão na CENTRAL IA; a taxa cadastrada não será tratada como confirmada");
     if (blockers.length) return json({ error: "Campanha bloqueada: " + blockers.join("; ") + ". Corrija os requisitos antes de gerar material promocional.", blockers }, 409);
     if (!env.AI) return json({ error: "Workers AI ainda não está vinculado." }, 503);
     let affiliateHost = "";
@@ -1515,7 +1515,7 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       if (!commissionSourceValid) blockers.push("URL da fonte oficial da comissão ausente ou inválida");
       if (!item.affiliate_program_id) blockers.push("Programa de afiliados não vinculado");
       else if (item.program_status !== "approved") blockers.push("Programa ainda não está marcado como aprovado");
-      if (!commissionVerified) blockers.push("Comissão não confirmada recentemente pela API oficial Awin para este programa e esta taxa");
+      if (!commissionVerified) blockers.push(/awin/i.test(String(item.program_name || "")) ? "Comissão não confirmada recentemente pela API oficial Awin para este programa e esta taxa" : "Este programa ainda não possui integração oficial de verificação de comissão na CENTRAL IA; a taxa cadastrada não será tratada como confirmada");
       const ready = blockers.length === 0;
       return {
         id: item.id, name: item.name, marketplace: item.marketplace, affiliate_program_id: item.affiliate_program_id || null,
@@ -1784,9 +1784,9 @@ Regras: não invente preço, desconto, estoque, avaliações, vendas, especifica
       const verifiedRate = Number(awinCommissionVerification?.commission_rate);
       const commissionVerified = /awin/i.test(String(item.program_name || "")) && awinVerificationFresh && Number.isFinite(verifiedRate) && commissionValid && Math.abs(verifiedRate - commissionRate) < 0.000001;
       if (!commissionSourceValid) flags.push("Fonte oficial da comissão ausente");
-      if (!commissionVerified) flags.push("Comissão ainda não confirmada recentemente pela API oficial Awin para este programa e esta taxa");
+      if (!commissionVerified) flags.push(/awin/i.test(String(item.program_name || "")) ? "Comissão ainda não confirmada recentemente pela API oficial Awin para este programa e esta taxa" : "Este programa ainda não possui integração oficial de verificação de comissão na CENTRAL IA; a taxa cadastrada não será tratada como confirmada");
       if (item.program_status !== "approved") flags.push("Programa de afiliados não está aprovado");
-      flags.push("Fonte e taxa informadas ainda precisam de conferência no painel oficial");
+      if (!commissionVerified) flags.push("Fonte e taxa informadas ainda precisam de conferência no painel oficial");
       flags.push("Lucro líquido não calculado: faltam custos, impostos, devoluções e dados de conversão");
       flags.push("Comissão estimada não significa comissão aprovada, paga ou recebida");
       let priority = "Coletar mais dados";
